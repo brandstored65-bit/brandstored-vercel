@@ -2,7 +2,7 @@
 import { useEffect } from "react";
 import { trackMetaEvent } from "@/lib/metaPixelClient";
 
-export default function FbqInitiateCheckout({ value = 0, currency = 'INR', contentIds = [], numItems = 0 }) {
+export default function FbqInitiateCheckout({ value = 0, currency = 'AED', contentIds = [], numItems = 0 }) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 

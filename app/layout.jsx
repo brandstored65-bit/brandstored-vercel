@@ -2,7 +2,6 @@ import { Outfit } from "next/font/google";
 import "./globals.css";
 import Script from "next/script";
 import React from "react";
-import MetaPixel from "@/components/MetaPixel";
 import SocialProofPopup from "@/components/SocialProofPopup";
 import ClientLayout from "./ClientLayout";
 
@@ -48,15 +47,35 @@ export default function RootLayout({ children }) {
           </>
         )}
         {/* Google Tag Manager - HEAD */}
-        <Script id="gtm-head" strategy="afterInteractive">
-          {`
-            (function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
-            new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
-            j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
-            'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
-            })(window,document,'script','dataLayer','GTM-5QLZ2255');
-          `}
-        </Script>
+        <Script
+          id="gtm-head"
+          strategy="beforeInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `(function(w,d,s,l,i){w[l]=w[l]||[];w[l].push({'gtm.start':
+new Date().getTime(),event:'gtm.js'});var f=d.getElementsByTagName(s)[0],
+j=d.createElement(s),dl=l!='dataLayer'?'&l='+l:'';j.async=true;j.src=
+'https://www.googletagmanager.com/gtm.js?id='+i+dl;f.parentNode.insertBefore(j,f);
+})(window,document,'script','dataLayer','GTM-T5QQK8ZT');`,
+          }}
+        />
+        <Script
+          id="meta-pixel"
+          strategy="afterInteractive"
+          dangerouslySetInnerHTML={{
+            __html: `
+              !function(f,b,e,v,n,t,s)
+              {if(f.fbq)return;n=f.fbq=function(){n.callMethod?
+              n.callMethod.apply(n,arguments):n.queue.push(arguments)};
+              if(!f._fbq)f._fbq=n;n.push=n;n.loaded=!0;n.version='2.0';
+              n.queue=[];t=b.createElement(e);t.async=!0;
+              t.src=v;s=b.getElementsByTagName(e)[0];
+              s.parentNode.insertBefore(t,s)}(window, document,'script',
+              'https://connect.facebook.net/en_US/fbevents.js');
+              fbq('init', '1846307312483433');
+              fbq('track', 'PageView');
+            `,
+          }}
+        />
         {/* Tawk.to Chat Widget - DISABLED */}
         {/* <Script id="tawk-to" strategy="lazyOnload">
           {`
@@ -73,11 +92,10 @@ export default function RootLayout({ children }) {
         </Script> */}
       </head>
       <body className={`${outfit.className} antialiased`} suppressHydrationWarning>
-        <MetaPixel />
         {/* Google Tag Manager (noscript required for browsers with JS disabled) */}
         <noscript>
           <iframe
-            src="https://www.googletagmanager.com/ns.html?id=GTM-5QLZ2255"
+            src="https://www.googletagmanager.com/ns.html?id=GTM-T5QQK8ZT"
             height="0"
             width="0"
             style={{ display: "none", visibility: "hidden" }}

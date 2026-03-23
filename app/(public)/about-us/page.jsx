@@ -1,3 +1,5 @@
+'use client'
+
 export default function AboutUsPage() {
   return (
     <div className="bg-gray-50 max-w-[1450px] mx-auto">
@@ -67,24 +69,4 @@ export default function AboutUsPage() {
       </div>
     </div>
   )
-}
-          {faqs.map((item, index) => (
-            <details
-              key={index}
-              className="group rounded-xl border border-gray-200 bg-white px-4 py-3 cursor-pointer transition hover:border-sky-300"
-            >
-              <summary className="flex items-center justify-between gap-3 list-none">
-                <span className="text-sm font-medium text-gray-900">
-                  {item.q}
-                </span>
-                <span className="text-xs text-gray-500 group-open:hidden">+</span>
-                <span className="text-xs text-gray-500 hidden group-open:inline">−</span>
-              </summary>
-              <p className="text-xs sm:text-sm text-gray-700 mt-2">{item.a}</p>
-            </details>
-          ))}
-        </div>
-      </section>
-    </div>
-  );
 }

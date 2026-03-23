@@ -6,8 +6,8 @@ export default function CancellationAndRefunds() {
       <p className="mb-4">
         This Cancellation & Refund Policy applies to all purchases made on
         <strong> brandstored.com</strong>, which is owned and operated by
-        <strong> Nilaas</strong>. QuickFynd is an e-commerce platform delivering
-        products across Kerala, India.
+        <strong> Brandstored</strong>. Brandstored is a UAE-based e-commerce
+        platform delivering products across the United Arab Emirates.
       </p>
 
       <h2 className="text-xl font-semibold mt-6 mb-2">1. Order Cancellation</h2>
@@ -62,8 +62,8 @@ export default function CancellationAndRefunds() {
         checkout.
       </p>
       <ul className="list-disc pl-6 mb-4">
-        <li>UPI / Wallet</li>
-        <li>Net Banking</li>
+        <li>Card payments</li>
+        <li>Wallet / Bank transfer</li>
         <li>Credit / Debit Cards</li>
         <li>COD refunds will be transferred to the customer’s bank account</li>
       </ul>
@@ -86,7 +86,7 @@ export default function CancellationAndRefunds() {
       </p>
 
       <p className="mb-1">
-        <strong>Business Name:</strong> Nilaas
+        <strong>Business Name:</strong> Brandstored
       </p>
       <p className="mb-1">
         <strong>Email:</strong> support@brandstored.com
@@ -96,8 +96,8 @@ export default function CancellationAndRefunds() {
       </p>
 
       <p className="text-sm text-gray-600 mt-6">
-        Nilaas reserves the right to modify or update this policy at any time in
-        accordance with operational or regulatory requirements.
+        Brandstored reserves the right to modify or update this policy at any
+        time in accordance with operational or regulatory requirements in the UAE.
       </p>
     </div>
   );

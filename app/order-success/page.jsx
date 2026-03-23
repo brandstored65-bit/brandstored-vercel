@@ -92,23 +92,16 @@ function OrderSuccessContent() {
       // Prevent duplicate browser Purchase events (StrictMode/re-renders/back navigation)
       if (sessionStorage.getItem(purchaseEventKey)) return;
 
-      // Get attribution data if available (from ads)
-      const attributionData = window.attributionData || {};
-      
       window.fbq('track', 'Purchase', {
         value: total,
-        currency: currency,
-        eventID: `purchase_${orderEventId}`,
-        // Include attribution parameters for ad tracking
-        utm_source: attributionData.utm_source || 'organic',
-        utm_medium: attributionData.utm_medium || 'direct',
-        utm_campaign: attributionData.utm_campaign || 'none',
-        utm_id: attributionData.utm_id || null
+        currency: 'AED',
+        content_type: 'product',
+        order_id: orderEventId
       });
 
       sessionStorage.setItem(purchaseEventKey, '1');
     }
-  }, [order, total, currency, params]);
+  }, [order, total, params]);
 
   // Render logic moved inside returned JSX to avoid early returns
   return (

@@ -29,12 +29,16 @@ function InitializeApp({ children }) {
             console.log('[ClientLayout] Loaded', data.length, 'products');
           }
         } catch (error) {
+          const status = error?.response?.status;
           const serverDetails = error?.response?.data;
-          if (serverDetails) {
-            console.error('[ClientLayout] Failed to load products:', serverDetails);
-          } else {
-            console.error('[ClientLayout] Failed to load products:', error);
-          }
+          const message =
+            serverDetails?.details ||
+            serverDetails?.error ||
+            error?.message ||
+            'Unknown error';
+          console.error(
+            `[ClientLayout] Failed to load products${status ? ` (status ${status})` : ''}: ${message}`
+          );
         }
       };
       loadProducts();

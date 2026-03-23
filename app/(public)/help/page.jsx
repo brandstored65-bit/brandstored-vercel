@@ -27,7 +27,7 @@ export default function HelpPage() {
         answer: 'Go to the login page and click "Forgot Password?". Enter your email, and we\'ll send you a link to reset your password within minutes.'
       },
       {
-        question: 'Can I use QuickFynd without an account?',
+        question: 'Can I use Brandstored without an account?',
         answer: 'You can browse products without an account, but you need to create one to make a purchase or track orders.'
       }
     ],

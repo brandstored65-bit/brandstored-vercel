@@ -711,7 +711,7 @@ export default function CheckoutPage() {
 
     trackMetaEvent('AddPaymentInfo', {
       value: Number(totalAfterWallet || 0),
-      currency: 'INR',
+      currency: 'AED',
       content_type: 'product',
       content_ids: contentIds,
       num_items: cartArray.reduce((sum, item) => sum + Number(item?.quantity || 0), 0),
@@ -1468,7 +1468,7 @@ export default function CheckoutPage() {
     <>
       <FbqInitiateCheckout
         value={totalAfterWallet}
-        currency="INR"
+        currency="AED"
         contentIds={cartArray.map((item) => String(item?._id || item?._cartKey || '')).filter(Boolean)}
         numItems={cartArray.reduce((sum, item) => sum + Number(item?.quantity || 0), 0)}
       />

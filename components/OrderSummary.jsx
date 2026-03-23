@@ -9,11 +9,6 @@ import toast from 'react-hot-toast';
 import { useRouter } from 'next/navigation';
 import axios from 'axios';
 import { clearCart, fetchCart } from '@/lib/features/cart/cartSlice';
-// Kerala districts for dropdown
-const KERALA_DISTRICTS = [
-    'Alappuzha', 'Ernakulam', 'Idukki', 'Kannur', 'Kasaragod', 'Kollam', 'Kottayam',
-    'Kozhikode', 'Malappuram', 'Palakkad', 'Pathanamthitta', 'Thiruvananthapuram', 'Thrissur', 'Wayanad'
-];
 
 import { addAddress } from '@/lib/features/address/addressSlice';
 import countryList from 'react-select-country-list';
@@ -47,12 +42,12 @@ const OrderSummary = ({ totalPrice, items }) => {
     const [guestInfo, setGuestInfo] = useState({
         name: '',
         email: '',
-        phone: '+91',
+        phone: '',
         address: '',
-        district: '',
-        state: 'Kerala',
+        city: '',
+        state: '',
         pincode: '',
-        country: 'India'
+        country: 'United Arab Emirates'
     });
 
     // Shipping settings (defaults mirror prior behavior)
@@ -184,9 +179,8 @@ const OrderSummary = ({ totalPrice, items }) => {
                 if (!guestInfo.email) missingFields.push('Email');
                 if (!guestInfo.phone) missingFields.push('Phone');
                 if (!guestInfo.address) missingFields.push('Address');
-                if (!guestInfo.district) missingFields.push('District');
+                if (!guestInfo.city) missingFields.push('City');
                 if (!guestInfo.state) missingFields.push('State');
-                if (!guestInfo.pincode) missingFields.push('PIN Code');
                 if (!guestInfo.country) missingFields.push('Country');
                 if (missingFields.length > 0) {
                     return toast.error(`Please fill: ${missingFields.join(', ')}`);
@@ -198,7 +192,7 @@ const OrderSummary = ({ totalPrice, items }) => {
                     guestInfo: {
                         ...guestInfo,
                         street: guestInfo.address,
-                        city: guestInfo.district || guestInfo.city || guestInfo.state,
+                        city: guestInfo.city || guestInfo.state,
                     }
                 };
 
@@ -250,7 +244,7 @@ const OrderSummary = ({ totalPrice, items }) => {
                     name: guestInfo.name,
                     email: guestInfo.email,
                     street: guestInfo.address,
-                    district: guestInfo.district,
+                    city: guestInfo.city,
                     state: guestInfo.state,
                     pincode: guestInfo.pincode,
                     country: guestInfo.country,
@@ -404,7 +398,7 @@ const OrderSummary = ({ totalPrice, items }) => {
         <div className='w-full bg-white rounded-lg shadow-sm border border-gray-200 p-5'>
             <h2 className='text-lg font-bold text-gray-900 mb-4 uppercase'>Order Summary</h2>
             
-            {/* Show shipping address section only for logged-in users (India only) */}
+            {/* Show shipping address section only for logged-in users */}
             {isSignedIn && (
                 <div className='my-4 pb-4 border-b border-slate-200'>
                     <p className='text-slate-600 font-medium mb-3'>Shipping Address</p>
@@ -497,39 +491,34 @@ const OrderSummary = ({ totalPrice, items }) => {
                                 rows="2"
                                 className='border border-slate-300 p-2.5 w-full rounded-lg outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm resize-none'
                             />
-                            <select
-                                value={guestInfo.district}
-                                onChange={e => setGuestInfo({ ...guestInfo, district: e.target.value })}
-                                className='border border-slate-300 p-2.5 w-full rounded-lg outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm'
-                                required
-                            >
-                                <option value="">Select District *</option>
-                                {KERALA_DISTRICTS.map(d => (
-                                    <option key={d} value={d}>{d}</option>
-                                ))}
-                            </select>
-                            <select
-                                value={guestInfo.state}
-                                disabled
-                                className='border border-slate-300 p-2.5 w-full rounded-lg outline-none bg-gray-100 text-sm'
-                            >
-                                <option value="Kerala">Kerala</option>
-                            </select>
                             <input
                                 type="text"
-                                placeholder="PIN Code *"
-                                value={guestInfo.pincode}
-                                onChange={e => {
-                                    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-                                    setGuestInfo({...guestInfo, pincode: value});
-                                }}
-                                maxLength={6}
-                                pattern="[0-9]{6}"
+                                placeholder="City *"
+                                value={guestInfo.city}
+                                onChange={e => setGuestInfo({ ...guestInfo, city: e.target.value })}
                                 className='border border-slate-300 p-2.5 w-full rounded-lg outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm'
                             />
                             <input
                                 type="text"
-                                placeholder="Country *"
+                                placeholder="State / Emirate *"
+                                value={guestInfo.state}
+                                onChange={e => setGuestInfo({ ...guestInfo, state: e.target.value })}
+                                className='border border-slate-300 p-2.5 w-full rounded-lg outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm'
+                            />
+                            <input
+                                type="text"
+                                placeholder="Postal Code (Optional)"
+                                value={guestInfo.pincode}
+                                onChange={e => {
+                                    const value = e.target.value.slice(0, 20);
+                                    setGuestInfo({...guestInfo, pincode: value});
+                                }}
+                                maxLength={20}
+                                className='border border-slate-300 p-2.5 w-full rounded-lg outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm'
+                            />
+                            <input
+                                type="text"
+                                placeholder="Country"
                                 value={guestInfo.country}
                                 readOnly
                                 className='border border-slate-300 p-2.5 w-full rounded-lg outline-none bg-gray-100 text-sm'
@@ -578,39 +567,34 @@ const OrderSummary = ({ totalPrice, items }) => {
                                 rows="2"
                                 className='border border-slate-300 p-2.5 w-full rounded-lg outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm resize-none'
                             />
-                            <select
-                                value={guestInfo.district}
-                                onChange={e => setGuestInfo({ ...guestInfo, district: e.target.value })}
-                                className='border border-slate-300 p-2.5 w-full rounded-lg outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm'
-                                required
-                            >
-                                <option value="">Select District *</option>
-                                {KERALA_DISTRICTS.map(d => (
-                                    <option key={d} value={d}>{d}</option>
-                                ))}
-                            </select>
-                            <select
-                                value={guestInfo.state}
-                                disabled
-                                className='border border-slate-300 p-2.5 w-full rounded-lg outline-none bg-gray-100 text-sm'
-                            >
-                                <option value="Kerala">Kerala</option>
-                            </select>
                             <input
                                 type="text"
-                                placeholder="PIN Code *"
-                                value={guestInfo.pincode}
-                                onChange={e => {
-                                    const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-                                    setGuestInfo({...guestInfo, pincode: value});
-                                }}
-                                maxLength={6}
-                                pattern="[0-9]{6}"
+                                placeholder="City *"
+                                value={guestInfo.city}
+                                onChange={e => setGuestInfo({ ...guestInfo, city: e.target.value })}
                                 className='border border-slate-300 p-2.5 w-full rounded-lg outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm'
                             />
                             <input
                                 type="text"
-                                placeholder="Country *"
+                                placeholder="State / Emirate *"
+                                value={guestInfo.state}
+                                onChange={e => setGuestInfo({ ...guestInfo, state: e.target.value })}
+                                className='border border-slate-300 p-2.5 w-full rounded-lg outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm'
+                            />
+                            <input
+                                type="text"
+                                placeholder="Postal Code (Optional)"
+                                value={guestInfo.pincode}
+                                onChange={e => {
+                                    const value = e.target.value.slice(0, 20);
+                                    setGuestInfo({...guestInfo, pincode: value});
+                                }}
+                                maxLength={20}
+                                className='border border-slate-300 p-2.5 w-full rounded-lg outline-none focus:border-orange-500 focus:ring-1 focus:ring-orange-500 text-sm'
+                            />
+                            <input
+                                type="text"
+                                placeholder="Country"
                                 value={guestInfo.country}
                                 readOnly
                                 className='border border-slate-300 p-2.5 w-full rounded-lg outline-none bg-gray-100 text-sm'

@@ -7,7 +7,7 @@ export default function PaymentAndPricingPolicyPage() {
         <h1 className="text-3xl font-bold text-gray-900 mb-2">Payment & Pricing Policy</h1>
         <p className="text-gray-600 mb-8">
           Details about accepted payment methods, pricing, taxes, billing, and security for purchases made on
-          brandstored.com (A Nilaas Brand).
+          brandstored.com in the UAE.
         </p>
 
         <div className="space-y-6 bg-white border border-gray-200 rounded-xl p-6">
@@ -16,38 +16,37 @@ export default function PaymentAndPricingPolicyPage() {
           <section>
             <h2 className="font-semibold text-gray-900 mb-2">1. Accepted Payment Methods</h2>
             <p className="text-gray-700 mb-3">
-              QuickFynd supports multiple secure payment options to ensure a smooth checkout experience.
+              Brandstored supports multiple secure payment options to ensure a smooth checkout experience.
             </p>
             <ul className="list-disc pl-6 text-gray-700 space-y-1">
-              <li>UPI (Google Pay, PhonePe, Paytm, etc.)</li>
-              <li>Credit & Debit Cards (Visa, MasterCard, Rupay)</li>
-              <li>Net Banking – All major banks</li>
+              <li>Credit & Debit Cards (Visa, MasterCard, and supported cards)</li>
+              <li>Secure online card checkout</li>
               <li>Wallet Payments (where supported)</li>
-              <li>Cash on Delivery (COD) – Selected locations in Kerala</li>
+              <li>Cash on Delivery (COD) – Selected locations in UAE</li>
             </ul>
-            <p className="text-gray-700 mt-3">All online payments are processed securely through trusted Indian payment gateways.</p>
+            <p className="text-gray-700 mt-3">All online payments are processed securely through trusted payment gateways.</p>
           </section>
 
           {/* 2. Pricing & Promotions */}
           <section>
             <h2 className="font-semibold text-gray-900 mb-2">2. Pricing & Promotions</h2>
             <p className="text-gray-700 mb-3">
-              All prices on brandstored.com are displayed in INR. Product prices may vary based on availability,
+              All prices on brandstored.com are displayed in AED. Product prices may vary based on availability,
               location, offers, or stock conditions.
             </p>
             <ul className="list-disc pl-6 text-gray-700 space-y-1">
               <li>Final price (including delivery charges) is shown at checkout.</li>
               <li>Promotional or discounted prices are valid only during the offer period.</li>
-              <li>QuickFynd reserves the right to update prices at any time based on market conditions.</li>
+              <li>Brandstored reserves the right to update prices at any time based on market conditions.</li>
             </ul>
           </section>
 
           {/* 3. Taxes & Duties */}
           <section>
-            <h2 className="font-semibold text-gray-900 mb-2">3. Taxes & GST</h2>
+            <h2 className="font-semibold text-gray-900 mb-2">3. Taxes & Applicable Charges</h2>
             <p className="text-gray-700">
-              All applicable GST is included in the displayed product price unless stated otherwise.  
-              Additional taxes or charges (if any) will be shown clearly during checkout before payment.
+              All applicable taxes and statutory charges are included or shown as applicable during checkout unless stated otherwise.
+              Additional charges (if any) will be displayed clearly before payment.
             </p>
           </section>
 
@@ -86,8 +85,8 @@ export default function PaymentAndPricingPolicyPage() {
               Refunds are always processed using the same payment method used during the original purchase.
             </p>
             <ul className="list-disc pl-6 text-gray-700 space-y-1">
-              <li>UPI / Wallet Refund: 1–3 business days</li>
-              <li>Credit/Debit Card / Net Banking: 3–7 business days</li>
+              <li>Wallet Refund: 1–3 business days</li>
+              <li>Credit/Debit Card Refund: 3–7 business days</li>
               <li>COD Refund: To customer's bank account</li>
             </ul>
           </section>

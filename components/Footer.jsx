@@ -46,7 +46,7 @@ const Footer = () => {
             ]
         },
         {
-            title: "ABOUT QUICKFYND",
+            title: "ABOUT BRANDSTORED",
             links: [
                 { text: "About Us", path: '/about-us', icon: null },
                 { text: "Create Your Store", path: '/create-store', icon: null },
@@ -71,7 +71,7 @@ const Footer = () => {
                         <Link href="/" className="inline-block mb-4">
                             <Image
                                 src={Logo}
-                                alt="Quickfynd Logo"
+                                alt="Brandstored Logo"
                                 width={160}
                                 height={40}
                                 className="object-contain"
@@ -91,7 +91,7 @@ const Footer = () => {
                             </div>
                             <div className="flex items-center gap-2 text-sm">
                                 <MapPinIcon />
-                                <span className="text-slate-400">kerala</span>
+                                <span className="text-slate-400">United Arab Emirates</span>
                             </div>
                         </div>
                         {/* Social Icons removed from brand section to avoid duplication */}
@@ -133,7 +133,7 @@ const Footer = () => {
                             ))}
                         </div>
                     <p className="text-sm text-slate-500 text-center w-full">
-  © {new Date().getFullYear()} QuickFynd. All rights reserved.
+    © {new Date().getFullYear()} Brandstored. All rights reserved.
 </p>
 
                     </div>
