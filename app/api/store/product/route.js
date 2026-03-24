@@ -91,6 +91,7 @@ export async function POST(request) {
         const attributesRaw = formData.get("attributes"); // optional JSON of attribute definitions
         // Fast delivery toggle
         const fastDelivery = String(formData.get("fastDelivery") || "false").toLowerCase() === "true";
+        const freeShippingEligible = String(formData.get("freeShippingEligible") || "false").toLowerCase() === "true";
         const imageAspectRatio = formData.get("imageAspectRatio") || "1:1";
 
         // Base pricing (used when no variants)
@@ -226,6 +227,7 @@ export async function POST(request) {
             attributes,
             inStock,
             fastDelivery,
+            freeShippingEligible,
             imageAspectRatio,
             stockQuantity,
             storeId,
@@ -361,6 +363,7 @@ export async function PUT(request) {
         const AED = formData.get("AED") ? Number(formData.get("AED")) : undefined;
         const price = formData.get("price") ? Number(formData.get("price")) : undefined;
         const fastDelivery = String(formData.get("fastDelivery") || "").toLowerCase() === "true";
+        const freeShippingEligible = String(formData.get("freeShippingEligible") || "").toLowerCase() === "true";
         const imageAspectRatioRaw = formData.get("imageAspectRatio");
         let slug = formData.get("slug")?.toString().trim() || "";
         if (slug) {
@@ -472,6 +475,7 @@ export async function PUT(request) {
             attributes,
             inStock,
             fastDelivery,
+            freeShippingEligible,
             imageAspectRatio,
         };
 

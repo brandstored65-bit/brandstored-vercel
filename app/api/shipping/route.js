@@ -39,6 +39,7 @@ export async function GET(request) {
         baseWeightFee: 0,
         additionalWeightFee: 0,
         freeShippingMin: 0,
+        enableProductSpecificFreeShipping: false,
         localDeliveryFee: null,
         regionalDeliveryFee: null,
         estimatedDays: "3-5",
@@ -111,6 +112,7 @@ export async function PUT(request) {
       additionalWeightFee: Number(body.additionalWeightFee ?? 2),
       // Free Shipping
       freeShippingMin: Number(body.freeShippingMin ?? 499),
+      enableProductSpecificFreeShipping: Boolean(body.enableProductSpecificFreeShipping ?? false),
       // Regional
       localDeliveryFee: body.localDeliveryFee ? Number(body.localDeliveryFee) : null,
       regionalDeliveryFee: body.regionalDeliveryFee ? Number(body.regionalDeliveryFee) : null,

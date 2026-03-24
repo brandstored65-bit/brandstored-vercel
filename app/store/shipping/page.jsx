@@ -27,6 +27,7 @@ export default function StoreShippingSettings() {
     baseWeightFee: 5,
     additionalWeightFee: 2,
     freeShippingMin: 499,
+    enableProductSpecificFreeShipping: false,
     localDeliveryFee: '',
     regionalDeliveryFee: '',
     stateCharges: [],
@@ -58,6 +59,7 @@ export default function StoreShippingSettings() {
             baseWeightFee: Number(data.setting.baseWeightFee || 5),
             additionalWeightFee: Number(data.setting.additionalWeightFee || 2),
             freeShippingMin: Number(data.setting.freeShippingMin || 499),
+            enableProductSpecificFreeShipping: Boolean(data.setting.enableProductSpecificFreeShipping),
             localDeliveryFee: data.setting.localDeliveryFee ? Number(data.setting.localDeliveryFee) : '',
             regionalDeliveryFee: data.setting.regionalDeliveryFee ? Number(data.setting.regionalDeliveryFee) : '',
             stateCharges: Array.isArray(data.setting.stateCharges)
@@ -255,6 +257,18 @@ export default function StoreShippingSettings() {
                   </div>
                   <p className='text-xs text-slate-500 mt-2'>Orders at or above this amount get free shipping</p>
                 </div>
+                <label className='mt-4 flex items-start gap-3 cursor-pointer'>
+                  <input
+                    type='checkbox'
+                    checked={form.enableProductSpecificFreeShipping}
+                    onChange={(e) => setForm((s) => ({ ...s, enableProductSpecificFreeShipping: e.target.checked }))}
+                    className='mt-1 w-5 h-5 accent-slate-700'
+                  />
+                  <div>
+                    <span className='text-sm font-medium text-slate-700'>Enable product-specific free shipping</span>
+                    <p className='text-xs text-slate-500 mt-1'>When enabled, any product marked for free shipping will make the order shipping free for that product selection.</p>
+                  </div>
+                </label>
               </div>
             )}
 

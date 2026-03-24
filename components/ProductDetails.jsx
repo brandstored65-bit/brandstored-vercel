@@ -74,6 +74,11 @@ const ProductDetails = ({ product, reviews = [], hideTitle = false, offerData = 
   }, [product?._id, product?.name, product?.title, product?.price]);
 
   useEffect(() => {
+    router.prefetch('/checkout');
+    router.prefetch('/cart');
+  }, [router]);
+
+  useEffect(() => {
     const fetchReviews = async () => {
       try {
         setLoadingReviews(true);
@@ -437,13 +442,12 @@ const ProductDetails = ({ product, reviews = [], hideTitle = false, offerData = 
       }
       // Go directly to checkout (guests can checkout there)
       router.push('/checkout');
+      setIsOrderingNow(false);
     } catch (error) {
       console.error('Order now failed:', error);
       setIsOrderingNow(false);
       return;
     }
-
-    setTimeout(() => setIsOrderingNow(false), 3000);
   };
 
   const handleAddToCart = async () => {

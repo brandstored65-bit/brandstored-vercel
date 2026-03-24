@@ -16,7 +16,7 @@ export async function POST(req) {
         }
 
         const products = await Product.find({ _id: { $in: productIds } })
-            .select('name slug price mrp AED images category categories inStock fastDelivery imageAspectRatio shortDescription sku hasVariants variants allowReturn allowReplacement')
+            .select('name slug price mrp AED images category categories inStock fastDelivery freeShippingEligible imageAspectRatio shortDescription sku hasVariants variants allowReturn allowReplacement')
             .lean();
 
         // Preserve order of productIds in response
