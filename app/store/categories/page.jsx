@@ -10,6 +10,19 @@ import Loading from '@/components/Loading';
 
 const MAX_CATEGORIES = 10;
 
+function slugify(text = '') {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
+function buildCategoryUrl(name = '') {
+  const slug = slugify(name);
+  return slug ? `/shop?category=${slug}` : '/shop';
+}
+
 export default function StoreCategoryMenu() {
   const { user, getToken } = useAuth();
   const [categories, setCategories] = useState([]);
@@ -80,8 +93,8 @@ export default function StoreCategoryMenu() {
   const handleSave = async (e) => {
     e.preventDefault();
     
-    if (!formData.name || !formData.url) {
-      toast.error('Name and URL are required');
+    if (!formData.name?.trim()) {
+      toast.error('Category name is required');
       return;
     }
 
@@ -98,24 +111,31 @@ export default function StoreCategoryMenu() {
       // Upload image if new file selected
       if (imageFile) {
         const uploadFormData = new FormData();
-        uploadFormData.append('file', imageFile);
+        uploadFormData.append('files', imageFile);
         const uploadRes = await axios.post('/api/upload', uploadFormData, {
           headers: {
             'Content-Type': 'multipart/form-data',
             Authorization: `Bearer ${token}`,
           },
         });
-        imageUrl = uploadRes.data.url;
+        imageUrl = uploadRes.data?.urls?.[0] || '';
       }
+
+      if (!imageUrl) {
+        toast.error('Failed to upload image');
+        return;
+      }
+
+      const generatedUrl = buildCategoryUrl(formData.name);
 
       let updatedCategories;
       if (editingIdx !== null) {
         // Update existing category
         updatedCategories = [...categories];
         updatedCategories[editingIdx] = {
-          name: formData.name,
+          name: formData.name.trim(),
           image: imageUrl,
-          url: formData.url,
+          url: generatedUrl,
         };
         toast.success('Category updated!');
       } else {
@@ -123,9 +143,9 @@ export default function StoreCategoryMenu() {
         updatedCategories = [
           ...categories,
           {
-            name: formData.name,
+            name: formData.name.trim(),
             image: imageUrl,
-            url: formData.url,
+            url: generatedUrl,
           },
         ];
         toast.success('Category added!');
@@ -139,7 +159,7 @@ export default function StoreCategoryMenu() {
       setCategories(updatedCategories);
       handleCancel();
     } catch (error) {
-      toast.error('Failed to save category');
+      toast.error(error?.response?.data?.error || 'Failed to save category');
       console.error(error);
     } finally {
       setUploading(false);
@@ -348,15 +368,11 @@ export default function StoreCategoryMenu() {
                     {/* URL Field */}
                     <div>
                       <label className="block text-sm font-bold text-slate-700 mb-3 uppercase tracking-wide">
-                        Category URL *
+                        Category URL (auto-generated)
                       </label>
-                      <input
-                        type="text"
-                        value={formData.url}
-                        onChange={(e) => setFormData(prev => ({ ...prev, url: e.target.value }))}
-                        placeholder="e.g., /shop?category=women-s-fashion"
-                        className="w-full px-5 py-3 border-2 border-slate-200 rounded-xl focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none transition text-slate-900 placeholder-slate-400"
-                      />
+                      <div className="w-full px-5 py-3 border-2 border-slate-200 rounded-xl bg-slate-50 text-slate-600">
+                        {buildCategoryUrl(formData.name)}
+                      </div>
                     </div>
 
                     {/* Image Upload */}

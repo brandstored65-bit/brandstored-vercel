@@ -3,6 +3,19 @@ import StoreMenu from '@/models/StoreMenu';
 import { getAuth } from '@/lib/firebase-admin';
 import { NextResponse } from 'next/server';
 
+function slugify(text = '') {
+  return text
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/(^-|-$)/g, '');
+}
+
+function buildCategoryUrl(name = '') {
+  const slug = slugify(name);
+  return slug ? `/shop?category=${slug}` : '/shop';
+}
+
 function parseAuthHeader(req) {
   const auth = req.headers.get('authorization') || req.headers.get('Authorization');
   if (!auth) return null;
@@ -63,11 +76,17 @@ export async function POST(request) {
       );
     }
 
+    const normalizedCategories = categories.map((category) => ({
+      ...category,
+      name: (category?.name || '').trim(),
+      url: category?.url || buildCategoryUrl(category?.name || ''),
+    }));
+
     const storeMenu = await StoreMenu.findOneAndUpdate(
       { storeId: userId },
       { 
         storeId: userId,
-        categories: categories
+        categories: normalizedCategories
       },
       { upsert: true, new: true }
     );
