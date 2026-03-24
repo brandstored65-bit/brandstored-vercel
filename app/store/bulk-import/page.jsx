@@ -1,13 +1,13 @@
 'use client';
 import { useState } from 'react';
-import { useAuth } from '@/contexts/AuthContext';
+import { useAuth } from '@/lib/useAuth';
 import { useRouter } from 'next/navigation';
 import toast from 'react-hot-toast';
 import axios from 'axios';
 import { Upload, Download, AlertCircle, CheckCircle2, AlertTriangle } from 'lucide-react';
 
 export default function BulkImportPage() {
-  const { user } = useAuth();
+  const { user, getToken } = useAuth();
   const router = useRouter();
   const [file, setFile] = useState(null);
   const [skipExisting, setSkipExisting] = useState(true);
@@ -45,13 +45,14 @@ export default function BulkImportPage() {
 
     setLoading(true);
     try {
+      const token = await getToken();
       const formData = new FormData();
       formData.append('file', file);
       formData.append('skipExisting', skipExisting);
 
       const response = await axios.post('/api/store/product/bulk-import', formData, {
         headers: {
-          'Authorization': `Bearer ${user.accessToken}`,
+          'Authorization': `Bearer ${token}`,
           'Content-Type': 'multipart/form-data',
         },
       });
