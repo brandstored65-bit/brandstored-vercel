@@ -50,7 +50,7 @@ export async function GET(request) {
         }
 
         const products = await Product.find({ _id: { $in: deal.productIds } })
-          .select('name slug price mrp images category inStock fastDelivery imageAspectRatio')
+          .select('name slug price AED images category inStock fastDelivery imageAspectRatio')
           .lean();
 
         return { ...deal, products };

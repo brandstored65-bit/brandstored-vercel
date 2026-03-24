@@ -9,7 +9,7 @@ export async function POST(request) {
     try {
         await dbConnect();
         const body = await request.json();
-        const { name, description, shortDescription, mrp, price, images, category, sku, inStock, hasVariants, variants, attributes, hasBulkPricing, bulkPricing, fastDelivery, allowReturn, allowReplacement, storeId, slug, imageAspectRatio = '1:1' } = body;
+        const { name, description, shortDescription, AED, price, images, category, sku, inStock, hasVariants, variants, attributes, hasBulkPricing, bulkPricing, fastDelivery, allowReturn, allowReplacement, storeId, slug, imageAspectRatio = '1:1' } = body;
 
         // Generate slug from name if not provided
         const productSlug = slug || name
@@ -28,7 +28,7 @@ export async function POST(request) {
             slug: productSlug,
             description,
             shortDescription,
-            mrp,
+            AED,
             price,
             images,
             category,
@@ -118,7 +118,7 @@ export async function GET(request){
         let products = [];
         try {
             products = await Product.find(matchStage)
-                .select('name slug description shortDescription mrp price images category categories sku hasVariants variants attributes fastDelivery stockQuantity imageAspectRatio createdAt')
+                .select('name slug description shortDescription price mrp AED images category categories sku hasVariants variants attributes fastDelivery stockQuantity imageAspectRatio createdAt')
                 .populate('category', 'name slug')
                 .populate('categories', 'name slug')
                 .sort({ createdAt: -1 })
@@ -129,7 +129,7 @@ export async function GET(request){
         } catch (populateError) {
             console.error('Products populate error:', populateError);
             products = await Product.find(matchStage)
-                .select('name slug description shortDescription mrp price images category categories sku hasVariants variants attributes fastDelivery stockQuantity imageAspectRatio createdAt')
+                .select('name slug description shortDescription price mrp AED images category categories sku hasVariants variants attributes fastDelivery stockQuantity imageAspectRatio createdAt')
                 .sort({ createdAt: -1 })
                 .skip(offset)
                 .limit(limit)
@@ -144,8 +144,8 @@ export async function GET(request){
             categories: Array.isArray(p.categories) 
                 ? p.categories.map(cat => cat?.name || cat)
                 : [],
-            discount: (p.mrp && p.price && p.mrp > p.price) 
-                ? Math.round(((p.mrp - p.price) / p.mrp) * 100)
+            discount: (p.AED && p.price && p.AED > p.price) 
+                ? Math.round(((p.AED - p.price) / p.AED) * 100)
                 : null
         }));
 

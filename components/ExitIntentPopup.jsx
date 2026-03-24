@@ -152,7 +152,7 @@ const ExitIntentPopup = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                     </svg>
                   </div>
-                  <span className="text-sm font-medium text-slate-700">Free shipping on orders above ₹499</span>
+                  <span className="text-sm font-medium text-slate-700">Free shipping on orders above AED499</span>
                 </div>
                 <div className="flex items-center gap-3">
                   <div className="w-8 h-8 bg-orange-500 rounded-full flex items-center justify-center flex-shrink-0">

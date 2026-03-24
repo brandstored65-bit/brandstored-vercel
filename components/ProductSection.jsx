@@ -48,23 +48,23 @@ export default function ProductSection({ title, products, viewAllLink }) {
                                 {product.name}
                             </h3>
                                                         {/* Show price row only if at least one price is > 0 */}
-                                                        {(Number(product.price) > 0 || Number(product.mrp) > 0) && (
+                                                        {(Number(product.price) > 0 || Number(product.AED) > 0) && (
                                                             <div className="flex items-center gap-2">
                                                                 {/* Show sale price if > 0 */}
                                                                 {Number(product.price) > 0 && (
-                                                                    <span className="text-sm font-bold text-gray-900">₹ {product.price}</span>
+                                                                    <span className="text-sm font-bold text-gray-900">AED {product.price}</span>
                                                                 )}
                                                                 {/* Show regular price only if > 0, greater than price, and price > 0 */}
-                                                                {Number(product.mrp) > 0 && Number(product.mrp) > Number(product.price) && Number(product.price) > 0 && (
-                                                                    <span className="text-xs text-gray-500 line-through">₹ {product.mrp}</span>
+                                                                {Number(product.AED) > 0 && Number(product.AED) > Number(product.price) && Number(product.price) > 0 && (
+                                                                    <span className="text-xs text-gray-500 line-through">AED {product.AED}</span>
                                                                 )}
                                                             </div>
                                                         )}
-                                                        {/* Remove any trailing '0' if MRP is not valid */}
-                                                        {/* Show discount only if mrp > 0 and greater than price and price > 0 */}
-                                                        {Number(product.mrp) > 0 && Number(product.mrp) > Number(product.price) && Number(product.price) > 0 && (
+                                                        {/* Remove any trailing '0' if AED is not valid */}
+                                                        {/* Show discount only if AED > 0 and greater than price and price > 0 */}
+                                                        {Number(product.AED) > 0 && Number(product.AED) > Number(product.price) && Number(product.price) > 0 && (
                                                             <span className="text-xs text-green-600 font-medium">
-                                                                {Math.round(((product.mrp - product.price) / product.mrp) * 100)}% off
+                                                                {Math.round(((product.AED - product.price) / product.AED) * 100)}% off
                                                             </span>
                                                         )}
                         </div>

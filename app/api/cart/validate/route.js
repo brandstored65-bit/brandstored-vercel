@@ -20,7 +20,9 @@ export async function POST(req) {
             if (!productId || !quantity) continue;
             
             try {
-                const product = await Product.findById(productId).lean();
+                const product = await Product.findById(productId)
+                  .select('_id name slug price mrp AED images inStock stockQuantity')
+                  .lean();
                 if (!product) {
                     invalidItems.push({
                         productId,

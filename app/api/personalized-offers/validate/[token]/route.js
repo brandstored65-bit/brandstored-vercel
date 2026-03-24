@@ -33,7 +33,9 @@ export async function GET(req, { params }) {
     const isValid = offer.isActive && !offer.isUsed && !isExpired;
 
     // Fetch product details
-    const product = await Product.findById(offer.productId).lean();
+    const product = await Product.findById(offer.productId)
+      .select('_id name slug price mrp AED images description category inStock stockQuantity')
+      .lean();
 
     if (!product) {
       return NextResponse.json(
@@ -75,7 +77,7 @@ export async function GET(req, { params }) {
         shortDescription: product.shortDescription,
         images: product.images,
         originalPrice: product.price,
-        mrp: product.mrp,
+        AED: product.AED,
         discountedPrice,
         savings,
         discountPercent: offer.discountPercent,

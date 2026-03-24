@@ -16,7 +16,7 @@ import { trackMetaEvent } from "@/lib/metaPixelClient";
 const ProductDetails = ({ product, reviews = [], hideTitle = false, offerData = null }) => {
   // Assume product loading state from redux if available
   const loading = useSelector(state => state.product?.status === 'loading');
-  const currency = '₹';
+  const currency = 'AED';
   const [mainImage, setMainImage] = useState(product.images?.[0]);
   const [quantity, setQuantity] = useState(1);
   const [isInWishlist, setIsInWishlist] = useState(false);
@@ -149,16 +149,16 @@ const ProductDetails = ({ product, reviews = [], hideTitle = false, offerData = 
   ) || null;
 
   const basePrice = selectedVariant?.price ?? product.price;
-  const baseMrp = selectedVariant?.mrp ?? product.mrp ?? basePrice;
+  const baseAED = selectedVariant?.AED ?? product.AED ?? basePrice;
   const isSpecialOffer = !!product.specialOffer?.isSpecialOffer;
   const specialDiscountPercent = Number(product.specialOffer?.discountPercent);
   let effPrice = basePrice;
-  let effMrp = baseMrp;
+  let effAED = baseAED;
 
   if (isSpecialOffer && Number.isFinite(specialDiscountPercent) && specialDiscountPercent > 0) {
-    const offerBase = Number(basePrice) > 0 ? Number(basePrice) : Number(baseMrp) || 0;
+    const offerBase = Number(basePrice) > 0 ? Number(basePrice) : Number(baseAED) || 0;
     const discounted = offerBase * (1 - (specialDiscountPercent / 100));
-    effMrp = offerBase || effMrp;
+    effAED = offerBase || effAED;
     effPrice = Number.isFinite(discounted) ? Math.round(discounted * 100) / 100 : effPrice;
   }
   
@@ -166,9 +166,9 @@ const ProductDetails = ({ product, reviews = [], hideTitle = false, offerData = 
   if (product.specialOffer?.isSpecialOffer) {
     console.log('ProductDetails - Special Offer Prices:', {
       product_price: product.price,
-      product_mrp: product.mrp,
+      product_AED: product.AED,
       effPrice,
-      effMrp,
+      effAED,
       specialOffer: product.specialOffer
     });
   }
@@ -184,8 +184,8 @@ const ProductDetails = ({ product, reviews = [], hideTitle = false, offerData = 
   const isGloballyOutOfStock = variants.length > 0
     ? !hasAnyVariantStock || product.inStock === false
     : product.inStock === false || !hasBaseStock;
-  const discountPercent = effMrp > effPrice
-    ? Math.round(((effMrp - effPrice) / effMrp) * 100)
+  const discountPercent = effAED > effPrice
+    ? Math.round(((effAED - effPrice) / effAED) * 100)
     : 0;
 
   const paymentOffers = [
@@ -204,12 +204,12 @@ const ProductDetails = ({ product, reviews = [], hideTitle = false, offerData = 
     {
       key: 'bank',
       title: 'Bank Offer',
-      subtitle: 'Upto ₹1,500 off on select cards',
+      subtitle: 'Upto AED1,500 off on select cards',
       countLabel: '36 offers',
       offers: [
         {
-          title: '10% instant discount up to ₹1,500 on HDFC Credit Cards',
-          terms: 'Valid on min order ₹4,999 • T&Cs',
+          title: '10% instant discount up to AED1,500 on HDFC Credit Cards',
+          terms: 'Valid on min order AED4,999 • T&Cs',
           details: [
             'Offer 1: 10% instant discount up to INR 1250 on BOBCARD Non-EMI transactions. Minimum purchase value INR 10,000.',
             'Offer period: 11th February 2026 00:00 HRS to 20th February 2026 23:59 HRS.',
@@ -221,8 +221,8 @@ const ProductDetails = ({ product, reviews = [], hideTitle = false, offerData = 
           ]
         },
         {
-          title: 'Flat ₹750 off on ICICI Bank Debit Cards',
-          terms: 'Valid on min order ₹2,999 • T&Cs',
+          title: 'Flat AED750 off on ICICI Bank Debit Cards',
+          terms: 'Valid on min order AED2,999 • T&Cs',
           details: [
             'Offer 2: Flat INR 750 instant discount on eligible ICICI Debit Cards.',
             'Minimum cart value and card BIN eligibility checks apply at checkout.',
@@ -231,7 +231,7 @@ const ProductDetails = ({ product, reviews = [], hideTitle = false, offerData = 
           ]
         },
         {
-          title: '5% cashback up to ₹1,000 on SBI Credit Cards',
+          title: '5% cashback up to AED1,000 on SBI Credit Cards',
           terms: 'Cashback credited in 5 working days • T&Cs',
           details: [
             'Offer 3: 5% cashback up to INR 1,000 on eligible SBI Credit Card spends.',
@@ -442,7 +442,7 @@ const ProductDetails = ({ product, reviews = [], hideTitle = false, offerData = 
             slug: product.slug,
             name: product.name,
             price: effPrice,
-            mrp: effMrp,
+            AED: effAED,
             images: product.images,
             discount: discountPercent,
             inStock: product.inStock,
@@ -960,10 +960,10 @@ const ProductDetails = ({ product, reviews = [], hideTitle = false, offerData = 
                 <span className={`${isSpecialOffer ? 'text-green-600' : 'text-red-600'} text-4xl font-bold`}>
                   {currency}  {effPrice.toLocaleString()}
                 </span>
-                {effMrp > effPrice && (
+                {effAED > effPrice && (
                   <>
                     <span className="text-gray-400 text-xl line-through">
-                      {currency} {effMrp.toLocaleString()}
+                      {currency} {effAED.toLocaleString()}
                     </span>
                     <span className="bg-red-50 text-red-600 text-sm font-semibold px-3 py-1.5 rounded">
                       Save {discountPercent}%
@@ -971,13 +971,13 @@ const ProductDetails = ({ product, reviews = [], hideTitle = false, offerData = 
                   </>
                 )}
               </div>
-              {effMrp > effPrice && (
+              {effAED > effPrice && (
                 <div className="flex items-center gap-2">
                   <svg className="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd"/>
                   </svg>
                   <span className="text-orange-600 text-sm font-semibold">
-                    Save ₹ {(effMrp - effPrice).toLocaleString()} 
+                    Save AED {(effAED - effPrice).toLocaleString()} 
                   </span>
                 </div>
               )}
@@ -1210,8 +1210,8 @@ const ProductDetails = ({ product, reviews = [], hideTitle = false, offerData = 
                     const qty = Number(v.options.bundleQty) || 1;
                     const isSelected = Number(selectedBundleQty) === qty;
                     const price = Number(v.price);
-                    const mrp = Number(v.mrp ?? v.price);
-                    const save = mrp > price ? (mrp - price) : 0;
+                    const AED = Number(v.AED ?? v.price);
+                    const save = AED > price ? (AED - price) : 0;
                     const tag = v.tag || v.options?.tag || '';
                     const label = v.options?.title?.trim() || (qty === 1 ? 'Buy 1' : `Bundle of ${qty}`);
                     

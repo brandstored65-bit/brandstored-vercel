@@ -22,7 +22,9 @@ export async function GET(request) {
             })
         }
 
-        const productsRaw = await Product.find({ _id: { $in: productIds } }).lean()
+        const productsRaw = await Product.find({ _id: { $in: productIds } })
+            .select('_id name slug price mrp AED images category inStock stockQuantity')
+            .lean()
         const productMap = new Map(productsRaw.map((product) => [product._id.toString(), product]))
         let products = productIds.map((id) => productMap.get(id)).filter(Boolean)
 

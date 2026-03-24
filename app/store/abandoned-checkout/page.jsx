@@ -155,7 +155,7 @@ export default function AbandonedCheckoutPage() {
                               <div className="font-medium text-gray-900">{item.name || 'Product'}</div>
                               <div className="text-xs text-slate-600 flex justify-between">
                                 <span>Qty: {item.quantity || 1}</span>
-                                <span className="font-semibold">₹{item.price ? item.price.toLocaleString() : '-'}</span>
+                                <span className="font-semibold">AED{item.price ? item.price.toLocaleString() : '-'}</span>
                               </div>
                             </div>
                           ))}
@@ -165,7 +165,7 @@ export default function AbandonedCheckoutPage() {
                       )}
                     </div>
                   </td>
-                  <td className="p-3">{c.currency || "₹"}{c.cartTotal ?? "-"}</td>
+                  <td className="p-3">{c.currency || "AED"}{c.cartTotal ?? "-"}</td>
                   <td className="p-3">
                     {c.lastSeenAt ? new Date(c.lastSeenAt).toLocaleString() : "-"}
                   </td>

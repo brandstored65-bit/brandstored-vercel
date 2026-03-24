@@ -23,7 +23,7 @@ export async function GET() {
           name: 1,
           slug: 1,
           price: 1,
-          mrp: 1,
+          AED: 1,
           images: 1,
           inStock: 1
         }

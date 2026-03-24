@@ -66,8 +66,8 @@ export default function SitemapPage() {
     {
       title: '💰 Budget Shopping',
       links: [
-        { text: 'Under ₹149', path: '/under-149', description: 'Products under 149' },
-        { text: 'Under ₹499', path: '/under-499', description: 'Products under 499' },
+        { text: 'Under AED149', path: '/under-149', description: 'Products under 149' },
+        { text: 'Under AED499', path: '/under-499', description: 'Products under 499' },
       ]
     },
     {

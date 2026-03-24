@@ -155,7 +155,7 @@ export default function AdsTrackingPage() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm font-medium text-amber-600">Total Revenue</p>
-              <p className="text-2xl font-bold text-amber-900 mt-1">₹{totals.revenue.toLocaleString()}</p>
+              <p className="text-2xl font-bold text-amber-900 mt-1">AED{totals.revenue.toLocaleString()}</p>
             </div>
             <DollarSign className="w-8 h-8 text-amber-400" />
           </div>
@@ -208,10 +208,10 @@ export default function AdsTrackingPage() {
                       {stat.conversionRate?.toFixed(2)}%
                     </td>
                     <td className="px-6 py-3 text-sm text-right font-medium text-amber-600">
-                      ₹{stat.totalConversionValue?.toLocaleString()}
+                      AED{stat.totalConversionValue?.toLocaleString()}
                     </td>
                     <td className="px-6 py-3 text-sm text-right font-medium text-gray-900">
-                      ₹{stat.avgValue?.toLocaleString()}
+                      AED{stat.avgValue?.toLocaleString()}
                     </td>
                   </tr>
                 ))}

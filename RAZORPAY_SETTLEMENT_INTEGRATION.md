@@ -52,12 +52,12 @@ razorpaySettlement: {
   paymentId: String,             // Payment ID
   status: String,                // TRANSFERRED | PENDING | FAILED
   captured_at: Date,             // When payment was captured
-  amount: Number,                // Amount captured (₹)
-  fee: Number,                   // Processing fee (₹)
+  amount: Number,                // Amount captured (AED)
+  fee: Number,                   // Processing fee (AED)
   is_transferred: Boolean,       // Is transferred to bank?
   transferred_at: Date,          // When transferred to bank
   transfer_id: String,           // Razorpay transfer ID
-  amount_transferred: Number,    // Amount that reached bank (₹)
+  amount_transferred: Number,    // Amount that reached bank (AED)
   recipient_id: String           // Bank account ID
 }
 ```
@@ -222,7 +222,7 @@ All fields come from Razorpay's v1 API documentation:
 {
   id: "pay_xxx",           // Payment ID
   entity: "payment",
-  amount: 500000,          // In paise (₹5000)
+  amount: 500000,          // In paise (AED5000)
   currency: "INR",
   status: "captured",      // captured | failed | pending
   method: "card",          // card | netbanking | wallet | vpa

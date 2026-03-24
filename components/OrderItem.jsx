@@ -11,7 +11,7 @@ import axios from "axios";
 
 const OrderItem = ({ order: initialOrder }) => {
 
-    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₹';
+    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'AED';
     const [ratingModal, setRatingModal] = useState(null);
     const [expanded, setExpanded] = useState(false);
     const [order, setOrder] = useState(initialOrder);

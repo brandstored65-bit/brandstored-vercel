@@ -8,7 +8,7 @@ export default function CartSummaryBox({ subtotal, shipping, total, checkoutDisa
       <div className="mb-4">
         <div className="flex justify-between text-sm text-gray-500 mb-2">
           <span>Items</span>
-          <span>₹ {subtotal.toLocaleString()}</span>
+          <span>AED {subtotal.toLocaleString()}</span>
         </div>
         {showShipping && (
           <div className="flex justify-between text-sm mb-2">
@@ -16,14 +16,14 @@ export default function CartSummaryBox({ subtotal, shipping, total, checkoutDisa
               Shipping &amp; handling
             </span>
             <span className={shipping === 0 ? 'text-green-600 font-semibold' : 'text-gray-400'}>
-              {shipping === 0 ? 'FREE' : `₹ ${shipping.toLocaleString()}`}
+              {shipping === 0 ? 'FREE' : `AED ${shipping.toLocaleString()}`}
             </span>
           </div>
         )}
         <hr className="my-2" />
         <div className="flex justify-between font-bold text-base text-gray-800">
           <span>Total</span>
-          <span>₹ {total.toLocaleString()}</span>
+          <span>AED {total.toLocaleString()}</span>
         </div>
       </div>
       {checkoutNote && (

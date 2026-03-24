@@ -2244,13 +2244,13 @@ export default function CheckoutPage() {
             {appliedCoupon && couponDiscount > 0 && (
               <div className="flex justify-between text-sm text-blue-600 font-semibold">
                 <span>Coupon discount ({appliedCoupon.code})</span>
-                <span>-₹ {couponDiscount.toLocaleString()}</span>
+                <span>-AED {couponDiscount.toLocaleString()}</span>
               </div>
             )}
             {safeRedeemCoins > 0 && (
               <div className="flex justify-between text-sm text-green-600 font-semibold">
                 <span>Wallet savings</span>
-                <span>-₹ {walletDiscount.toLocaleString()}</span>
+                <span>-AED {walletDiscount.toLocaleString()}</span>
               </div>
             )}
           </div>
@@ -2263,7 +2263,7 @@ export default function CheckoutPage() {
               </div> */}
               <div className="flex justify-between text-sm font-semibold">
                 <span className="text-green-700">Wallet discount</span>
-                <span className="text-green-600">-₹ {walletDiscount.toLocaleString()}</span>
+                <span className="text-green-600">-AED {walletDiscount.toLocaleString()}</span>
               </div>
             </div>
           )}
@@ -2278,7 +2278,7 @@ export default function CheckoutPage() {
               </div>
               <div className="flex justify-between text-sm">
                 <span className="text-gray-700">{appliedCoupon.title}</span>
-                <span className="font-semibold text-green-600">-₹ {couponDiscount.toLocaleString()}</span>
+                <span className="font-semibold text-green-600">-AED {couponDiscount.toLocaleString()}</span>
               </div>
               <button
                 onClick={() => {
@@ -2317,7 +2317,7 @@ export default function CheckoutPage() {
           <div className="mb-4 pb-4 border-b border-gray-200">
             <div className="flex justify-between font-bold text-lg text-gray-900">
               <span>Total to pay</span>
-              <span>₹ {totalAfterWallet.toLocaleString()}</span>
+              <span>AED {totalAfterWallet.toLocaleString()}</span>
             </div>
           </div>
           <button
@@ -2433,7 +2433,7 @@ export default function CheckoutPage() {
             disabled={(!form.addressId && !isGuestAddressReady) || isPlaceOrderDisabled}
             aria-busy={placingOrder}
           >
-            <span className="text-lg font-bold">₹ {totalAfterWallet.toLocaleString()}</span>
+            <span className="text-lg font-bold">AED {totalAfterWallet.toLocaleString()}</span>
             {placingOrder ? (
               <span className="inline-flex items-center gap-2">
                 <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
@@ -2643,7 +2643,7 @@ export default function CheckoutPage() {
                   // Check minimum order value
                   else if (itemsTotal < cpn.minOrderValue) {
                     isEligible = false;
-                    ineligibleReason = `Min order ₹${cpn.minOrderValue} required`;
+                    ineligibleReason = `Min order AED${cpn.minOrderValue} required`;
                   }
                   // Check if product-specific
                   else if (cpn.specificProducts?.length > 0) {

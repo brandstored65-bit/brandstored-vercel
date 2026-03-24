@@ -69,8 +69,8 @@ export default function TrendingNowPage() {
         return sorted.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
       case 'discount':
         return sorted.sort((a, b) => {
-          const discountA = a.mrp > a.price ? ((a.mrp - a.price) / a.mrp * 100) : 0;
-          const discountB = b.mrp > b.price ? ((b.mrp - b.price) / b.mrp * 100) : 0;
+          const discountA = a.AED > a.price ? ((a.AED - a.price) / a.AED * 100) : 0;
+          const discountB = b.AED > b.price ? ((b.AED - b.price) / b.AED * 100) : 0;
           return discountB - discountA;
         });
       case 'newest':

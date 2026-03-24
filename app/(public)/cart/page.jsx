@@ -18,7 +18,7 @@ export const dynamic = "force-dynamic";
 export default function Cart() {
     const dispatch = useDispatch();
     const store = useStore();
-    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || "₹";
+    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || "AED";
     const { user, getToken } = useAuth();
     const isSignedIn = !!user;
 

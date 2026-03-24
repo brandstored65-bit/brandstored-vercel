@@ -113,7 +113,7 @@ export async function POST(request) {
                     ${orderItems.map(item => `
                         <li style="padding: 12px; background: #f9fafb; margin: 8px 0; border-radius: 8px; border-left: 4px solid #3b82f6;">
                             <strong>${item.product?.name || 'Product'}</strong><br/>
-                            <span style="color: #6b7280;">Quantity: ${item.quantity} × ₹${item.price}</span>
+                            <span style="color: #6b7280;">Quantity: ${item.quantity} × AED${item.price}</span>
                         </li>
                     `).join('')}
                 </ul>

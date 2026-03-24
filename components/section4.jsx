@@ -59,7 +59,7 @@ const HorizontalSlider = ({ section, router, allProducts }) => {
   const cartItems = useSelector(state => state.cart?.cartItems || {})
 
   const getCurrentPrice = (product) => product.basePrice ?? product.price ?? product.salePrice
-  const getRegularPrice = (product) => product.originalPrice ?? product.mrp ?? product.regularPrice ?? product.price
+  const getRegularPrice = (product) => product.originalPrice ?? product.AED ?? product.regularPrice ?? product.price
   const getDiscountPercent = (regular, current) => {
     if (!regular || !current || regular <= current) return null
     return Math.round(((regular - current) / regular) * 100)
@@ -320,7 +320,7 @@ const HorizontalSlider = ({ section, router, allProducts }) => {
                   <div className="flex items-center justify-between gap-2 pt-0.5">
                     <div className="flex items-baseline gap-2">
                       <span className="text-base sm:text-lg font-bold text-gray-900">
-                        ₹{getCurrentPrice(product)?.toLocaleString?.() || getCurrentPrice(product)}
+                        AED{getCurrentPrice(product)?.toLocaleString?.() || getCurrentPrice(product)}
                       </span>
                       {(() => {
                         const regularPrice = getRegularPrice(product)
@@ -328,7 +328,7 @@ const HorizontalSlider = ({ section, router, allProducts }) => {
                         return regularPrice && regularPrice > currentPrice ? (
                           <>
                             <span className="text-xs text-gray-400 line-through">
-                              ₹{regularPrice?.toLocaleString?.() || regularPrice}
+                              AED{regularPrice?.toLocaleString?.() || regularPrice}
                             </span>
                             {(() => {
                               const discountPercent = getDiscountPercent(regularPrice, currentPrice)

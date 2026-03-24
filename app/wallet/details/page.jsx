@@ -14,7 +14,7 @@ export default function WalletDetailsPage() {
             <h2 className="text-lg font-semibold text-slate-900 mb-2">How you earn coins</h2>
             <ul className="list-disc pl-5 text-slate-700 space-y-2">
               <li>New register: 20 coins free bonus</li>
-              <li>Earn: 10 coins for every ₹100 delivered order</li>
+              <li>Earn: 10 coins for every AED100 delivered order</li>
               <li>Coins are added only after order status is DELIVERED</li>
             </ul>
           </div>
@@ -22,7 +22,7 @@ export default function WalletDetailsPage() {
             <h2 className="text-lg font-semibold text-slate-900 mb-2">How you redeem</h2>
             <ul className="list-disc pl-5 text-slate-700 space-y-2">
               <li>Redeem at checkout</li>
-              <li>10 coins = ₹5 discount</li>
+              <li>10 coins = AED5 discount</li>
               <li>Coins can be used across eligible orders</li>
             </ul>
           </div>
@@ -37,7 +37,7 @@ export default function WalletDetailsPage() {
             </div>
             <div>
               <p className="font-semibold">How many coins do I earn per purchase?</p>
-              <p className="text-sm">You earn 10 coins for every ₹100 delivered order value.</p>
+              <p className="text-sm">You earn 10 coins for every AED100 delivered order value.</p>
             </div>
             <div>
               <p className="font-semibold">When are coins added?</p>
@@ -45,7 +45,7 @@ export default function WalletDetailsPage() {
             </div>
             <div>
               <p className="font-semibold">How do I redeem coins?</p>
-              <p className="text-sm">Use coins at checkout. 10 coins equals ₹5 discount.</p>
+              <p className="text-sm">Use coins at checkout. 10 coins equals AED5 discount.</p>
             </div>
             <div>
               <p className="font-semibold">Do coins expire?</p>

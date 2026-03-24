@@ -22,7 +22,7 @@ import Link from "next/link";
 import Image from "next/image";
 
 export default function ProductPricing() {
-    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₹';
+    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'AED';
     const { user, getToken, loading: authLoading } = useAuth();
     const router = useRouter();
     

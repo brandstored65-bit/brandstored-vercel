@@ -25,7 +25,7 @@ const DEFAULT_TEMPLATE = {
             <div style="flex: 1;">
               <h2 style="margin: 0 0 10px 0; color: #333; font-size: 20px;">{{productName}}</h2>
               <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">{{productDescription}}</p>
-              <p style="margin: 0; color: #667eea; font-size: 24px; font-weight: bold;">₹{{productPrice}}</p>
+              <p style="margin: 0; color: #667eea; font-size: 24px; font-weight: bold;">AED{{productPrice}}</p>
             </div>
           </div>
         </div>

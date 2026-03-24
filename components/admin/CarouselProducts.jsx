@@ -153,7 +153,7 @@ export default function CarouselProducts() {
                   {product.name}
                 </p>
                 <p className="text-lg font-bold text-green-700">
-                  ₹{product.price}
+                  AED{product.price}
                 </p>
               </div>
             </div>

@@ -59,9 +59,13 @@ export async function POST(request) {
       }
     } else {
       try {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}');
-        adminProjectId = serviceAccount.project_id || '';
-      } catch {
+        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+        if (serviceAccountKey) {
+          const serviceAccount = JSON.parse(serviceAccountKey);
+          adminProjectId = serviceAccount.project_id || '';
+        }
+      } catch (err) {
+        console.warn('Could not extract Firebase project ID:', err.message);
         adminProjectId = '';
       }
     }
@@ -228,9 +232,13 @@ export async function GET(request) {
       }
     } else {
       try {
-        const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}');
-        adminProjectId = serviceAccount.project_id || '';
-      } catch {
+        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+        if (serviceAccountKey) {
+          const serviceAccount = JSON.parse(serviceAccountKey);
+          adminProjectId = serviceAccount.project_id || '';
+        }
+      } catch (err) {
+        console.warn('Could not extract Firebase project ID:', err.message);
         adminProjectId = '';
       }
     }

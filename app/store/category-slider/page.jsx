@@ -539,7 +539,7 @@ export default function CategorySliderPage() {
                             </p>
                             {product.basePrice && (
                               <p className="text-xs text-green-600 font-bold mt-1">
-                                ₹{product.basePrice?.toLocaleString()}
+                                AED{product.basePrice?.toLocaleString()}
                               </p>
                             )}
                           </div>

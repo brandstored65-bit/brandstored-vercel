@@ -76,7 +76,11 @@ export async function POST(request) {
                 const { getAuth } = await import('firebase-admin/auth');
                 const { initializeApp, cert, getApps } = await import('firebase-admin/app');
                 if (getApps().length === 0) {
-                    const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}');
+                    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+                    if (!serviceAccountKey) {
+                        throw new Error('Firebase service account key not configured');
+                    }
+                    const serviceAccount = JSON.parse(serviceAccountKey);
                     initializeApp({ credential: cert(serviceAccount) });
                 }
                 const decodedToken = await getAuth().verifyIdToken(idToken);
@@ -207,7 +211,9 @@ export async function POST(request) {
             }
             let product;
             try {
-                product = await Product.findById(item.id).lean();
+                product = await Product.findById(item.id)
+                  .select('_id name slug price mrp AED images category sku inStock stockQuantity')
+                  .lean();
             } catch (err) {
                 console.error('Product.findById error:', err, 'productId:', item.id);
                 return NextResponse.json({ 
@@ -219,7 +225,9 @@ export async function POST(request) {
                 console.error('Product not found in database. ProductId:', item.id);
                 console.error('Trying to find any product with this ID...');
                 // Try alternative lookups
-                const altProduct = await Product.findOne({$or: [{_id: item.id}, {id: item.id}, {slug: item.id}]}).lean();
+                const altProduct = await Product.findOne({$or: [{_id: item.id}, {id: item.id}, {slug: item.id}]})
+                  .select('_id name slug price mrp AED images category sku inStock stockQuantity')
+                  .lean();
                 if (!altProduct) {
                     return NextResponse.json({ 
                         error: `Product not found (ID: ${item.id}). This product may have been deleted. Please clear your cart and add items again.`, 
@@ -718,7 +726,7 @@ export async function POST(request) {
                 payment_method_types: ['card'],
                 line_items: [{
                     price_data: {
-                        currency: '₹',
+                        currency: 'AED',
                         product_data: { name: 'Order' },
                         unit_amount: Math.round(fullAmount * 100)
                     },

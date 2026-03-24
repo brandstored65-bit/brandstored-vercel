@@ -23,7 +23,9 @@ export async function GET(request){
         }
 
         // Get products for this store
-        const products = await Product.find({storeId: store._id.toString()}).lean();
+        const products = await Product.find({storeId: store._id.toString()})
+          .select('_id name slug images price mrp AED category categories inStock stockQuantity')
+          .lean();
         store.Product = products;
 
         return NextResponse.json({store});

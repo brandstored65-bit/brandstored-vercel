@@ -277,7 +277,7 @@ function WishlistAuthed() {
                   const img =
                     product.images?.[0] || PLACEHOLDER_IMAGE;
                   const isSelected = selected.includes(product._pid);
-                  const discount = product.mrp ? Math.round(((product.mrp - product.price) / product.mrp) * 100) : 0;
+                  const discount = product.AED ? Math.round(((product.AED - product.price) / product.AED) * 100) : 0;
 
                   return (
                     <div
@@ -329,11 +329,11 @@ function WishlistAuthed() {
 
                         <div className="mt-2 flex items-baseline gap-2">
                           <span className="text-xl font-bold text-gray-900">
-                            ₹{product.price.toLocaleString()}
+                            AED{product.price.toLocaleString()}
                           </span>
-                          {product.mrp && (
+                          {product.AED && (
                             <span className="text-sm text-gray-400 line-through">
-                              ₹{product.mrp.toLocaleString()}
+                              AED{product.AED.toLocaleString()}
                             </span>
                           )}
                           {discount > 0 && (
@@ -397,7 +397,7 @@ function WishlistAuthed() {
               </div>
               <div className="border-t pt-4 flex justify-between items-center">
                 <span className="text-gray-900 font-semibold">Total Amount</span>
-                <span className="font-bold text-2xl text-orange-600">₹{total.toLocaleString()}</span>
+                <span className="font-bold text-2xl text-orange-600">AED{total.toLocaleString()}</span>
               </div>
             </div>
 
@@ -442,7 +442,7 @@ function WishlistAuthed() {
           <div className="flex justify-between items-center gap-4">
             <div className="flex-1">
               <p className="text-xs text-gray-500 font-medium">{selected.length} {selected.length === 1 ? 'item' : 'items'} selected</p>
-              <p className="font-bold text-xl text-gray-900">₹{total.toLocaleString()}</p>
+              <p className="font-bold text-xl text-gray-900">AED{total.toLocaleString()}</p>
             </div>
             <div className="flex items-center gap-2">
               <button

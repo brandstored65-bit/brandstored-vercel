@@ -179,7 +179,7 @@ export default function FBTManagement() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
-                      <p className="text-xs text-gray-500">₹{product.price}</p>
+                      <p className="text-xs text-gray-500">AED{product.price}</p>
                     </div>
                   </div>
                 ))}
@@ -202,7 +202,7 @@ export default function FBTManagement() {
                   </div>
                   <div>
                     <h2 className="text-2xl font-bold text-gray-900">{selectedProduct.name}</h2>
-                    <p className="text-lg text-green-600 font-semibold mt-1">₹{selectedProduct.price}</p>
+                    <p className="text-lg text-green-600 font-semibold mt-1">AED{selectedProduct.price}</p>
                   </div>
                 </div>
 
@@ -253,7 +253,7 @@ export default function FBTManagement() {
                               </div>
                               <div className="flex-1 min-w-0">
                                 <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
-                                <p className="text-xs text-gray-500">₹{product.price}</p>
+                                <p className="text-xs text-gray-500">AED{product.price}</p>
                               </div>
                             </div>
                           ))}
@@ -277,7 +277,7 @@ export default function FBTManagement() {
                             </div>
                             <div className="flex-1 min-w-0">
                               <p className="text-sm font-medium text-gray-900 truncate">{product.name}</p>
-                              <p className="text-xs text-gray-600">₹{product.price}</p>
+                              <p className="text-xs text-gray-600">AED{product.price}</p>
                             </div>
                             <button
                               onClick={() => handleRemoveFbtProduct(product._id)}
@@ -301,7 +301,7 @@ export default function FBTManagement() {
                           Bundle Price (Optional)
                         </label>
                         <div className="relative">
-                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">₹</span>
+                          <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500">AED</span>
                           <input
                             type="number"
                             step="0.01"

@@ -77,7 +77,7 @@ function OrderSuccessContent() {
   const walletDiscount = Number(order?.walletDiscount || 0);
   const total = typeof order?.total === 'number' ? order.total : (subtotal + shipping - discount - walletDiscount);
   const orderDate = order?.createdAt ? new Date(order.createdAt).toLocaleDateString() : new Date().toLocaleDateString();
-  const currency = order?.currency || '₹';
+  const currency = order?.currency || 'AED';
   const paymentMethod = String(order?.paymentMethod || 'COD').toUpperCase();
   const isPaid = order?.isPaid === true || paymentMethod === 'WALLET' || paymentMethod === 'CARD' || paymentMethod === 'STRIPE';
   const paidAmount = isPaid ? total : 0;

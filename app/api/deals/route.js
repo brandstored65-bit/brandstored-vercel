@@ -49,7 +49,7 @@ export async function GET(request) {
           _id: { $in: deal.productIds },
           inStock: true 
         })
-          .select('name slug price mrp images category inStock fastDelivery imageAspectRatio shortDescription')
+          .select('name slug price mrp AED images category inStock fastDelivery imageAspectRatio shortDescription')
           .lean();
 
         // Preserve order of productIds

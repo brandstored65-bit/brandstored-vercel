@@ -46,7 +46,7 @@ export async function GET(request) {
     })
     .sort({ createdAt: -1 })
     .limit(4)
-    .select('_id name slug mrp price images description category stockQuantity')
+    .select('_id name slug price mrp AED images description category stockQuantity')
     .lean();
 
     const products = featuredProducts.map(p => ({
@@ -56,7 +56,7 @@ export async function GET(request) {
       description: p.description || '',
       category: p.category || 'Product',
       price: p.price,
-      originalPrice: p.mrp || null,
+      originalPrice: p.AED || null,
       image: p.images && p.images[0] ? p.images[0] : null,
       images: p.images || [],
       stock: p.stockQuantity || 0
@@ -225,7 +225,7 @@ export async function POST(request) {
     })
     .sort({ createdAt: -1 })
     .limit(4)
-    .select('_id name slug mrp price images description category stockQuantity')
+    .select('_id name slug price mrp AED images description category stockQuantity')
     .lean();
 
     const products = featuredProducts.map(p => ({
@@ -235,7 +235,7 @@ export async function POST(request) {
       description: p.description || '',
       category: p.category || 'Product',
       price: p.price,
-      originalPrice: p.mrp || null,
+      originalPrice: p.AED || null,
       image: p.images && p.images[0] ? p.images[0] : null,
       images: p.images || [],
       stock: p.stockQuantity || 0

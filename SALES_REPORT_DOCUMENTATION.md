@@ -83,7 +83,7 @@ A comprehensive profit/loss tracking system for your e-commerce store that calcu
   name: String,
   sku: String,
   price: Number,              // Selling price
-  mrp: Number,                // MRP
+  AED: Number,                // AED
   costPrice: Number,          // NEW: Actual cost/purchase price
   images: [String],
   inStock: Boolean,
@@ -165,7 +165,7 @@ profitMargin = (totalProfit / totalRevenue) × 100
     "name": "Product Name",
     "sku": "SKU123",
     "price": 999,
-    "mrp": 1499,
+    "AED": 1499,
     "costPrice": 500,
     "images": [...],
     "inStock": true
@@ -248,35 +248,35 @@ profitMargin = (totalProfit / totalRevenue) × 100
 ### Example 1: Profitable Order
 ```
 Product A:
-  Selling Price: ₹999
-  Cost Price: ₹500
+  Selling Price: AED999
+  Cost Price: AED500
   Quantity: 2
   
 Order Details:
-  Product Revenue: ₹999 × 2 = ₹1,998
-  Product Cost: ₹500 × 2 = ₹1,000
-  Delivery Charge: ₹50
+  Product Revenue: AED999 × 2 = AED1,998
+  Product Cost: AED500 × 2 = AED1,000
+  Delivery Charge: AED50
   
 Profit Calculation:
-  Profit = ₹1,998 - ₹1,000 - ₹50 = ₹948
-  Margin = (₹948 / ₹1,998) × 100 = 47.4%
+  Profit = AED1,998 - AED1,000 - AED50 = AED948
+  Margin = (AED948 / AED1,998) × 100 = 47.4%
 ```
 
 ### Example 2: Loss-Making Order
 ```
 Product B:
-  Selling Price: ₹299
-  Cost Price: ₹250
+  Selling Price: AED299
+  Cost Price: AED250
   Quantity: 1
   
 Order Details:
-  Product Revenue: ₹299
-  Product Cost: ₹250
-  Delivery Charge: ₹99 (free shipping threshold not met)
+  Product Revenue: AED299
+  Product Cost: AED250
+  Delivery Charge: AED99 (free shipping threshold not met)
   
 Profit Calculation:
-  Profit = ₹299 - ₹250 - ₹99 = -₹50 (Loss)
-  Margin = (-₹50 / ₹299) × 100 = -16.7%
+  Profit = AED299 - AED250 - AED99 = -AED50 (Loss)
+  Margin = (-AED50 / AED299) × 100 = -16.7%
 ```
 
 ## 🎨 UI/UX Features
@@ -319,7 +319,7 @@ Profit Calculation:
 
 ### Missing Cost Prices
 - If a product doesn't have a cost price configured:
-  - Order profit calculation treats product cost as ₹0
+  - Order profit calculation treats product cost as AED0
   - This may inflate reported profits
   - **Action required:** Configure cost prices for accurate reports
 
@@ -342,7 +342,7 @@ Profit Calculation:
 
 ## 🐛 Troubleshooting
 
-### Issue: Profit showing as ₹0
+### Issue: Profit showing as AED0
 **Solution:** Configure cost prices in Product Pricing page
 
 ### Issue: Orders not appearing in report

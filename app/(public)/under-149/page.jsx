@@ -65,8 +65,8 @@ export default function Under149Page() {
         return sorted.sort((a, b) => (b.averageRating || 0) - (a.averageRating || 0));
       case 'discount':
         return sorted.sort((a, b) => {
-          const discountA = a.mrp > a.price ? ((a.mrp - a.price) / a.mrp * 100) : 0;
-          const discountB = b.mrp > b.price ? ((b.mrp - b.price) / b.mrp * 100) : 0;
+          const discountA = a.AED > a.price ? ((a.AED - a.price) / a.AED * 100) : 0;
+          const discountB = b.AED > b.price ? ((b.AED - b.price) / b.AED * 100) : 0;
           return discountB - discountA;
         });
       case 'newest':
@@ -92,8 +92,8 @@ export default function Under149Page() {
     <div className="min-h-screen bg-gray-50">
       <div className="max-w-[1250px] mx-auto px-4 py-8">
         <div className="mb-6">
-          <h1 className="text-3xl font-bold text-gray-900 mb-2">Under ₹149</h1>
-          <p className="text-gray-600">Affordable finds priced at ₹149 or less</p>
+          <h1 className="text-3xl font-bold text-gray-900 mb-2">Under AED149</h1>
+          <p className="text-gray-600">Affordable finds priced at AED149 or less</p>
         </div>
 
         <div className="flex gap-6">
@@ -110,7 +110,7 @@ export default function Under149Page() {
           <div className="flex-1">
             {filteredAndSortedProducts.length === 0 ? (
               <div className="text-center py-16 bg-white rounded-lg border border-gray-200">
-                <p className="text-gray-500 text-lg">No products under ₹149 match your filters.</p>
+                <p className="text-gray-500 text-lg">No products under AED149 match your filters.</p>
                 <button
                   onClick={() => setActiveFilters({
                     categories: [],

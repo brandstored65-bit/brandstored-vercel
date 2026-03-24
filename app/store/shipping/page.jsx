@@ -12,7 +12,7 @@ import { indiaStatesAndDistricts } from '@/assets/indiaStatesAndDistricts'
 
 export default function StoreShippingSettings() {
   const { getToken } = useAuth()
-  const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₹'
+  const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'AED'
   const stateOptions = indiaStatesAndDistricts.map((entry) => entry.state)
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)

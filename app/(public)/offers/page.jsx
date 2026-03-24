@@ -29,11 +29,11 @@ export default function OffersPage() {
 
     // Filter products with discount > 60%
     const filtered = products.filter(product => {
-      const mrp = Number(product.mrp) || 0;
+      const AED = Number(product.AED) || 0;
       const price = Number(product.price) || 0;
       
-      if (mrp > 0 && price > 0 && mrp > price) {
-        const discount = Math.round(((mrp - price) / mrp) * 100);
+      if (AED > 0 && price > 0 && AED > price) {
+        const discount = Math.round(((AED - price) / AED) * 100);
         return discount > 60;
       }
       return false;
@@ -41,8 +41,8 @@ export default function OffersPage() {
 
     // Sort by discount percentage (highest first)
     filtered.sort((a, b) => {
-      const discountA = Math.round(((Number(a.mrp) - Number(a.price)) / Number(a.mrp)) * 100);
-      const discountB = Math.round(((Number(b.mrp) - Number(b.price)) / Number(b.mrp)) * 100);
+      const discountA = Math.round(((Number(a.AED) - Number(a.price)) / Number(a.AED)) * 100);
+      const discountB = Math.round(((Number(b.AED) - Number(b.price)) / Number(b.AED)) * 100);
       return discountB - discountA;
     });
 

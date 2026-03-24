@@ -94,7 +94,7 @@ export async function POST(request) {
         const imageAspectRatio = formData.get("imageAspectRatio") || "1:1";
 
         // Base pricing (used when no variants)
-        const mrp = Number(formData.get("mrp"));
+        const AED = Number(formData.get("AED"));
         const price = Number(formData.get("price"));
         // Slug from form (manual or auto)
         let slug = formData.get("slug")?.toString().trim() || "";
@@ -151,7 +151,7 @@ export async function POST(request) {
 
         let variants = [];
         let finalPrice = price;
-        let finalMrp = mrp;
+        let finalAED = AED;
         let inStock = true;
 
         if (hasVariants) {
@@ -166,15 +166,15 @@ export async function POST(request) {
 
             // Compute derived fields from variants
             const prices = variants.map(v => Number(v.price)).filter(n => Number.isFinite(n));
-            const mrps = variants.map(v => Number(v.mrp ?? v.price)).filter(n => Number.isFinite(n));
+            const AEDs = variants.map(v => Number(v.AED ?? v.price)).filter(n => Number.isFinite(n));
             const stocks = variants.map(v => Number(v.stock ?? 0)).filter(n => Number.isFinite(n));
             finalPrice = prices.length ? Math.min(...prices) : 0;
-            finalMrp = mrps.length ? Math.min(...mrps) : finalPrice;
+            finalAED = AEDs.length ? Math.min(...AEDs) : finalPrice;
             inStock = stocks.some(s => s > 0);
         } else {
-            // No variants: require price and mrp
-            if (!Number.isFinite(price) || !Number.isFinite(mrp)) {
-                return NextResponse.json({ error: "Price and MRP are required when no variants provided" }, { status: 400 });
+            // No variants: require price and AED
+            if (!Number.isFinite(price) || !Number.isFinite(AED)) {
+                return NextResponse.json({ error: "Price and AED are required when no variants provided" }, { status: 400 });
             }
             inStock = true;
         }
@@ -215,7 +215,7 @@ export async function POST(request) {
             slug,
             description,
             shortDescription,
-            mrp: finalMrp,
+            AED: finalAED,
             price: finalPrice,
             category: categories[0], // Keep first category for backward compatibility
             categories, // New: store all categories
@@ -239,7 +239,9 @@ export async function POST(request) {
         console.log('  - product.categories length:', product.categories?.length);
         
         // Verify by querying MongoDB directly
-        const verifyProduct = await Product.findById(product._id).lean();
+        const verifyProduct = await Product.findById(product._id)
+          .select('_id price mrp AED')
+          .lean();
         console.log('VERIFY from DB - product.categories:', verifyProduct.categories);
         console.log('VERIFY from DB - categories length:', verifyProduct.categories?.length);
         
@@ -315,7 +317,9 @@ export async function PUT(request) {
                 return NextResponse.json({ error: "Product ID required or invalid format" }, { status: 400 });
             }
 
-            const product = await Product.findById(productId).lean();
+            const product = await Product.findById(productId)
+              .select('_id name slug price mrp AED')
+              .lean();
             if (!product || product.storeId !== storeId) {
                 return NextResponse.json({ error: "Not authorized" }, { status: 401 });
             }
@@ -354,7 +358,7 @@ export async function PUT(request) {
         const hasVariants = String(formData.get("hasVariants") || "").toLowerCase() === "true";
         const variantsRaw = formData.get("variants");
         const attributesRaw = formData.get("attributes");
-        const mrp = formData.get("mrp") ? Number(formData.get("mrp")) : undefined;
+        const AED = formData.get("AED") ? Number(formData.get("AED")) : undefined;
         const price = formData.get("price") ? Number(formData.get("price")) : undefined;
         const fastDelivery = String(formData.get("fastDelivery") || "").toLowerCase() === "true";
         const imageAspectRatioRaw = formData.get("imageAspectRatio");
@@ -372,7 +376,9 @@ export async function PUT(request) {
 
         let product;
         try {
-            product = await Product.findById(productId).lean();
+            product = await Product.findById(productId)
+              .select('_id name slug price mrp AED images description')
+              .lean();
         } catch (err) {
             console.error('Product.findById error:', err, 'productId:', productId);
             return NextResponse.json({ error: "Invalid productId format" }, { status: 400 });
@@ -391,25 +397,25 @@ export async function PUT(request) {
             }
         }
 
-        // Compute variants/price/mrp/inStock
+        // Compute variants/price/AED/inStock
         let variants = product.variants || [];
         let attributes = product.attributes || {};
         let finalPrice = price ?? product.price;
-        let finalMrp = mrp ?? product.mrp;
+        let finalAED = AED ?? product.AED;
         let inStock = product.inStock;
 
         if (hasVariants) {
             try { variants = JSON.parse(variantsRaw || "[]"); } catch { variants = []; }
             const prices = variants.map(v => Number(v.price)).filter(n => Number.isFinite(n));
-            const mrps = variants.map(v => Number(v.mrp ?? v.price)).filter(n => Number.isFinite(n));
+            const AEDs = variants.map(v => Number(v.AED ?? v.price)).filter(n => Number.isFinite(n));
             const stocks = variants.map(v => Number(v.stock ?? 0)).filter(n => Number.isFinite(n));
             finalPrice = prices.length ? Math.min(...prices) : finalPrice;
-            finalMrp = mrps.length ? Math.min(...mrps) : finalMrp;
+            finalAED = AEDs.length ? Math.min(...AEDs) : finalAED;
             inStock = stocks.some(s => s > 0);
-        } else if (price !== undefined || mrp !== undefined) {
-            // no variants, keep numeric price/mrp if provided
+        } else if (price !== undefined || AED !== undefined) {
+            // no variants, keep numeric price/AED if provided
             if (price !== undefined) finalPrice = price;
-            if (mrp !== undefined) finalMrp = mrp;
+            if (AED !== undefined) finalAED = AED;
         }
 
         let shortDescription = product.shortDescription;
@@ -455,7 +461,7 @@ export async function PUT(request) {
             name,
             description,
             shortDescription,
-            mrp: finalMrp,
+            AED: finalAED,
             price: finalPrice,
             category: categories[0], // Keep first category for backward compatibility
             categories, // New: store all categories
@@ -474,7 +480,9 @@ export async function PUT(request) {
             updateData.stockQuantity = stockQuantity;
         }
         if (slug && slug !== product.slug) {
-            const existing = await Product.findOne({ slug }).lean();
+            const existing = await Product.findOne({ slug })
+              .select('_id name slug')
+              .lean();
             if (existing && existing._id.toString() !== productId) {
                 return NextResponse.json({ error: "Slug already exists. Please use a different slug." }, { status: 400 });
             }
@@ -491,7 +499,9 @@ export async function PUT(request) {
         console.log('PUT: Product updated with categories:', product.categories);
         
         // Verify by querying MongoDB directly
-        const verifyUpdatedProduct = await Product.findById(product._id).lean();
+        const verifyUpdatedProduct = await Product.findById(product._id)
+          .select('_id price mrp AED')
+          .lean();
         console.log('VERIFY PUT from DB - product.categories:', verifyUpdatedProduct.categories);
         console.log('VERIFY PUT from DB - categories length:', verifyUpdatedProduct.categories?.length);
 

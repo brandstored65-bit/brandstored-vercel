@@ -14,14 +14,26 @@ export async function POST(request) {
     }
 
     const idToken = authHeader.split('Bearer ')[1];
+    if (!idToken) {
+      return NextResponse.json({ error: 'Invalid authorization header' }, { status: 401 });
+    }
     
     // Verify Firebase token
     const { getAuth } = await import('firebase-admin/auth');
     const { initializeApp, cert, getApps } = await import('firebase-admin/app');
     
-    if (getApps().length === 0) {
-      const serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY || '{}');
-      initializeApp({ credential: cert(serviceAccount) });
+    try {
+      if (getApps().length === 0) {
+        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+        if (!serviceAccountKey) {
+          return NextResponse.json({ error: 'Firebase not configured' }, { status: 500 });
+        }
+        const serviceAccount = JSON.parse(serviceAccountKey);
+        initializeApp({ credential: cert(serviceAccount) });
+      }
+    } catch (initError) {
+      console.error('Firebase initialization error:', initError);
+      return NextResponse.json({ error: 'Firebase initialization failed' }, { status: 500 });
     }
 
     let decodedToken;

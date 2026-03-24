@@ -13,7 +13,7 @@ function slugify(text = '') {
 
 function buildCategoryUrl(name = '') {
   const slug = slugify(name);
-  return slug ? `/shop?category=${slug}` : '/shop';
+  return slug ? `/${slug}` : '/';
 }
 
 function parseAuthHeader(req) {

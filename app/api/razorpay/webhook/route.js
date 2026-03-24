@@ -128,7 +128,7 @@ async function handleRefundCreated(refund) {
     if (order) {
       order.paymentStatus = 'refunded';
       order.status = 'RETURNED';
-      order.notes = `Refund processed: ₹${refund.amount / 100}`;
+      order.notes = `Refund processed: AED${refund.amount / 100}`;
       await order.save();
       console.log("[Webhook] Order marked as refunded:", order._id);
     }

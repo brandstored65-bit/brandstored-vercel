@@ -339,7 +339,7 @@ export default function Section4Editor({ section, onSave, onClose }) {
                             )}
                           </div>
                           <h4 className="text-xs font-medium line-clamp-2">{product.name}</h4>
-                          <p className="text-xs text-gray-500 mt-1">₹{product.price}</p>
+                          <p className="text-xs text-gray-500 mt-1">AED{product.price}</p>
                           {isSelected && (
                             <span className="text-xs text-green-600 font-semibold mt-1 block">✓ Selected</span>
                           )}

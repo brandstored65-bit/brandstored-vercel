@@ -49,7 +49,7 @@ export async function GET(request) {
         return {
           _id: coupon._id,
           code: coupon.code,
-          title: coupon.title || `${coupon.discountValue || coupon.discount}${coupon.discountType === 'percentage' ? '%' : '₹'} Off`,
+          title: coupon.title || `${coupon.discountValue || coupon.discount}${coupon.discountType === 'percentage' ? '%' : 'AED'} Off`,
           description: coupon.description,
           discountType: coupon.discountType,
           discountValue: coupon.discountValue || coupon.discount,
@@ -119,7 +119,7 @@ export async function POST(request) {
       const minAmount = coupon.minOrderValue || coupon.minPrice || 0;
       return NextResponse.json(
         {
-          error: `Minimum order value of ₹${minAmount} required`,
+          error: `Minimum order value of AED${minAmount} required`,
           valid: false,
         },
         { status: 400 }

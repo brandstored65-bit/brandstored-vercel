@@ -273,7 +273,7 @@ export default function ProductImageViewer({ product, onClose }) {
             </div>
             <div>
               <p className="text-sm text-slate-600">Price</p>
-              <p className="font-semibold text-slate-900">₹{product.salePrice || product.price}</p>
+              <p className="font-semibold text-slate-900">AED{product.salePrice || product.price}</p>
             </div>
             <div>
               <p className="text-sm text-slate-600">Total Images</p>

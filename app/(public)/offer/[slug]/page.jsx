@@ -233,7 +233,7 @@ export default function SpecialOfferBySlugPage() {
     ...product,
     _id: product._id || product.id,
     price: product.discountedPrice,
-    mrp: product.originalPrice,
+    AED: product.originalPrice,
     originalPrice: product.originalPrice,
     specialOffer: {
       isSpecialOffer: true,
@@ -290,7 +290,7 @@ export default function SpecialOfferBySlugPage() {
                     </div>
                     <div className="text-right">
                       <div className="text-[9px] sm:text-[10px] opacity-90">You Save</div>
-                      <div className="text-xl sm:text-2xl font-bold leading-none">₹{product.savings}</div>
+                      <div className="text-xl sm:text-2xl font-bold leading-none">AED{product.savings}</div>
                     </div>
                   </div>
                 </div>
@@ -300,11 +300,11 @@ export default function SpecialOfferBySlugPage() {
                   <div className="flex items-center justify-between gap-1.5">
                     <div>
                       <div className="text-[9px] sm:text-[10px] text-gray-600">Regular Price</div>
-                      <div className="text-base sm:text-lg text-gray-500 line-through leading-none">₹{product.originalPrice}</div>
+                      <div className="text-base sm:text-lg text-gray-500 line-through leading-none">AED{product.originalPrice}</div>
                     </div>
                     <div className="text-right">
                       <div className="text-[9px] sm:text-[10px] text-green-600 font-semibold">Your Special Price</div>
-                      <div className="text-xl sm:text-2xl font-bold text-green-600 leading-none">₹{product.discountedPrice}</div>
+                      <div className="text-xl sm:text-2xl font-bold text-green-600 leading-none">AED{product.discountedPrice}</div>
                     </div>
                   </div>
                 </div>

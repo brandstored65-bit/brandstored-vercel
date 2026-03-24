@@ -23,7 +23,7 @@ export async function POST(request) {
     }
 
     const formData = await request.formData();
-    const files = formData.getAll('files');
+    const files = [...formData.getAll('files'), ...formData.getAll('file')].filter(Boolean);
     
     if (!files || files.length === 0) {
       return Response.json({ error: "No files provided" }, { status: 400 });
@@ -61,7 +61,8 @@ export async function POST(request) {
     }
 
     return Response.json({ 
-      success: true, 
+      success: true,
+      url: uploadedUrls[0] || null,
       urls: uploadedUrls 
     });
   } catch (error) {

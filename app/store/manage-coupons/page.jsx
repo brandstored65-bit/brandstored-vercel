@@ -261,13 +261,13 @@ export default function ManageCouponsPage() {
                       <span className="font-semibold">
                         {coupon.discountType === 'percentage'
                           ? `${coupon.discountValue}%`
-                          : `₹${coupon.discountValue}`}
+                          : `AED${coupon.discountValue}`}
                       </span>
                     </div>
                     <div>
                       <span className="text-gray-500">Min Order:</span>{' '}
                       <span className="font-semibold">
-                        ₹{coupon.minOrderValue || 0}
+                        AED{coupon.minOrderValue || 0}
                       </span>
                     </div>
                     <div>
@@ -400,7 +400,7 @@ export default function ManageCouponsPage() {
                     onChange={(e) =>
                       setFormData({ ...formData, description: e.target.value })
                     }
-                    placeholder="Get 10% off on orders above ₹500"
+                    placeholder="Get 10% off on orders above AED500"
                   />
                 </div>
 
@@ -418,7 +418,7 @@ export default function ManageCouponsPage() {
                     }
                   >
                     <option value="percentage">Percentage (%)</option>
-                    <option value="fixed">Fixed Amount (₹)</option>
+                    <option value="fixed">Fixed Amount (AED)</option>
                   </select>
                 </div>
 
@@ -449,7 +449,7 @@ export default function ManageCouponsPage() {
                 {/* Min Order Value */}
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-2">
-                    Minimum Order Value (₹)
+                    Minimum Order Value (AED)
                   </label>
                   <input
                     type="number"
@@ -471,7 +471,7 @@ export default function ManageCouponsPage() {
                 {formData.discountType === 'percentage' && (
                   <div>
                     <label className="block text-sm font-semibold text-gray-700 mb-2">
-                      Max Discount Cap (₹)
+                      Max Discount Cap (AED)
                     </label>
                     <input
                       type="number"

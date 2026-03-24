@@ -350,7 +350,7 @@ const Chatbot = () => {
                                                                     )}
                                                                     <div className="flex-1 min-w-0">
                                                                         <p className="text-xs font-bold text-blue-900">🛍️ {product.name}</p>
-                                                                        <p className="text-xs text-blue-700">₹{product.price}</p>
+                                                                        <p className="text-xs text-blue-700">AED{product.price}</p>
                                                                     </div>
                                                                 </div>
                                                             </Link>

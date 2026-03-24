@@ -5,7 +5,7 @@ import React from "react";
 export default function PrepaidUpsellModal({ open, onClose, onNoThanks, onPayNow, loading = false, orderTotal = 0, discountAmount = 0 }) {
   if (!open) return null;
   
-  const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₹';
+  const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'AED';
   const [navigating, setNavigating] = React.useState(false);
   
   const handleNoThanks = () => {

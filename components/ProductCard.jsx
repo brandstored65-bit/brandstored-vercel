@@ -38,9 +38,9 @@ const getSalePrice = (product) => parseAmount(
     product.currentPrice ?? product.current_price
 )
 
-// Best-guess MRP/compare-at price from common fields
-const getMrpPrice = (product) => parseAmount(
-    product.mrp ??
+// Best-guess AED/compare-at price from common fields
+const getAEDPrice = (product) => parseAmount(
+    product.AED ??
     product.compareAtPrice ?? product.compare_at_price ??
     product.originalPrice ?? product.original_price ??
     product.listPrice ?? product.list_price ??
@@ -49,7 +49,7 @@ const getMrpPrice = (product) => parseAmount(
 )
 
 const ProductCard = ({ product }) => {
-    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₹'
+    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'AED'
     const dispatch = useDispatch()
     const { getToken } = useAuth()
     const cartItems = useSelector(state => state.cart.cartItems)
@@ -82,7 +82,7 @@ const ProductCard = ({ product }) => {
         : (typeof product.ratingCount === 'number' ? product.ratingCount : 0)
 
     let priceNum = getSalePrice(product)
-    let mrpNum = getMrpPrice(product)
+    let AEDNum = getAEDPrice(product)
     const explicitDiscount = parseAmount(
         product.discountPercent ?? product.discount_percent ??
         product.discountPercentage ?? product.discount_percentage ??
@@ -90,15 +90,15 @@ const ProductCard = ({ product }) => {
     )
 
     // If only one price plus a percent is present, synthesize the other
-    if (priceNum === 0 && mrpNum > 0 && explicitDiscount > 0) {
-        priceNum = +(mrpNum * (1 - explicitDiscount / 100)).toFixed(2)
+    if (priceNum === 0 && AEDNum > 0 && explicitDiscount > 0) {
+        priceNum = +(AEDNum * (1 - explicitDiscount / 100)).toFixed(2)
     }
-    if (mrpNum === 0 && priceNum > 0 && explicitDiscount > 0) {
-        mrpNum = +(priceNum / (1 - explicitDiscount / 100)).toFixed(2)
+    if (AEDNum === 0 && priceNum > 0 && explicitDiscount > 0) {
+        AEDNum = +(priceNum / (1 - explicitDiscount / 100)).toFixed(2)
     }
 
-    const discount = mrpNum > priceNum && priceNum > 0
-        ? Math.round(((mrpNum - priceNum) / mrpNum) * 100)
+    const discount = AEDNum > priceNum && priceNum > 0
+        ? Math.round(((AEDNum - priceNum) / AEDNum) * 100)
         : explicitDiscount > 0
             ? Math.round(explicitDiscount)
             : 0
@@ -131,7 +131,7 @@ const ProductCard = ({ product }) => {
         ? `${(product.name || product.title || 'Untitled Product').slice(0, 50)}...`
         : (product.name || product.title || 'Untitled Product')
 
-    const showPrice = priceNum > 0 || mrpNum > 0
+    const showPrice = priceNum > 0 || AEDNum > 0
 
     const imageSrc = getImageSrc(product)
 
@@ -215,9 +215,9 @@ const ProductCard = ({ product }) => {
                             {priceNum > 0 && (
                                 <p className="text-sm sm:text-base font-bold text-gray-900">{currency} {priceNum.toFixed(2)}</p>
                             )}
-                            {mrpNum > 0 && mrpNum > priceNum && priceNum > 0 && (
+                            {AEDNum > 0 && AEDNum > priceNum && priceNum > 0 && (
                                 <div className="flex items-center gap-1.5">
-                                    <p className="text-[10px] sm:text-xs text-gray-400 line-through">{currency} {mrpNum.toFixed(2)}</p>
+                                    <p className="text-[10px] sm:text-xs text-gray-400 line-through">{currency} {AEDNum.toFixed(2)}</p>
                                     {discount > 0 && (
                                         <span className="text-[10px] sm:text-xs font-semibold text-green-600">
                                             {discount}% off

@@ -41,8 +41,8 @@ const ProductCard = ({ product }) => {
   const isOutOfStock = product.inStock === false || (typeof product.stockQuantity === 'number' && product.stockQuantity <= 0)
 
   const discount =
-    product.mrp && product.mrp > product.price
-      ? Math.round(((product.mrp - product.price) / product.mrp) * 100)
+    product.AED && product.AED > product.price
+      ? Math.round(((product.AED - product.price) / product.AED) * 100)
       : 0
 
   // Review fetching logic
@@ -154,13 +154,13 @@ const ProductCard = ({ product }) => {
           <div className="flex flex-col gap-0.5">
             {Number(product.price) > 0 && (
               <p className="text-sm sm:text-base font-bold text-black">
-                ₹{Number(product.price).toFixed(2)}
+                AED{Number(product.price).toFixed(2)}
               </p>
             )}
-            {Number(product.mrp) > 0 && Number(product.mrp) > Number(product.price) && (
+            {Number(product.AED) > 0 && Number(product.AED) > Number(product.price) && (
               <div className="flex items-center gap-1.5">
                 <p className="text-xs sm:text-sm text-gray-400 line-through">
-                  ₹{Number(product.mrp).toFixed(2)}
+                  AED{Number(product.AED).toFixed(2)}
                 </p>
                 {discount > 0 && (
                   <span className="text-[10px] sm:text-xs font-semibold text-green-600">

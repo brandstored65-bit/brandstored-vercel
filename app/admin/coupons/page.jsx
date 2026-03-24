@@ -91,7 +91,7 @@ export default function AdminCoupons() {
                         name="discount" value={newCoupon.discount} onChange={handleChange} required
                     />
                 </div>
-                <input type="number" placeholder="Minimum Cart Value (₹)" min={0} className="w-full mt-2 p-2 border border-slate-200 outline-slate-400 rounded-md"
+                <input type="number" placeholder="Minimum Cart Value (AED)" min={0} className="w-full mt-2 p-2 border border-slate-200 outline-slate-400 rounded-md"
                     name="minPrice" value={newCoupon.minPrice} onChange={handleChange} required
                 />
                 <input type="text" placeholder="Coupon Description" className="w-full mt-2 p-2 border border-slate-200 outline-slate-400 rounded-md"
@@ -155,7 +155,7 @@ export default function AdminCoupons() {
                                     <td className="py-3 px-4 font-medium text-slate-800">{coupon.code}</td>
                                     <td className="py-3 px-4 text-slate-800">{coupon.description}</td>
                                     <td className="py-3 px-4 text-slate-800">{coupon.discount}%</td>
-                                    <td className="py-3 px-4 text-slate-800">₹{coupon.minPrice}</td>
+                                    <td className="py-3 px-4 text-slate-800">AED{coupon.minPrice}</td>
                                     <td className="py-3 px-4 text-slate-800">{format(coupon.expiresAt, 'yyyy-MM-dd')}</td>
                                     <td className="py-3 px-4 text-slate-800">{coupon.forNewUser ? 'Yes' : 'No'}</td>
                                     <td className="py-3 px-4 text-slate-800">{coupon.forMember ? 'Yes' : 'No'}</td>

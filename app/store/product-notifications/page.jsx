@@ -308,7 +308,7 @@ export default function ProductNotificationsPage() {
               <option value=''>Choose a product...</option>
               {products.map(p => (
                 <option key={p._id} value={p._id}>
-                  {p.name} - ₹{p.price}
+                  {p.name} - AED{p.price}
                 </option>
               ))}
             </select>
@@ -325,7 +325,7 @@ export default function ProductNotificationsPage() {
                       <div className='flex-1'>
                         <h3 className='font-semibold text-slate-800'>{product?.name}</h3>
                         <p className='text-sm text-slate-600 mt-1'>{product?.shortDescription}</p>
-                        <p className='text-lg font-bold text-slate-800 mt-2'>₹{product?.price}</p>
+                        <p className='text-lg font-bold text-slate-800 mt-2'>AED{product?.price}</p>
                       </div>
                     </div>
                   )

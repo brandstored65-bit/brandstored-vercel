@@ -11,7 +11,7 @@ const categories = [
     label: "Budget Buys",
     image: "/category2.png",
     color: "from-[#e6f7ff] to-[#b2ebf2]",
-    icon: "₹",
+    icon: "AED",
   },
   {
     label: "Top Rated Picks",

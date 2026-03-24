@@ -33,7 +33,9 @@ export async function POST(request) {
 
     await dbConnect();
 
-    const product = await Product.findById(productId).lean();
+    const product = await Product.findById(productId)
+      .select('_id name price mrp AED fastDelivery')
+      .lean();
     if (!product) {
       return Response.json({ error: "Product not found" }, { status: 404 });
     }

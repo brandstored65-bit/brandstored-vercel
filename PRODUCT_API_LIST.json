@@ -128,7 +128,7 @@
             "name": "string",
             "description": "string",
             "shortDescription": "string",
-            "mrp": "number",
+            "AED": "number",
             "price": "number",
             "images": "array",
             "category": "string",

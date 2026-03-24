@@ -12,7 +12,7 @@ import Counter from "./Counter";
 import MobileProductActions from "./MobileProductActions";
 
 const ProductDetails = ({ product }) => {
-  const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₹ ';
+  const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'AED ';
   const [mainImage, setMainImage] = useState(product.images?.[0]);
   const [quantity, setQuantity] = useState(1);
   const [isInWishlist, setIsInWishlist] = useState(false);
@@ -30,7 +30,7 @@ const ProductDetails = ({ product }) => {
     ? product.rating.reduce((acc, item) => acc + item.rating, 0) / product.rating.length
     : 0;
 
-  // Variants and pricing helpers will compute effective price/MRP and discount
+  // Variants and pricing helpers will compute effective price/AED and discount
 
   // Variants support
   const variants = Array.isArray(product.variants) ? product.variants : [];
@@ -53,9 +53,9 @@ const ProductDetails = ({ product }) => {
   ) || null;
 
   const effPrice = selectedVariant?.price ?? product.price;
-  const effMrp = selectedVariant?.mrp ?? product.mrp;
-  const discountPercent = effMrp > effPrice
-    ? Math.round(((effMrp - effPrice) / effMrp) * 100)
+  const effAED = selectedVariant?.AED ?? product.AED;
+  const discountPercent = effAED > effPrice
+    ? Math.round(((effAED - effPrice) / effAED) * 100)
     : 0;
 
   // Check wishlist status on mount
@@ -329,9 +329,9 @@ const ProductDetails = ({ product }) => {
                 {effPrice}
               </span>
             </div>
-            {(effMrp > effPrice) && (
+            {(effAED > effPrice) && (
               <span className="text-lg text-gray-400 line-through">
-                {currency}{effMrp}
+                {currency}{effAED}
               </span>
             )}
             {discountPercent > 0 && (
@@ -340,7 +340,7 @@ const ProductDetails = ({ product }) => {
                   Save {discountPercent}%
                 </span>
                 <span className="text-orange-500 text-xs font-medium">
-                  Save {currency}{(effMrp - effPrice).toFixed(2)}
+                  Save {currency}{(effAED - effPrice).toFixed(2)}
                 </span>
               </>
             )}
@@ -351,13 +351,13 @@ const ProductDetails = ({ product }) => {
         {/* <div className="space-y-2 mb-4 text-sm">
           <div className="flex items-center gap-2">
             <span className="text-gray-700">Or divide it into 4 monthly payments of</span>
-            <span className="font-semibold">₹{(product.price / 4).toFixed(2)}</span>
+            <span className="font-semibold">AED{(product.price / 4).toFixed(2)}</span>
             <span className="text-gray-500">only with</span>
             <span className="bg-teal-400 text-white px-2 py-0.5 rounded font-semibold text-xs">tabby</span>
           </div>
           <div className="flex items-center gap-2">
             <span className="text-gray-700">Or divide it into 3 monthly payments of</span>
-            <span className="font-semibold">₹{(product.price / 3).toFixed(2)}</span>
+            <span className="font-semibold">AED{(product.price / 3).toFixed(2)}</span>
             <span className="text-gray-500">only with</span>
             <span className="bg-orange-500 text-white px-2 py-0.5 rounded font-semibold text-xs">tamara</span>
           </div>
@@ -379,8 +379,8 @@ const ProductDetails = ({ product }) => {
                     const qty = Number(v.options.bundleQty) || 1;
                     const isSelected = Number(selectedBundleQty) === qty;
                     const price = Number(v.price);
-                    const mrp = Number(v.mrp ?? v.price);
-                    const save = mrp > price ? (mrp - price) : 0;
+                    const AED = Number(v.AED ?? v.price);
+                    const save = AED > price ? (AED - price) : 0;
                     const tag = v.tag || v.options?.tag || '';
                     const label = v.options?.title?.trim() || (qty === 1 ? 'Buy 1' : `Bundle of ${qty}`);
                     const subtitle = qty === 2 ? 'Perfect for you & a friend' : qty === 3 ? 'Best Value' : '';
@@ -414,8 +414,8 @@ const ProductDetails = ({ product }) => {
                           </div>
                           <div className="text-right flex flex-col items-end gap-1">
                             <div className="text-2xl font-bold text-gray-900">{currency} {price.toFixed(2)}</div>
-                            {mrp > price && (
-                              <div className="text-sm text-gray-400 line-through">{currency} {mrp.toFixed(2)}</div>
+                            {AED > price && (
+                              <div className="text-sm text-gray-400 line-through">{currency} {AED.toFixed(2)}</div>
                             )}
                           </div>
                           <div className={`shrink-0 w-6 h-6 rounded-full border-2 flex items-center justify-center ${

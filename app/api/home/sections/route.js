@@ -21,7 +21,7 @@ export async function GET() {
         if (sel.productIds?.length) {
           const found = await Product.find({
             _id: { $in: sel.productIds }
-          }).select('_id name price mrp images inStock').lean();
+          }).select('_id name price mrp AED images inStock').lean();
           // Preserve order based on productIds
           const byId = new Map(found.map((p) => [p._id.toString(), p]));
           products = sel.productIds
@@ -32,8 +32,8 @@ export async function GET() {
               id: p._id.toString(),
               image: p.images?.[0] || null,
               offLabel:
-                p.mrp && p.mrp > p.price
-                  ? `Min. ${Math.max(0, Math.round(((p.mrp - p.price) / p.mrp) * 100))}% Off`
+                p.AED && p.AED > p.price
+                  ? `Min. ${Math.max(0, Math.round(((p.AED - p.price) / p.AED) * 100))}% Off`
                   : null,
             }));
         }

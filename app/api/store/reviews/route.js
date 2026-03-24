@@ -35,7 +35,9 @@ export async function GET(request) {
         }
 
         // Get all products for this store
-        const products = await Product.find({ storeId }).lean();
+        const products = await Product.find({ storeId })
+          .select('_id name slug price mrp AED images category inStock')
+          .lean();
         const productIds = products.map(p => p._id.toString());
         
         // Get ratings for these products

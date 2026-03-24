@@ -26,7 +26,7 @@ import {
 import Link from "next/link";
 
 export default function MarketingExpenses() {
-    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₹';
+    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'AED';
     const { user, getToken, loading: authLoading } = useAuth();
     const router = useRouter();
     

@@ -17,7 +17,7 @@ const formatAmount = (amount, currencySymbol) => {
 
 export default function StoreBalancePage() {
     const { user, loading: authLoading, getToken } = useAuth()
-    const currencySymbol = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₹'
+    const currencySymbol = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'AED'
     const [activeProvider, setActiveProvider] = useState('razorpay')
     const [initialLoading, setInitialLoading] = useState(true)
     const [loading, setLoading] = useState(false)

@@ -164,7 +164,7 @@ async function handleSettlementProcessed(payload) {
     const amount = payload.settlement.amount;
     const fees = payload.settlement.fees;
 
-    console.log(`[Webhook] Settlement processed: ${settlementId}, Amount: ₹${amount / 100}`);
+    console.log(`[Webhook] Settlement processed: ${settlementId}, Amount: AED${amount / 100}`);
 
     // Find orders that were part of this settlement
     // You might need to track which orders are in which settlement
@@ -185,7 +185,7 @@ async function handleTransferCreated(payload) {
     const amount = payload.transfer.amount;
     const source = payload.transfer.source;
 
-    console.log(`[Webhook] Transfer created: ${transferId} for amount ₹${amount / 100}`);
+    console.log(`[Webhook] Transfer created: ${transferId} for amount AED${amount / 100}`);
 
     // If this is a payment transfer
     if (source && source.includes('pay_')) {

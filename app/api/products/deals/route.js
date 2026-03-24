@@ -36,7 +36,7 @@ export async function GET(request) {
             { 
                 $match: { 
                     inStock: true,
-                    mrp: { $exists: true, $ne: null },
+                    AED: { $exists: true, $ne: null },
                     price: { $exists: true, $ne: null }
                 } 
             },
@@ -46,7 +46,7 @@ export async function GET(request) {
                         $round: [
                             {
                                 $multiply: [
-                                    { $divide: [{ $subtract: ['$mrp', '$price'] }, '$mrp'] },
+                                    { $divide: [{ $subtract: ['$AED', '$price'] }, '$AED'] },
                                     100
                                 ]
                             }
@@ -81,7 +81,7 @@ export async function GET(request) {
             { 
                 $match: { 
                     inStock: true,
-                    mrp: { $exists: true, $ne: null },
+                    AED: { $exists: true, $ne: null },
                     price: { $exists: true, $ne: null }
                 } 
             },
@@ -91,7 +91,7 @@ export async function GET(request) {
                         $round: [
                             {
                                 $multiply: [
-                                    { $divide: [{ $subtract: ['$mrp', '$price'] }, '$mrp'] },
+                                    { $divide: [{ $subtract: ['$AED', '$price'] }, '$AED'] },
                                     100
                                 ]
                             }
@@ -146,7 +146,7 @@ export async function GET(request) {
                     : 0;
 
                 // Calculate savings
-                const savings = product.mrp - product.price;
+                const savings = product.AED - product.price;
 
                 return {
                     ...product,
@@ -164,7 +164,7 @@ export async function GET(request) {
                 return {
                     ...product,
                     discount,
-                    savings: product.mrp - product.price,
+                    savings: product.AED - product.price,
                     label: `${discount}% OFF`,
                     labelType: 'offer',
                     ratingCount: 0,

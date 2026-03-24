@@ -392,7 +392,7 @@ export default function CarouselSlider() {
                         fontWeight: 600,
                         marginTop: 4,
                       }}>
-                        From <span style={{fontWeight: 700, color: '#a51010ff'}}>₹{product.price}</span>
+                        From <span style={{fontWeight: 700, color: '#a51010ff'}}>AED{product.price}</span>
                       </div>
                     </div>
                   </div>

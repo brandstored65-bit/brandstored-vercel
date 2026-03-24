@@ -17,7 +17,7 @@
 │ Premium Wireless        │ ← 14px text
 │ Headphones              │
 │                         │
-│ ₹1,999  ₹2,999         │ ← Basic price
+│ AED1,999  AED2,999         │ ← Basic price
 │ [strikethrough]         │
 │                         │
 │ [View Product →]        │ ← Simple green button
@@ -45,8 +45,8 @@ CSS:
 │ Headphones                    │    Better typography
 │                               │
 │ ╔═══════════════════════╗    │
-│ ║ ₹1,999  ₹2,999       ║    │ ← Green gradient box
-│ ║ 💰 Save ₹1,000      ║    │    Shows savings!
+│ ║ AED1,999  AED2,999       ║    │ ← Green gradient box
+│ ║ 💰 Save AED1,000      ║    │    Shows savings!
 │ ╚═══════════════════════╝    │
 │                               │
 │ ┌──────────────────────────┐  │
@@ -160,7 +160,7 @@ all your favorite products!
     │ ╚════════════════════╝ │   (2x larger)
     │                        │
     │ Limited time offer •   │ ← Support text
-    │ Free shipping >₹500    │   Urgency message
+    │ Free shipping >AED500    │   Urgency message
     └────────────────────────┘
     
 CSS:
@@ -318,15 +318,15 @@ Engagement: Premium ✨
 
 **BEFORE:**
 ```
-₹1,999
-₹2,999 (strikethrough)
+AED1,999
+AED2,999 (strikethrough)
 ```
 
 **AFTER:**
 ```
 ┌──────────────────┐
-│ ₹1,999  ₹2,999   │ Green gradient box
-│ 💰 Save ₹1,000   │ Shows savings amount
+│ AED1,999  AED2,999   │ Green gradient box
+│ 💰 Save AED1,000   │ Shows savings amount
 └──────────────────┘
 ```
 
@@ -378,8 +378,8 @@ Limited time offer text below
 ├────────────────┤
 │ Product Name  │ Larger text
 │               │ Better padding
-│ ₹1,999 ₹2,999│ Green box
-│ 💰 Save ₹1,000│ Savings shown
+│ AED1,999 AED2,999│ Green box
+│ 💰 Save AED1,000│ Savings shown
 │               │
 │ [✓ VIEW&BUY]  │ Prominent button
 │               │

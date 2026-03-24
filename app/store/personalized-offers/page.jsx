@@ -310,7 +310,7 @@ export default function PersonalizedOffersAdmin() {
                     <option value="">Select an abandoned cart customer...</option>
                     {abandonedCarts.map((cart) => (
                       <option key={cart._id} value={cart._id}>
-                        {cart.name || cart.email} - ₹{cart.cartTotal?.toFixed(2) || 0} 
+                        {cart.name || cart.email} - AED{cart.cartTotal?.toFixed(2) || 0} 
                         ({cart.items?.length || 0} item{cart.items?.length !== 1 ? 's' : ''})
                         {cart.lastSeenAt && ` - ${new Date(cart.lastSeenAt).toLocaleDateString()}`}
                       </option>
@@ -324,7 +324,7 @@ export default function PersonalizedOffersAdmin() {
                   <div className="text-sm">
                     <strong>Selected:</strong> {selectedCart.name || selectedCart.email}
                     <br />
-                    <strong>Cart Total:</strong> ₹{selectedCart.cartTotal?.toFixed(2) || 0}
+                    <strong>Cart Total:</strong> AED{selectedCart.cartTotal?.toFixed(2) || 0}
                     <br />
                     <strong>Items:</strong> {selectedCart.items?.length || 0}
                   </div>
@@ -396,7 +396,7 @@ export default function PersonalizedOffersAdmin() {
                   <option value="">Select a product</option>
                   {products.map((product) => (
                     <option key={product._id || product.id} value={product._id || product.id}>
-                      {product.name} - ₹{product.price}
+                      {product.name} - AED{product.price}
                     </option>
                   ))}
                 </select>

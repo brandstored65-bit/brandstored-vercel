@@ -314,7 +314,7 @@ export default function SettingsPage() {
                             <label className="flex flex-col gap-1.5">
                                 <span className="font-medium text-slate-700">Currency Preference</span>
                                 <select value={currencyPreference} onChange={e => setCurrencyPreference(e.target.value)} className="border border-slate-300 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent">
-                                    <option value="INR">Indian Rupee (₹)</option>
+                                    <option value="INR">Indian Rupee (AED)</option>
                                     <option value="USD">US Dollar ($)</option>
                                     <option value="EUR">Euro (€)</option>
                                     <option value="GBP">British Pound (£)</option>

@@ -5,7 +5,7 @@ const ProductSchema = new mongoose.Schema({
   slug: { type: String, unique: true },
   description: String,
   shortDescription: String,
-  mrp: Number,
+  AED: Number,
   price: Number,
   costPrice: { type: Number, default: 0 }, // Actual cost/purchase price for profit calculation
   images: [String],
@@ -36,7 +36,7 @@ const ProductSchema = new mongoose.Schema({
 ProductSchema.index({ inStock: 1, createdAt: -1 });
 ProductSchema.index({ storeId: 1, inStock: 1 });
 ProductSchema.index({ category: 1, inStock: 1 }); // For category filtering
-ProductSchema.index({ price: 1, mrp: 1 }); // For discount calculations and price sorting
+ProductSchema.index({ price: 1, AED: 1 }); // For discount calculations and price sorting
 ProductSchema.index({ tags: 1, inStock: 1 }); // For tag-based filtering
 ProductSchema.index({ fastDelivery: 1, inStock: 1 }); // For fast delivery filter
 

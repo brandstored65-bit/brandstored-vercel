@@ -300,7 +300,7 @@ Response: { success: true }
 - ✅ Automatic bonus coins for new signups
 - ✅ Transaction types: CREDIT, DEBIT, REFUND, BONUS
 - ✅ Real-time balance updates
-- ✅ 1 Coin = ₹1 conversion
+- ✅ 1 Coin = AED1 conversion
 
 #### API Endpoints:
 
@@ -1026,7 +1026,7 @@ FIREBASE_ADMIN_CLIENT_EMAIL=...
 FIREBASE_ADMIN_PRIVATE_KEY=...
 
 # Other
-NEXT_PUBLIC_CURRENCY_SYMBOL=₹
+NEXT_PUBLIC_CURRENCY_SYMBOL=AED
 NEXT_PUBLIC_API_URL=http://localhost:3000
 ```
 

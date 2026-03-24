@@ -109,7 +109,7 @@ export default function NewHomeSection(){
                 <button type='button' key={p._id} onClick={()=>pick(p._id)} className={`text-left border-2 rounded-lg p-3 ${form.productIds.includes(p._id)?'border-blue-600 bg-blue-50':'border-gray-200'}`}>
                   <img src={p.images[0]} alt={p.name} className='w-full aspect-square object-contain mb-2'/>
                   <div className='text-xs font-medium'>{p.name}</div>
-                  <div className='text-xs text-gray-600'>₹ {p.price}</div>
+                  <div className='text-xs text-gray-600'>AED {p.price}</div>
                 </button>
               ))}
             </div>

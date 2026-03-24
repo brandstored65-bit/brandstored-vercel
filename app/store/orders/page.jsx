@@ -60,7 +60,7 @@ const updateTrackingDetails = async (orderId, trackingId, trackingUrl, courier, 
 };
 
 export default function StoreOrders() {
-    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₹';
+    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'AED';
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
@@ -431,7 +431,7 @@ export default function StoreOrders() {
             pickup_location_name: '',
             payment_mode: isCod ? 'cod' : 'prepaid',
             cod_amount: isCod ? order.total : 0,
-            weight: Math.max(1000, Math.ceil(order.total / 10)), // Estimate: 1kg min or 100g per ₹1
+            weight: Math.max(1000, Math.ceil(order.total / 10)), // Estimate: 1kg min or 100g per AED1
             dimensions: [{ box_count: 1, length_cm: 30, width_cm: 20, height_cm: 15 }],
             dropoff_location: order.shippingAddress || {}
         });
@@ -470,15 +470,15 @@ export default function StoreOrders() {
                 
                 const settlement = data.razorpayStatus;
                 let message = `💳 Razorpay Payment Status\n`;
-                message += `Amount: ₹${settlement.amount}\n`;
+                message += `Amount: AED${settlement.amount}\n`;
                 message += `Status: ${settlement.payment_captured ? '✓ Captured' : '✗ Not captured'}\n`;
-                message += `Fee: ₹${settlement.fee || 0}\n`;
+                message += `Fee: AED${settlement.fee || 0}\n`;
                 message += `Settlement: ${settlement.settlement_status}\n`;
                 
                 if (settlement.transfer_details) {
                     message += `✓ Transferred to Bank\n`;
                     message += `Transfer ID: ${settlement.transfer_details.transfer_id}\n`;
-                    message += `Amount: ₹${settlement.transfer_details.amount_transferred}`;
+                    message += `Amount: AED${settlement.transfer_details.amount_transferred}`;
                 } else {
                     message += `Pending transfer to bank account`;
                 }
@@ -1463,7 +1463,7 @@ export default function StoreOrders() {
                                                         </select>
                                                     </div>
                                                     <div>
-                                                        <label className="block text-[10px] font-semibold text-slate-600 mb-1">COD Amount (₹)</label>
+                                                        <label className="block text-[10px] font-semibold text-slate-600 mb-1">COD Amount (AED)</label>
                                                         <input
                                                             value={awbManifestData.cod_amount}
                                                             onChange={(e) => setAwbManifestData(prev => ({ ...prev, cod_amount: Number(e.target.value) }))}
@@ -1921,7 +1921,7 @@ export default function StoreOrders() {
                                                     <p className="text-sm text-green-700 font-medium">✓ Payment Collected by Delhivery</p>
                                                     {selectedOrder.delhivery.payment.cod_amount > 0 && (
                                                         <p className="text-sm text-green-600 mt-1">
-                                                            Amount: ₹{selectedOrder.delhivery.payment.cod_amount}
+                                                            Amount: AED{selectedOrder.delhivery.payment.cod_amount}
                                                         </p>
                                                     )}
                                                     {selectedOrder.delhivery.payment.payment_collected_at && (

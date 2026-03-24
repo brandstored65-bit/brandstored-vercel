@@ -24,7 +24,7 @@ export async function GET(request) {
       }
 
       const products = await Product.find(categoryQuery)
-        .select('_id name slug images price mrp category tags inStock')
+        .select('_id name slug images price mrp AED category tags inStock')
         .limit(limit)
         .lean();
 
@@ -36,7 +36,7 @@ export async function GET(request) {
           name: p.name,
           image: p.images?.[0] || '',
           price: p.price,
-          mrp: p.mrp,
+          AED: p.AED,
           category: p.category
         })),
         resultCount: products.length,
@@ -63,7 +63,7 @@ export async function GET(request) {
       ],
       inStock: true
     })
-    .select('_id name slug images price mrp category tags inStock')
+    .select('_id name slug images price mrp AED category tags inStock')
     .limit(limit)
     .lean();
 
@@ -78,7 +78,7 @@ export async function GET(request) {
         ],
         inStock: true
       })
-      .select('_id name slug images price mrp category tags inStock')
+      .select('_id name slug images price mrp AED category tags inStock')
       .limit(limit)
       .lean();
     }
@@ -95,7 +95,7 @@ export async function GET(request) {
         ],
         inStock: true
       })
-      .select('_id name slug images price mrp category tags inStock')
+      .select('_id name slug images price mrp AED category tags inStock')
       .limit(limit)
       .lean();
     }
@@ -110,7 +110,7 @@ export async function GET(request) {
         ],
         inStock: true
       })
-      .select('_id name slug images price mrp category tags inStock')
+      .select('_id name slug images price mrp AED category tags inStock')
       .limit(limit)
       .lean();
     }
@@ -118,7 +118,7 @@ export async function GET(request) {
     // Strategy 5: Fallback to popular products
     if (products.length === 0) {
       products = await Product.find({ inStock: true })
-        .select('_id name slug images price mrp category tags inStock')
+        .select('_id name slug images price mrp AED category tags inStock')
         .sort({ createdAt: -1 })
         .limit(limit)
         .lean();
@@ -134,7 +134,7 @@ export async function GET(request) {
         name: p.name,
         image: p.images?.[0] || '',
         price: p.price,
-        mrp: p.mrp,
+        AED: p.AED,
         category: p.category
       })),
       resultCount: products.length,

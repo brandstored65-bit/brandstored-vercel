@@ -201,7 +201,7 @@ export default function StoreReturnRequests() {
                                 <div>
                                     <h2 className="text-2xl font-bold mb-1">Return/Replacement Request</h2>
                                     <p className="text-orange-100 text-sm">Order #{selectedReturn.orderNumber}</p>
-                                    <p className="text-orange-200 text-xs mt-1">Total: ₹{selectedReturn.orderTotal}</p>
+                                    <p className="text-orange-200 text-xs mt-1">Total: AED{selectedReturn.orderTotal}</p>
                                 </div>
                                 <button onClick={() => setShowModal(false)} className="p-2 hover:bg-white/20 rounded-full">
                                     <X size={24} />

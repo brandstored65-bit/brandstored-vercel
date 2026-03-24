@@ -98,9 +98,9 @@ const TopBarNotification = () => {
             <span className="hidden sm:inline">First Order Special:</span>
             <span className="sm:hidden">New Customer:</span>
             {' '}
-            <strong className="text-yellow-300 text-sm md:text-base">₹100 OFF</strong>
+            <strong className="text-yellow-300 text-sm md:text-base">AED100 OFF</strong>
             {' '}+ Free Shipping
-            <span className="hidden md:inline"> on orders above ₹499</span>
+            <span className="hidden md:inline"> on orders above AED499</span>
           </span>
           
           {/* CTA */}
@@ -149,7 +149,7 @@ const TopBarNotification = () => {
                 </h2>
                 
                 <p className="text-slate-600 mb-6">
-                  Sign up now to claim your <strong className="text-purple-600">₹100 OFF</strong> + <strong className="text-purple-600">FREE Shipping</strong> on your first order!
+                  Sign up now to claim your <strong className="text-purple-600">AED100 OFF</strong> + <strong className="text-purple-600">FREE Shipping</strong> on your first order!
                 </p>
 
                 <div className="bg-gradient-to-br from-purple-50 to-pink-50 rounded-xl p-4 mb-6">
@@ -160,7 +160,7 @@ const TopBarNotification = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
-                      <span className="text-slate-700">₹100 instant discount</span>
+                      <span className="text-slate-700">AED100 instant discount</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">
@@ -168,7 +168,7 @@ const TopBarNotification = () => {
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                         </svg>
                       </div>
-                      <span className="text-slate-700">Free shipping (Save ₹50+)</span>
+                      <span className="text-slate-700">Free shipping (Save AED50+)</span>
                     </div>
                     <div className="flex items-center gap-2">
                       <div className="w-5 h-5 bg-purple-500 rounded-full flex items-center justify-center flex-shrink-0">

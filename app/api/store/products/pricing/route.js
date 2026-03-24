@@ -20,7 +20,7 @@ export async function GET(req) {
         }
         
         const products = await Product.find({})
-            .select('name sku price mrp costPrice images inStock')
+            .select('name sku price AED costPrice images inStock')
             .sort({ createdAt: -1 });
         
         return NextResponse.json({

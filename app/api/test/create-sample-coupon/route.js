@@ -42,8 +42,8 @@ export async function POST(request) {
       },
       {
         code: "SAVE50",
-        title: "Save ₹50",
-        description: "Flat ₹50 off on orders above ₹1000",
+        title: "Save AED50",
+        description: "Flat AED50 off on orders above AED1000",
         storeId,
         discountType: "fixed",
         discountValue: 50,
@@ -86,7 +86,7 @@ export async function POST(request) {
       coupons: createdCoupons.map(c => ({
         code: c.code,
         title: c.title,
-        discount: `${c.discountType === 'percentage' ? c.discountValue + '%' : '₹' + c.discountValue}`,
+        discount: `${c.discountType === 'percentage' ? c.discountValue + '%' : 'AED' + c.discountValue}`,
       })),
     });
   } catch (error) {

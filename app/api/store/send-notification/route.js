@@ -97,7 +97,7 @@ export async function POST(request) {
                 <div style="flex: 1;">
                   <h2 style="margin: 0 0 10px 0; color: #333; font-size: 20px;">${product.name}</h2>
                   <p style="margin: 0 0 10px 0; color: #666; font-size: 14px;">${product.description || ''}</p>
-                  <p style="margin: 0; color: #667eea; font-size: 24px; font-weight: bold;">₹${product.price}</p>
+                  <p style="margin: 0; color: #667eea; font-size: 24px; font-weight: bold;">AED${product.price}</p>
                 </div>
               </div>
             </div>

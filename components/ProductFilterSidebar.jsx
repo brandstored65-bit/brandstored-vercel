@@ -297,8 +297,8 @@ export default function ProductFilterSidebar({
                   className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-orange-600"
                 />
                 <div className="flex justify-between text-xs text-gray-500 mt-1">
-                  <span>₹0</span>
-                  <span>₹{availableFilters.maxPrice}</span>
+                  <span>AED0</span>
+                  <span>AED{availableFilters.maxPrice}</span>
                 </div>
               </div>
             </div>

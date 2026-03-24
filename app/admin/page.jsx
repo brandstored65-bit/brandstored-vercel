@@ -10,7 +10,7 @@ import ContactMessagesAdmin from "./ContactMessagesAdmin.jsx";
 import toast from "react-hot-toast";
 
 export default function AdminDashboard() {
-    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₹';
+    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'AED';
     const [loading, setLoading] = useState(true);
     const [dashboardData, setDashboardData] = useState({
         products: 0,

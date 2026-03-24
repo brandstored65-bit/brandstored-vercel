@@ -109,12 +109,12 @@ export default function WalletPage() {
               </div>
               <div className="rounded-2xl bg-white/15 px-5 py-4 backdrop-blur">
                 <p className="text-xs text-white/80">Wallet Value</p>
-                <p className="text-3xl font-bold">₹ {wallet.rupeesValue}</p>
+                <p className="text-3xl font-bold">AED {wallet.rupeesValue}</p>
               </div>
             </div>
           </div>
           <div className="relative z-10 mt-4 flex flex-wrap gap-2">
-            <span className="text-xs font-semibold bg-white/15 px-3 py-1 rounded-full">10 wallet = ₹10</span>
+            <span className="text-xs font-semibold bg-white/15 px-3 py-1 rounded-full">10 wallet = AED10</span>
             <span className="text-xs font-semibold bg-white/15 px-3 py-1 rounded-full">10 wallet every order</span>
             <span className="text-xs font-semibold bg-white/15 px-3 py-1 rounded-full">+20 wallet on registration</span>
           </div>
@@ -135,7 +135,7 @@ export default function WalletPage() {
               </div>
               <div className="flex items-center justify-between">
                 <span>Redeem Rate</span>
-                <span className="font-semibold text-rose-600">10 Wallet = ₹10</span>
+                <span className="font-semibold text-rose-600">10 Wallet = AED10</span>
               </div>
             </div>  
           </div>
@@ -211,7 +211,7 @@ export default function WalletPage() {
                     <p className="text-xs text-slate-500">Order: {t.orderId || "-"}</p>
                   </div>
                   <div className={`text-sm font-semibold ${t.type === "EARN" ? "text-green-600" : "text-red-600"}`}>
-                    {t.type === "EARN" ? "+" : "-"}₹ {t.rupees}
+                    {t.type === "EARN" ? "+" : "-"}AED {t.rupees}
                   </div>
                 </li>
               ))}

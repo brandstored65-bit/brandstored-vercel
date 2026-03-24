@@ -118,11 +118,11 @@ export default function CategorySliderDisplay({ slider }) {
                 {/* Price */}
                 <div className="qf-card__price-row">
                   <span className="qf-card__price">
-                    ₹{product.basePrice?.toLocaleString()}
+                    AED{product.basePrice?.toLocaleString()}
                   </span>
                   {product.originalPrice && (
                     <span className="qf-card__strike">
-                      ₹{product.originalPrice?.toLocaleString()}
+                      AED{product.originalPrice?.toLocaleString()}
                     </span>
                   )}
                 </div>

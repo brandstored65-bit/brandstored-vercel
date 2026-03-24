@@ -10,7 +10,7 @@ async function main() {
       name: 'Sample Product',
       slug: 'sample-product',
       description: 'A sample product for testing grid section.',
-      mrp: 1000,
+      AED: 1000,
       price: 799,
       images: ['https://ik.imagekit.io/jrstupuke/placeholder.png'],
       category: 'Sample',

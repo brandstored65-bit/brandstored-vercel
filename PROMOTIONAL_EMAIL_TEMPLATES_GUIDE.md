@@ -139,7 +139,7 @@ Example:
 │ Product Name            │
 │ (2 lines max)           │
 │                         │
-│ ₹1,999  ₹2,999         │ ← Prices
+│ AED1,999  AED2,999         │ ← Prices
 │                         │
 │ [View Product →]       │ ← CTA Button
 └─────────────────────────┘
@@ -176,7 +176,7 @@ Example:
 **Price Display:**
 - Sale Price: 20px, bold, green (#059669)
 - Original Price: 13px, strikethrough, gray (#9ca3af)
-- Currency: ₹ (Indian Rupee)
+- Currency: AED (Indian Rupee)
 
 **CTA Button:**
 - Background: Green gradient (#10b981 → #059669)

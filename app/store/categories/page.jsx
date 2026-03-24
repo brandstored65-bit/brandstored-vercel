@@ -20,7 +20,7 @@ function slugify(text = '') {
 
 function buildCategoryUrl(name = '') {
   const slug = slugify(name);
-  return slug ? `/shop?category=${slug}` : '/shop';
+  return slug ? `/${slug}` : '/';
 }
 
 export default function StoreCategoryMenu() {
@@ -118,7 +118,7 @@ export default function StoreCategoryMenu() {
             Authorization: `Bearer ${token}`,
           },
         });
-        imageUrl = uploadRes.data?.urls?.[0] || '';
+        imageUrl = uploadRes.data?.urls?.[0] || uploadRes.data?.url || '';
       }
 
       if (!imageUrl) {
@@ -155,6 +155,20 @@ export default function StoreCategoryMenu() {
       await axios.post('/api/store/category-menu', { categories: updatedCategories }, {
         headers: { Authorization: `Bearer ${token}` },
       });
+
+      // Ensure category also exists in product taxonomy (used by Add Product page)
+      try {
+        await axios.post('/api/store/categories', {
+          name: formData.name.trim(),
+        }, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+      } catch (syncError) {
+        const message = syncError?.response?.data?.error || '';
+        if (!message.toLowerCase().includes('already exists')) {
+          console.warn('Category taxonomy sync failed:', syncError);
+        }
+      }
 
       setCategories(updatedCategories);
       handleCancel();

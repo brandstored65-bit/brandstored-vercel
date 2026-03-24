@@ -30,7 +30,7 @@ function isValidImage(src) {
 }
 
 const Hero = () => {
-  const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₹'
+  const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'AED'
 
   // === Default Slides ===
   const slides = [

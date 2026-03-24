@@ -47,9 +47,9 @@ const getSalePrice = (product) => {
   )
 }
 
-const getMrpPrice = (product) => {
+const getAEDPrice = (product) => {
   return parseAmount(
-    product.mrp ??
+    product.AED ??
     product.compareAtPrice ??
     product.compare_at_price ??
     product.originalPrice ??
@@ -74,7 +74,7 @@ const ProductCard = ({ product }) => {
   const secondaryImage = getImageSrc(product, 1)
 
   let priceNum = getSalePrice(product)
-  let mrpNum = getMrpPrice(product)
+  let AEDNum = getAEDPrice(product)
   const hasFastDelivery = Boolean(
     product.fastDelivery ||
     product.fast_delivery ||
@@ -103,16 +103,16 @@ const ProductCard = ({ product }) => {
   )
 
   // If we have only one price plus a percent, synthesize the other price
-  if (priceNum === 0 && mrpNum > 0 && explicitDiscount > 0) {
-    priceNum = +(mrpNum * (1 - explicitDiscount / 100)).toFixed(2)
+  if (priceNum === 0 && AEDNum > 0 && explicitDiscount > 0) {
+    priceNum = +(AEDNum * (1 - explicitDiscount / 100)).toFixed(2)
   }
-  if (mrpNum === 0 && priceNum > 0 && explicitDiscount > 0) {
-    mrpNum = +(priceNum / (1 - explicitDiscount / 100)).toFixed(2)
+  if (AEDNum === 0 && priceNum > 0 && explicitDiscount > 0) {
+    AEDNum = +(priceNum / (1 - explicitDiscount / 100)).toFixed(2)
   }
 
   const discount =
-    mrpNum > priceNum && priceNum > 0
-      ? Math.round(((mrpNum - priceNum) / mrpNum) * 100)
+    AEDNum > priceNum && priceNum > 0
+      ? Math.round(((AEDNum - priceNum) / AEDNum) * 100)
       : explicitDiscount > 0
         ? Math.round(explicitDiscount)
         : 0
@@ -214,12 +214,12 @@ const ProductCard = ({ product }) => {
             <div className="flex items-center gap-1 flex-wrap">
               {priceNum > 0 && (
                 <p className="text-base sm:text-lg font-extrabold text-slate-900 leading-none">
-                  ₹{priceNum.toFixed(0)}
+                  AED{priceNum.toFixed(0)}
                 </p>
               )}
-              {mrpNum > 0 && mrpNum > priceNum && (
+              {AEDNum > 0 && AEDNum > priceNum && (
                 <p className="text-[10px] sm:text-xs text-slate-400 line-through leading-none mt-0.5">
-                  ₹{mrpNum.toFixed(0)}
+                  AED{AEDNum.toFixed(0)}
                 </p>
               )}
               {discount > 0 && (

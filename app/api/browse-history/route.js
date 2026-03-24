@@ -26,7 +26,9 @@ export async function GET(request) {
 
     // Get product details
     const productIds = history.map(h => h.productId);
-    const products = await Product.find({ _id: { $in: productIds } }).lean();
+    const products = await Product.find({ _id: { $in: productIds } })
+      .select('_id name slug images price mrp AED category inStock stockQuantity')
+      .lean();
 
     // Map products to history
     const historyWithProducts = history.map(h => {

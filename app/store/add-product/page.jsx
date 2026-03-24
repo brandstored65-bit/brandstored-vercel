@@ -69,6 +69,16 @@ const Video = Node.create({
 
 export const dynamic = 'force-dynamic'
 
+const slugifyValue = (value = '') => {
+    return value
+        .toLowerCase()
+        .trim()
+        .replace(/[^\w\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .replace(/-+/g, '-')
+        .replace(/^-+|-+$/g, '')
+}
+
 export default function ProductForm({ product = null, onClose, onSubmitSuccess }) {
         // MISSING STATE HOOKS (add these at the top of ProductForm)
         const [dbCategories, setDbCategories] = useState([]);
@@ -76,9 +86,10 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
         const [isFormInitialized, setIsFormInitialized] = useState(false);
         const [bulkEnabled, setBulkEnabled] = useState(false);
         const [variants, setVariants] = useState([]);
+        const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
         const [images, setImages] = useState({ "1": null, "2": null, "3": null, "4": null, "5": null, "6": null, "7": null, "8": null });
         const [productInfo, setProductInfo] = useState({
-            name: '', slug: '', brand: '', shortDescription: '', description: '', mrp: '', price: '', category: '', sku: '', stockQuantity: 0, colors: [], sizes: [], fastDelivery: false, allowReturn: true, allowReplacement: true, reviews: [], badges: [], imageAspectRatio: '1:1', tags: [], deliveredBy: '', soldBy: '', paymentInfo: ''
+            name: '', slug: '', brand: '', shortDescription: '', description: '', AED: '', price: '', category: '', sku: '', stockQuantity: 0, colors: [], sizes: [], fastDelivery: false, allowReturn: true, allowReplacement: true, reviews: [], badges: [], imageAspectRatio: '1:1', tags: [], deliveredBy: '', soldBy: '', paymentInfo: ''
         });
         const [tagInput, setTagInput] = useState('');
         const [loading, setLoading] = useState(false);
@@ -131,26 +142,84 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
         const fetchCategories = async () => {
             try {
                 const res = await fetch('/api/store/categories');
-                
+
                 if (!res.ok) {
                     const errorData = await res.json().catch(() => ({}));
                     console.error('Failed to fetch categories:', res.status, res.statusText, errorData);
+                    setDbCategories([]);
                     return;
                 }
-                
+
                 const data = await res.json();
-                if (data.categories) {
-                    setDbCategories(data.categories);
+                const categories = Array.isArray(data?.categories) ? data.categories : [];
+
+                if (categories.length > 0) {
+                    setDbCategories(categories);
+                    return;
                 }
+
+                // Fallback: if only store menu categories exist, auto-sync them into system categories
+                // so they become selectable for products.
+                if (!user) {
+                    setDbCategories([]);
+                    return;
+                }
+
+                const token = await getToken();
+                if (!token) {
+                    setDbCategories([]);
+                    return;
+                }
+
+                const menuRes = await fetch('/api/store/category-menu', {
+                    headers: { Authorization: `Bearer ${token}` },
+                });
+
+                if (!menuRes.ok) {
+                    setDbCategories([]);
+                    return;
+                }
+
+                const menuData = await menuRes.json();
+                const menuCategories = Array.isArray(menuData?.categories) ? menuData.categories : [];
+
+                if (menuCategories.length === 0) {
+                    setDbCategories([]);
+                    return;
+                }
+
+                await Promise.all(
+                    menuCategories
+                        .map((category) => category?.name?.trim())
+                        .filter(Boolean)
+                        .map(async (name) => {
+                            try {
+                                await fetch('/api/store/categories', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json',
+                                        Authorization: `Bearer ${token}`,
+                                    },
+                                    body: JSON.stringify({ name }),
+                                });
+                            } catch (syncError) {
+                                console.warn('Category sync skipped for:', name, syncError?.message || syncError);
+                            }
+                        })
+                );
+
+                const refetchRes = await fetch('/api/store/categories');
+                const refetchData = refetchRes.ok ? await refetchRes.json() : {};
+                setDbCategories(Array.isArray(refetchData?.categories) ? refetchData.categories : []);
             } catch (error) {
                 console.error('Error fetching categories:', error);
-                // Set empty array as fallback
                 setDbCategories([]);
             }
         };
-        // Fetch categories immediately without waiting for auth
+
+        // Fetch categories and auto-sync menu categories if needed
         fetchCategories();
-    }, []);
+    }, [user, getToken]);
 
     // Fetch products for FBT selection
     useEffect(() => {
@@ -238,7 +307,7 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                 brand: product.brand || "",
                 shortDescription: product.shortDescription || "",
                 description: product.description || "",
-                mrp: product.mrp || "",
+                AED: product.AED || "",
                 price: product.price || "",
                 category: product.category?._id || product.category || "",
                 sku: product.sku || "",
@@ -278,6 +347,7 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
             
             console.log('Setting selected categories:', categoriesToSet)
             setSelectedCategories(categoriesToSet)
+            setIsSlugManuallyEdited(true)
             
             setIsFormInitialized(true)
             
@@ -293,7 +363,7 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                     title: v?.options?.title || (Number(v?.options?.bundleQty) === 1 ? 'Buy 1' : `Bundle of ${Number(v?.options?.bundleQty) || 1}`),
                     qty: Number(v?.options?.bundleQty) || 1,
                     price: v.price ?? '',
-                    mrp: v.mrp ?? v.price ?? '',
+                    AED: v.AED ?? v.price ?? '',
                     stock: v.stock ?? 0,
                     tag: v.tag || v.options?.tag || ''
                 }))
@@ -324,19 +394,16 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
         
         // Auto-generate slug from product name
         if (name === 'name') {
-            const slug = value
-                .toLowerCase()
-                .trim()
-                .replace(/[^\w\s-]/g, '') // Remove special characters
-                .replace(/\s+/g, '-') // Replace spaces with hyphens
-                .replace(/-+/g, '-') // Replace multiple hyphens with single hyphen
-                .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
+            const slug = slugifyValue(value)
             
             setProductInfo(prev => ({ 
                 ...prev, 
                 [name]: value,
-                slug: slug 
+                slug: isSlugManuallyEdited ? prev.slug : slug
             }))
+        } else if (name === 'slug') {
+            setIsSlugManuallyEdited(true)
+            setProductInfo(prev => ({ ...prev, slug: slugifyValue(value) }))
         } else {
             setProductInfo(prev => ({ ...prev, [name]: value }))
         }
@@ -451,15 +518,15 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                     .map(b => ({
                         options: { bundleQty: Number(b.qty), title: (b.title || undefined), tag: b.tag || undefined },
                         price: Number(b.price),
-                        mrp: Number(b.mrp || b.price),
+                        AED: Number(b.AED || b.price),
                         stock: Number(b.stock || 0),
                     }))
                 hasVariantsFlag = variantsToSend.length > 0
                 
-                // Ensure base price/mrp are set from the first bulk option for API validation
-                if (variantsToSend.length > 0 && (!productInfo.price || !productInfo.mrp)) {
+                // Ensure base price/AED are set from the first bulk option for API validation
+                if (variantsToSend.length > 0 && (!productInfo.price || !productInfo.AED)) {
                     formData.set('price', String(variantsToSend[0].price))
-                    formData.set('mrp', String(variantsToSend[0].mrp))
+                    formData.set('AED', String(variantsToSend[0].AED))
                 }
             }
             formData.append('hasVariants', String(hasVariantsFlag))
@@ -555,13 +622,13 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                         <input name="name" value={productInfo.name} onChange={onChangeHandler} className="w-full border-2 border-blue-200 rounded px-3 py-2 focus:ring-2 focus:ring-blue-300" placeholder="Enter product name" />
                     </div>
                     <div>
-                        <label className="block text-sm font-medium mb-1 text-blue-800">Product Slug <span className="text-xs text-green-600">(auto-generated from name)</span></label>
+                        <label className="block text-sm font-medium mb-1 text-blue-800">Product Slug <span className="text-xs text-green-600">(auto-generated, editable)</span></label>
                         <input 
                             name="slug" 
                             value={productInfo.slug} 
-                            readOnly 
-                            className="w-full border-2 border-blue-100 rounded px-3 py-2 bg-gray-50 text-gray-600 cursor-not-allowed" 
-                            placeholder="Auto-generated from product name" 
+                            onChange={onChangeHandler}
+                            className="w-full border-2 border-blue-100 rounded px-3 py-2 bg-white text-gray-700" 
+                            placeholder="Auto-generated from product name (you can edit)" 
                         />
                     </div>
                     <div>
@@ -649,16 +716,16 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                 {/* Pricing */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="block text-sm font-medium mb-1">Regular Price (MRP) - ₹</label>
+                        <label className="block text-sm font-medium mb-1">Regular Price (AED) - AED</label>
                         <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">₹</span>
-                            <input type="number" step="0.01" name="mrp" value={productInfo.mrp} onChange={onChangeHandler} className="w-full border rounded px-3 py-2 pl-14" placeholder="0.00" />
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">AED</span>
+                            <input type="number" step="0.01" name="AED" value={productInfo.AED} onChange={onChangeHandler} className="w-full border rounded px-3 py-2 pl-14" placeholder="0.00" />
                         </div>
                     </div>
                     <div>
-                        <label className="block text-sm font-medium mb-1">Sale Price - ₹</label>
+                        <label className="block text-sm font-medium mb-1">Sale Price - AED</label>
                         <div className="relative">
-                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">₹</span>
+                            <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">AED</span>
                             <input type="number" step="0.01" name="price" value={productInfo.price} onChange={onChangeHandler} className="w-full border rounded px-3 py-2 pl-14" placeholder="0.00" />
                         </div>
                     </div>
@@ -992,8 +1059,8 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                             <div className="grid grid-cols-7 gap-2 font-medium text-sm text-gray-700">
                                 <div>Label</div>
                                 <div>Qty</div>
-                                <div>Price (₹)</div>
-                                <div>MRP (₹)</div>
+                                <div>Price (AED)</div>
+                                <div>AED (AED)</div>
                                 <div>Stock</div>
                                 <div>Tag</div>
                                 <div></div>
@@ -1007,10 +1074,10 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                                             onChange={(e)=>{
                                                 const v=[...bulkOptions]; v[idx] = { ...b, qty: Number(e.target.value) }; setBulkOptions(v)
                                             }} />
-                                        <input className="border rounded px-2 py-1" type="number" step="0.01" placeholder="₹" value={b.price}
+                                        <input className="border rounded px-2 py-1" type="number" step="0.01" placeholder="AED" value={b.price}
                                             onChange={(e)=>{ const v=[...bulkOptions]; v[idx] = { ...b, price: e.target.value }; setBulkOptions(v)}} />
-                                        <input className="border rounded px-2 py-1" type="number" step="0.01" placeholder="₹" value={b.mrp}
-                                            onChange={(e)=>{ const v=[...bulkOptions]; v[idx] = { ...b, mrp: e.target.value }; setBulkOptions(v)}} />
+                                        <input className="border rounded px-2 py-1" type="number" step="0.01" placeholder="AED" value={b.AED}
+                                            onChange={(e)=>{ const v=[...bulkOptions]; v[idx] = { ...b, AED: e.target.value }; setBulkOptions(v)}} />
                                         <input className="border rounded px-2 py-1" type="number" placeholder="Stock" value={b.stock}
                                             onChange={(e)=>{ const v=[...bulkOptions]; v[idx] = { ...b, stock: Number(e.target.value) }; setBulkOptions(v)}} />
                                         <select className="border rounded px-2 py-1" value={b.tag}
@@ -1025,14 +1092,14 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                                     </div>
                                 ))}
                             </div>
-                            <button type="button" className="text-green-600 text-sm font-medium" onClick={()=> setBulkOptions([...bulkOptions, { title: '', qty: 1, price: '', mrp: '', stock: 0, tag: '' }])}>+ Add Bundle</button>
+                            <button type="button" className="text-green-600 text-sm font-medium" onClick={()=> setBulkOptions([...bulkOptions, { title: '', qty: 1, price: '', AED: '', stock: 0, tag: '' }])}>+ Add Bundle</button>
                         </div>
                     )}
 
                     {/* Classic size/color variants editor */}
                     {hasVariants && !bulkEnabled && (
                         <div className="mt-3 space-y-3">
-                            <div className="text-sm text-gray-600 mb-3">Add variant rows below. Each variant can have a custom title, color, size, image, SKU, price, MRP, and stock.</div>
+                            <div className="text-sm text-gray-600 mb-3">Add variant rows below. Each variant can have a custom title, color, size, image, SKU, price, AED, and stock.</div>
                             
                             <div className="space-y-3">
                                 {variants.map((v, idx) => (
@@ -1105,7 +1172,7 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                                         {/* Pricing */}
                                         <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">Price (₹)</label>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">Price (AED)</label>
                                                 <input className="w-full border rounded px-3 py-2" placeholder="0.00" type="number" step="0.01"
                                                     value={v.price ?? ''}
                                                     onChange={(e)=>{
@@ -1113,11 +1180,11 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                                                     }} />
                                             </div>
                                             <div>
-                                                <label className="block text-xs font-medium text-gray-600 mb-1">MRP (₹)</label>
+                                                <label className="block text-xs font-medium text-gray-600 mb-1">AED (AED)</label>
                                                 <input className="w-full border rounded px-3 py-2" placeholder="0.00" type="number" step="0.01"
-                                                    value={v.mrp ?? ''}
+                                                    value={v.AED ?? ''}
                                                     onChange={(e)=>{
-                                                        const nv=[...variants]; nv[idx]={...v, mrp:Number(e.target.value)}; setVariants(nv);
+                                                        const nv=[...variants]; nv[idx]={...v, AED:Number(e.target.value)}; setVariants(nv);
                                                     }} />
                                             </div>
                                         </div>
@@ -1125,7 +1192,7 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                                 ))}
                             </div>
                             
-                            <button type="button" className="w-full md:w-auto px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium" onClick={()=> setVariants([...variants, { options:{}, price:0, mrp:0, stock:0, sku:'' }])}>+ Add Variant</button>
+                            <button type="button" className="w-full md:w-auto px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 font-medium" onClick={()=> setVariants([...variants, { options:{}, price:0, AED:0, stock:0, sku:'' }])}>+ Add Variant</button>
                         </div>
                     )}
                 </div>

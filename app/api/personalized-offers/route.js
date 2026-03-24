@@ -54,7 +54,7 @@ export async function GET(req) {
     const offersWithProducts = await Promise.all(
       offers.map(async (offer) => {
         const product = await Product.findById(offer.productId)
-          .select('name slug price mrp images')
+          .select('name slug price mrp AED images')
           .lean();
         
         return {
@@ -181,7 +181,7 @@ export async function POST(req) {
           name: product.name,
           slug: product.slug,
           price: product.price,
-          mrp: product.mrp,
+          AED: product.AED,
           image: product.images?.[0]
         },
         discountedPrice,

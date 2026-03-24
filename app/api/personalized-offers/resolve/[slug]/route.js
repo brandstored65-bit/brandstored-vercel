@@ -17,7 +17,9 @@ export async function GET(req, { params }) {
       );
     }
 
-    const product = await Product.findOne({ slug }).lean();
+    const product = await Product.findOne({ slug })
+      .select('_id name slug price mrp AED images description category inStock stockQuantity')
+      .lean();
 
     if (!product) {
       return NextResponse.json(
@@ -75,7 +77,7 @@ export async function GET(req, { params }) {
         shortDescription: product.shortDescription,
         images: product.images,
         originalPrice: product.price,
-        mrp: product.mrp,
+        AED: product.AED,
         discountedPrice,
         savings,
         discountPercent: offer.discountPercent,

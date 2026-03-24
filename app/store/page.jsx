@@ -3,7 +3,7 @@ import Loading from "@/components/Loading"
 
 
 import axios from "axios"
-import { CircleDollarSignIcon, ShoppingBasketIcon, StarIcon, TagsIcon, UsersIcon, ShoppingCartIcon, UserPlusIcon } from "lucide-react"
+import { CircleDollarSignIcon, ShoppingBasketIcon, StarIcon, TagsIcon, UsersIcon, ShoppingCartIcon, UserPlusIcon, UploadCloudIcon } from "lucide-react"
 import ContactMessagesSeller from "./ContactMessagesSeller.jsx";
 import dynamic from "next/dynamic";
 import Image from "next/image"
@@ -24,7 +24,7 @@ export const dynamicSetting = 'force-dynamic'
 export default function Dashboard() {
     const { user, loading: authLoading, getToken } = useAuth();
     console.log('[page.jsx] user:', user, 'authLoading:', authLoading);
-    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₹'
+    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'AED'
     const router = useRouter()
     const [loading, setLoading] = useState(true)
     const [dashboardData, setDashboardData] = useState({
@@ -136,13 +136,22 @@ export default function Dashboard() {
         <div className=" text-slate-500 mb-28">
             <div className="flex items-center justify-between mb-4">
                 <h1 className="text-2xl">Seller <span className="text-slate-800 font-medium">Dashboard</span></h1>
-                <Link 
-                    href="/store/settings/users" 
-                    className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition shadow-sm"
-                >
-                    <UserPlusIcon size={18} />
-                    <span>Invite Team Members</span>
-                </Link>
+                <div className="flex items-center gap-2">
+                    <Link
+                        href="/store/bulk-import"
+                        className="flex items-center gap-2 bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 rounded-lg transition shadow-sm"
+                    >
+                        <UploadCloudIcon size={18} />
+                        <span>Bulk Import</span>
+                    </Link>
+                    <Link 
+                        href="/store/settings/users" 
+                        className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition shadow-sm"
+                    >
+                        <UserPlusIcon size={18} />
+                        <span>Invite Team Members</span>
+                    </Link>
+                </div>
             </div>
 
             <div className="flex flex-wrap gap-5 my-10 mt-4">

@@ -40,7 +40,7 @@ CREATE TABLE "Product" (
     "slug" TEXT NOT NULL,
     "description" TEXT NOT NULL,
     "shortDescription" TEXT,
-    "mrp" DOUBLE PRECISION NOT NULL,
+    "AED" DOUBLE PRECISION NOT NULL,
     "price" DOUBLE PRECISION NOT NULL,
     "images" TEXT[],
     "category" TEXT NOT NULL,

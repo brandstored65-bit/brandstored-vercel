@@ -552,6 +552,9 @@ const Navbar = () => {
     } catch (error) {
       if (error?.response?.status !== 401) {
         console.error('Error fetching wishlist count:', error);
+        if (error?.response?.data) {
+          console.error('API Error Response:', error.response.data);
+        }
       }
       setWishlistCount(0);
     }
@@ -962,9 +965,9 @@ const Navbar = () => {
                         <h3 className="font-semibold text-sm text-gray-800 line-clamp-2 group-hover:text-blue-600">{product.name}</h3>
                         <p className="text-xs text-gray-500 mb-2">{product.category}</p>
                         <div className="flex items-center gap-2">
-                          <span className="font-bold text-lg text-blue-600">₹{product.price}</span>
-                          {product.mrp > product.price && (
-                            <span className="text-xs text-gray-400 line-through">₹{product.mrp}</span>
+                          <span className="font-bold text-lg text-blue-600">AED{product.price}</span>
+                          {product.AED > product.price && (
+                            <span className="text-xs text-gray-400 line-through">AED{product.AED}</span>
                           )}
                         </div>
                       </Link>
@@ -998,7 +1001,7 @@ const Navbar = () => {
                     className="mt-0 inline-flex items-center gap-1 px-2 py-0 bg-emerald-500 rounded-full text-white text-[10px] font-bold hover:bg-emerald-600 transition w-fit shadow-sm"
                   >
                     <Image src={WalletIcon} alt="Wallet" width={14} height={14} />
-                    <span>Wallet: ₹{Number(walletCoins || 0).toLocaleString()}</span>
+                    <span>Wallet: AED{Number(walletCoins || 0).toLocaleString()}</span>
                   </Link>
                 </div>
                 {/* Dashboard button for seller */}

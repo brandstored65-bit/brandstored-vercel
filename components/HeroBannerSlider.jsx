@@ -3,7 +3,7 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
-import BannerC from '@/assets/heroslider1/slider01.png';
+import BannerC from '@/assets/heroslider1/banner_slider.webp';
 import WideBanner1 from '@/assets/heroslider1/main3.webp';
 import WideBanner2 from '@/assets/heroslider1/main1.webp';
 import Banner3 from '@/assets/heroslider1/banner05.avif';
@@ -13,10 +13,10 @@ const SLIDE_INTERVAL = 5000;
 const SKELETON_TIMEOUT = 1000; // Reduced timeout for faster initial display 
 
 const slides = [
-  { image: BannerC, link: '/offers', bg: '#442163' },
-  { image: WideBanner1, link: '/offers', bg: '#0071A4' },
+  { image: BannerC, link: '/offers', bg: '#0d1724' },
+  // { image: WideBanner1, link: '/offers', bg: '#0071A4' },
   // { image: Banner3, link: '/offers', bg: '#8a1114' },
-  { image: WideBanner2, link: '/offers', bg: '#00D5C3' },
+  // { image: WideBanner2, link: '/offers', bg: '#00D5C3' },
 ];
 
 export default function HeroBannerSlider() {

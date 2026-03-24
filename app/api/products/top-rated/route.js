@@ -74,7 +74,7 @@ export async function GET(request) {
           slug: 1,
           description: 1,
           shortDescription: 1,
-          mrp: 1,
+          AED: 1,
           price: 1,
           images: 1,
           category: 1,

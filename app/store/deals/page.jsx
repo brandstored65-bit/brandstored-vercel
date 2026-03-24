@@ -314,7 +314,7 @@ export default function DealsOfTheDay() {
                                                     <p className="text-xs font-medium text-slate-700 truncate">
                                                         {product.name}
                                                     </p>
-                                                    <p className="text-xs text-slate-500">₹{product.price}</p>
+                                                    <p className="text-xs text-slate-500">AED{product.price}</p>
                                                 </div>
                                             ))}
                                         </div>
@@ -438,7 +438,7 @@ export default function DealsOfTheDay() {
                                                 <p className="text-xs font-medium text-slate-700 truncate">
                                                     {product.name}
                                                 </p>
-                                                <p className="text-xs text-slate-500">₹{product.price}</p>
+                                                <p className="text-xs text-slate-500">AED{product.price}</p>
                                             </div>
                                         ))}
                                     </div>

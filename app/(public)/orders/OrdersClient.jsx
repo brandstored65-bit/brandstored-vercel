@@ -121,7 +121,7 @@ export default function OrdersClient() {
                     {/* Card-based layout instead of table */}
                     <div className="mt-8 space-y-6">
                         {orders.map((order) => (
-                            <OrderItem order={order} key={order.id} currencySymbol="₹" />
+                            <OrderItem order={order} key={order.id} currencySymbol="AED" />
                         ))}
                     </div>
                 </div>

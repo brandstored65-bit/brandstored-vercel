@@ -16,8 +16,8 @@ BEFORE:                          AFTER:
 │   180px height  │  ====>      │   [TOP PICK Badge]  │
 │                 │            │   [Discount 25%]    │
 │ Product Name    │            │   Product Name      │
-│ Price           │            │   ₹Price ₹Original │
-│ [View →]        │            │   💰 Save ₹X       │
+│ Price           │            │   AEDPrice AEDOriginal │
+│ [View →]        │            │   💰 Save AEDX       │
 └─────────────────┘            │ [✓ VIEW & BUY]      │
                                └─────────────────────┘
 ```

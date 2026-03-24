@@ -431,10 +431,10 @@ function ShopContent() {
                                             className="w-full border border-gray-300 rounded-md px-3 py-2 text-sm bg-white focus:outline-none focus:ring-1 focus:ring-orange-300"
                                         >
                                             <option value="all">All</option>
-                                            <option value="under499">Under ₹499</option>
-                                            <option value="500to999">₹500 - ₹999</option>
-                                            <option value="1000to1999">₹1000 - ₹1999</option>
-                                            <option value="2000plus">₹2000+</option>
+                                            <option value="under499">Under AED499</option>
+                                            <option value="500to999">AED500 - AED999</option>
+                                            <option value="1000to1999">AED1000 - AED1999</option>
+                                            <option value="2000plus">AED2000+</option>
                                         </select>
                                     </div>
 
@@ -546,7 +546,7 @@ function ShopContent() {
                                             ) : null}
                                             <div className="absolute inset-x-0 bottom-0 p-2.5 bg-gradient-to-t from-black/70 to-transparent">
                                                 <div className="inline-flex items-center px-2 py-1 rounded-sm bg-white text-gray-900 text-sm font-bold shadow-sm">
-                                                    ₹{getProductPrice(fastSellingProducts[fastSellingIndex] || {}).toLocaleString()}
+                                                    AED{getProductPrice(fastSellingProducts[fastSellingIndex] || {}).toLocaleString()}
                                                 </div>
                                             </div>
                                         </div>

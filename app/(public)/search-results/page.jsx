@@ -217,14 +217,14 @@ function SearchResultsInner() {
                     )}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-lg font-bold text-blue-600">₹{product.price}</span>
-                        {product.mrp > product.price && (
-                          <span className="text-sm text-gray-400 line-through">₹{product.mrp}</span>
+                        <span className="text-lg font-bold text-blue-600">AED{product.price}</span>
+                        {product.AED > product.price && (
+                          <span className="text-sm text-gray-400 line-through">AED{product.AED}</span>
                         )}
                       </div>
-                      {product.mrp > product.price && (
+                      {product.AED > product.price && (
                         <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded">
-                          {Math.round(((product.mrp - product.price) / product.mrp) * 100)}% OFF
+                          {Math.round(((product.AED - product.price) / product.AED) * 100)}% OFF
                         </span>
                       )}
                     </div>
@@ -280,14 +280,14 @@ function SearchResultsInner() {
                     {/* Pricing */}
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
-                        <span className="text-lg font-bold text-blue-600">₹{product.price}</span>
-                        {product.mrp > product.price && (
-                          <span className="text-sm text-gray-400 line-through">₹{product.mrp}</span>
+                        <span className="text-lg font-bold text-blue-600">AED{product.price}</span>
+                        {product.AED > product.price && (
+                          <span className="text-sm text-gray-400 line-through">AED{product.AED}</span>
                         )}
                       </div>
-                      {product.mrp > product.price && (
+                      {product.AED > product.price && (
                         <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded">
-                          {Math.round(((product.mrp - product.price) / product.mrp) * 100)}% OFF
+                          {Math.round(((product.AED - product.price) / product.AED) * 100)}% OFF
                         </span>
                       )}
                     </div>
@@ -339,14 +339,14 @@ function SearchResultsInner() {
                         )}
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-2">
-                            <span className="text-lg font-bold text-blue-600">₹{product.price}</span>
-                            {product.mrp > product.price && (
-                              <span className="text-sm text-gray-400 line-through">₹{product.mrp}</span>
+                            <span className="text-lg font-bold text-blue-600">AED{product.price}</span>
+                            {product.AED > product.price && (
+                              <span className="text-sm text-gray-400 line-through">AED{product.AED}</span>
                             )}
                           </div>
-                          {product.mrp > product.price && (
+                          {product.AED > product.price && (
                             <span className="text-xs bg-red-100 text-red-600 px-2 py-1 rounded">
-                              {Math.round(((product.mrp - product.price) / product.mrp) * 100)}% OFF
+                              {Math.round(((product.AED - product.price) / product.AED) * 100)}% OFF
                             </span>
                           )}
                         </div>

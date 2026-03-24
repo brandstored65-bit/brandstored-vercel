@@ -75,7 +75,7 @@ export async function POST(request) {
       ],
       inStock: true
     })
-    .select('_id name slug images price mrp category tags inStock')
+    .select('_id name slug images price mrp AED category tags inStock')
     .limit(12)
     .lean();
 
@@ -91,7 +91,7 @@ export async function POST(request) {
         ],
         inStock: true
       })
-      .select('_id name slug images price mrp category tags inStock')
+      .select('_id name slug images price mrp AED category tags inStock')
       .limit(12)
       .lean();
     }
@@ -107,7 +107,7 @@ export async function POST(request) {
         ],
         inStock: true
       })
-      .select('_id name slug images price mrp category tags inStock')
+      .select('_id name slug images price mrp AED category tags inStock')
       .limit(12)
       .lean();
     }
@@ -115,7 +115,7 @@ export async function POST(request) {
     let recommendedProducts = [];
     if (products.length === 0) {
       recommendedProducts = await Product.find({ inStock: true })
-        .select('_id name slug images price mrp category tags inStock')
+        .select('_id name slug images price mrp AED category tags inStock')
         .sort({ createdAt: -1 })
         .limit(12)
         .lean();
@@ -132,7 +132,7 @@ export async function POST(request) {
         name: p.name,
         image: p.images?.[0] || '',
         price: p.price,
-        mrp: p.mrp,
+        AED: p.AED,
         category: p.category
       })),
       recommendedProducts: recommendedProducts.map(p => ({
@@ -141,7 +141,7 @@ export async function POST(request) {
         name: p.name,
         image: p.images?.[0] || '',
         price: p.price,
-        mrp: p.mrp,
+        AED: p.AED,
         category: p.category
       })),
       resultCount: products.length,

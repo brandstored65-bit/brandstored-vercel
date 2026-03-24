@@ -202,9 +202,9 @@ export default function DashboardWishlistPage() {
                                                 <h3 className="font-semibold text-slate-800 mb-1">{item.product?.name}</h3>
                                                 <p className="text-sm text-slate-600 mb-2 line-clamp-2">{item.product?.description}</p>
                                                 <div className="flex items-center gap-4">
-                                                    <span className="text-lg font-bold text-slate-900">₹{item.product?.price}</span>
-                                                    {item.product?.mrp > item.product?.price && (
-                                                        <span className="text-sm text-slate-500 line-through">₹{item.product?.mrp}</span>
+                                                    <span className="text-lg font-bold text-slate-900">AED{item.product?.price}</span>
+                                                    {item.product?.AED > item.product?.price && (
+                                                        <span className="text-sm text-slate-500 line-through">AED{item.product?.AED}</span>
                                                     )}
                                                 </div>
                                             </div>
@@ -233,7 +233,7 @@ export default function DashboardWishlistPage() {
                                     <div className="flex items-center justify-between">
                                         <div>
                                             <p className="text-sm text-slate-600">{selectedItems.length} items selected</p>
-                                            <p className="text-xl font-bold text-slate-900">₹{calculateTotal().toFixed(2)}</p>
+                                            <p className="text-xl font-bold text-slate-900">AED{calculateTotal().toFixed(2)}</p>
                                         </div>
                                         <button
                                             onClick={addSelectedToCart}

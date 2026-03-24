@@ -311,11 +311,11 @@ export default function HomePreferences() {
                                                 {/* Price */}
                                                 <div className="flex items-center gap-2 mb-2">
                                                     <span className="font-bold text-slate-800">
-                                                        ₹{Number(product.price).toFixed(2)}
+                                                        AED{Number(product.price).toFixed(2)}
                                                     </span>
-                                                    {product.mrp > product.price && (
+                                                    {product.AED > product.price && (
                                                         <span className="text-xs text-slate-400 line-through">
-                                                            ₹{Number(product.mrp).toFixed(2)}
+                                                            AED{Number(product.AED).toFixed(2)}
                                                         </span>
                                                     )}
                                                 </div>

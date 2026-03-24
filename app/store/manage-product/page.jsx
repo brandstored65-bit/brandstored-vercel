@@ -20,7 +20,20 @@ export default function StoreManageProducts() {
 
     const { user, getToken } = useAuth();
 
-    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || '₹'
+    const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'AED'
+    const formatAmount = (value) => {
+        const numeric = Number(value)
+        return Number.isFinite(numeric) ? numeric.toLocaleString() : '0'
+    }
+
+    // Safe Unicode text truncation that doesn't cut multi-byte characters
+    const truncateText = (text, maxLength = 100) => {
+        if (!text) return ''
+        const cleaned = String(text).replace(/<[^>]*>/g, ' ').trim()
+        // Safely truncate Unicode text - convert to array of graphemes
+        const truncated = [...cleaned].slice(0, maxLength).join('')
+        return cleaned.length > maxLength ? `${truncated}...` : truncated
+    }
 
     const [loading, setLoading] = useState(true)
     const [products, setProducts] = useState([])
@@ -244,7 +257,7 @@ export default function StoreManageProducts() {
                         <th className="px-4 py-3 hidden md:table-cell">Categories</th>
                         <th className="px-4 py-3 hidden xl:table-cell">Tags</th>
                         <th className="px-4 py-3 hidden md:table-cell">Description</th>
-                        <th className="px-4 py-3 hidden md:table-cell">MRP</th>
+                        <th className="px-4 py-3 hidden md:table-cell">AED</th>
                         <th className="px-4 py-3">Price</th>
                         <th className="px-4 py-3 hidden sm:table-cell">Fast Delivery</th>
                         <th className="px-4 py-3">Stock</th>
@@ -255,9 +268,9 @@ export default function StoreManageProducts() {
                     {filteredProducts.map((product) => (
                         <tr key={product._id} className="border-t border-gray-200 hover:bg-gray-50">
                             <td className="px-4 py-3">
-                                <div className="flex gap-2 items-center">
-                                    <Image width={40} height={40} className='p-1 shadow rounded cursor-pointer' src={product.images[0]} alt="" />
-                                    {product.name}
+                                <div className="flex gap-2 items-center max-w-xs">
+                                    <Image width={40} height={40} className='p-1 shadow rounded cursor-pointer flex-shrink-0' src={product.images[0]} alt="" />
+                                    <span className="break-words line-clamp-2 text-sm font-medium" title={product.name}>{product.name}</span>
                                 </div>
                             </td>
                             <td className="px-4 py-3 text-slate-600 hidden lg:table-cell">{product.sku || '-'}</td>
@@ -291,11 +304,11 @@ export default function StoreManageProducts() {
                                     <span className="text-slate-400">-</span>
                                 )}
                             </td>
-                            <td className="px-4 py-3 max-w-md text-slate-600 hidden md:table-cell truncate">
-                                {product.description?.replace(/<[^>]*>/g, ' ').trim().substring(0, 100)}...
+                            <td className="px-4 py-3 max-w-xs text-slate-600 hidden md:table-cell break-words" title={product.description?.replace(/<[^>]*>/g, ' ').trim() || '-'}>
+                                {truncateText(product.description, 100)}
                             </td>
-                            <td className="px-4 py-3 hidden md:table-cell">{currency} {product.mrp.toLocaleString()}</td>
-                            <td className="px-4 py-3">{currency} {product.price.toLocaleString()}</td>
+                            <td className="px-4 py-3 hidden md:table-cell">{currency} {formatAmount(product.mrp ?? product.AED ?? product.price)}</td>
+                            <td className="px-4 py-3">{currency} {formatAmount(product.price)}</td>
                             <td className="px-4 py-3 hidden sm:table-cell">
                                 <label className="relative inline-flex items-center cursor-pointer">
                                     <input 

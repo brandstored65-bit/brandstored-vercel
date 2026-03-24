@@ -77,7 +77,7 @@ QuickFynd is a comprehensive multi-vendor e-commerce platform built with Next.js
 - Multiple payment methods:
   - **Card Payment** (Razorpay/Stripe) with **5% cashback**
   - **Cash on Delivery (COD)** with configurable max amount
-  - **Wallet/Coins Redemption** (10 coins = ₹5)
+  - **Wallet/Coins Redemption** (10 coins = AED5)
 - Address management:
   - Save multiple addresses
   - Edit/delete addresses
@@ -104,7 +104,7 @@ QuickFynd is a comprehensive multi-vendor e-commerce platform built with Next.js
   - Usage limit checking
 - Coupon types:
   - **Percentage discount** (e.g., 10% off)
-  - **Fixed amount discount** (e.g., ₹100 off)
+  - **Fixed amount discount** (e.g., AED100 off)
 - Visual indicators for eligible/ineligible coupons
 - Automatic best coupon suggestions
 - One-click coupon application
@@ -113,7 +113,7 @@ QuickFynd is a comprehensive multi-vendor e-commerce platform built with Next.js
 - Grayed out ineligible coupons with reasons:
   - "Coupon expired"
   - "Usage limit reached"
-  - "Min order ₹XXX required"
+  - "Min order AEDXXX required"
   - "Not applicable for your products"
 - Highlighted eligible coupons
 - Apply button for quick redemption
@@ -124,7 +124,7 @@ QuickFynd is a comprehensive multi-vendor e-commerce platform built with Next.js
 
 #### **Wallet System**
 - Earn **10 coins per order** after delivery
-- **Coin redemption**: 10 coins = ₹5 discount
+- **Coin redemption**: 10 coins = AED5 discount
 - View wallet balance
 - Transaction history
 - Coins never expire
@@ -320,7 +320,7 @@ INSPECTED → REFUNDED/REPLACED
 - Unlimited product uploads
 - Product information:
   - Name, description
-  - Price, MRP
+  - Price, AED
   - SKU, barcode
   - Category selection
   - Brand
@@ -646,7 +646,7 @@ INSPECTED → REFUNDED/REPLACED
 - Beautiful HTML templates
 - Product card layouts (2-3-4 column grids)
 - Clickable product images
-- Price display with strikethrough MRP
+- Price display with strikethrough AED
 - "Shop Now" CTAs
 - Responsive design
 - Email preview
