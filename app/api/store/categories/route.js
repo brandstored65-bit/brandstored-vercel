@@ -21,7 +21,15 @@ export async function GET(req) {
             })
         );
 
-        return NextResponse.json({ categories: categoriesWithChildren }, { status: 200 });
+        return NextResponse.json(
+            { categories: categoriesWithChildren },
+            {
+                status: 200,
+                headers: {
+                    'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
+                }
+            }
+        );
     } catch (error) {
         console.error("Error fetching categories:", error);
         return NextResponse.json({ error: "Failed to fetch categories", details: error.message }, { status: 500 });

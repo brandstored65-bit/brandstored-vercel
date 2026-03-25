@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from '@/lib/mongodb';
 import Store from '@/models/Store';
+import authSeller from '@/middlewares/authSeller';
 import admin from 'firebase-admin';
 
 export async function GET(request) {
@@ -27,8 +28,12 @@ export async function GET(request) {
     const decodedToken = await admin.auth().verifyIdToken(idToken);
     const userId = decodedToken.uid;
 
-    // Find store owned by this user
-    const store = await Store.findOne({ userId }).lean();
+    const storeId = await authSeller(userId);
+    if (!storeId) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 });
+    }
+
+    const store = await Store.findById(storeId).lean();
     if (!store) {
       return NextResponse.json({ error: 'Store not found' }, { status: 404 });
     }

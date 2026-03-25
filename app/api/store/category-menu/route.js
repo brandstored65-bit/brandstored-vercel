@@ -40,11 +40,38 @@ export async function GET(request) {
     }
 
     await dbConnect();
-    const storeMenu = await StoreMenu.findOne({ storeId });
+    let storeMenu = await StoreMenu.findOne({ storeId });
+
+    // Backward compatibility: old records were saved by userId instead of shared storeId.
+    // If a proper storeId document already exists, remove the legacy one to avoid duplicate-key errors.
+    if (!storeMenu) {
+      const legacyStoreMenu = await StoreMenu.findOne({ storeId: userId });
+      if (legacyStoreMenu) {
+        const existingStoreMenu = await StoreMenu.findOne({ storeId });
+        if (existingStoreMenu) {
+          if (String(existingStoreMenu._id) !== String(legacyStoreMenu._id)) {
+            await StoreMenu.deleteOne({ _id: legacyStoreMenu._id });
+          }
+          storeMenu = existingStoreMenu;
+        } else {
+          legacyStoreMenu.storeId = storeId;
+          await legacyStoreMenu.save();
+          storeMenu = legacyStoreMenu;
+        }
+      }
+    }
     
-    return NextResponse.json({ 
-      categories: storeMenu?.categories || []
-    }, { status: 200 });
+    return NextResponse.json(
+      {
+        categories: storeMenu?.categories || []
+      },
+      {
+        status: 200,
+        headers: {
+          'Cache-Control': 'no-store, no-cache, must-revalidate, max-age=0'
+        }
+      }
+    );
   } catch (error) {
     return NextResponse.json(
       { error: error.message },
@@ -90,6 +117,20 @@ export async function POST(request) {
       name: (category?.name || '').trim(),
       url: category?.url || buildCategoryUrl(category?.name || ''),
     }));
+
+    // Migrate legacy key if exists for this user, but avoid unique index collision.
+    const legacyStoreMenu = await StoreMenu.findOne({ storeId: userId });
+    if (legacyStoreMenu && legacyStoreMenu.storeId !== storeId) {
+      const existingStoreMenu = await StoreMenu.findOne({ storeId });
+      if (existingStoreMenu) {
+        if (String(existingStoreMenu._id) !== String(legacyStoreMenu._id)) {
+          await StoreMenu.deleteOne({ _id: legacyStoreMenu._id });
+        }
+      } else {
+        legacyStoreMenu.storeId = storeId;
+        await legacyStoreMenu.save();
+      }
+    }
 
     const storeMenu = await StoreMenu.findOneAndUpdate(
       { storeId },

@@ -6,6 +6,7 @@ import Product from '@/models/Product';
 import User from '@/models/User';
 import Address from '@/models/Address';
 import { fetchNormalizedDelhiveryTracking } from '@/lib/delhivery';
+import { getAuth } from '@/lib/firebase-admin';
 
 // Debug log helper
 function debugLog(...args) {
@@ -61,6 +62,7 @@ export async function GET(request){
     console.log('[ORDER API ROUTE] Route hit');
     try {
         await connectDB();
+        const firebaseAuth = getAuth();
 
         const { searchParams } = new URL(request.url);
         const includeDelhivery = searchParams.get('withDelhivery') !== 'false';
@@ -71,14 +73,9 @@ export async function GET(request){
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
         const idToken = authHeader.split('Bearer ')[1];
-        const { getAuth } = await import('firebase-admin/auth');
-        const { initializeApp, applicationDefault, getApps } = await import('firebase-admin/app');
-        if (getApps().length === 0) {
-            initializeApp({ credential: applicationDefault() });
-        }
         let decodedToken;
         try {
-            decodedToken = await getAuth().verifyIdToken(idToken);
+            decodedToken = await firebaseAuth.verifyIdToken(idToken);
         } catch (e) {
             return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
         }
@@ -114,7 +111,7 @@ export async function GET(request){
                     // User exists but has no data, or doesn't exist - try Firebase
                     debugLog('User missing data in DB, fetching from Firebase for:', order.userId);
                     try {
-                        const firebaseUser = await getAuth().getUser(order.userId);
+                        const firebaseUser = await firebaseAuth.getUser(order.userId);
                         const userData = {
                             _id: order.userId,
                             name: firebaseUser.displayName || '',

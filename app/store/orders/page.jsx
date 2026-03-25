@@ -1111,7 +1111,7 @@ export default function StoreOrders() {
                                             <span className="font-medium text-slate-800">
                                                 {order.isGuest 
                                                     ? (order.guestName || 'Guest User')
-                                                    : (order.userId?.name || order.userId?.email || 'Unknown')}
+                                                    : (order.userId?.name || order.userId?.email || order.shippingAddress?.name || 'Unknown')}
                                             </span>
                                             {order.isGuest && (
                                                 <span className="text-xs bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full w-fit font-semibold">
@@ -1796,7 +1796,7 @@ export default function StoreOrders() {
                                         </p>
                                         {selectedOrder.userId && (
                                             <p className="text-yellow-700 text-xs mt-2">
-                                                Customer: {selectedOrder.userId.name || selectedOrder.userId.email || 'Unknown'}
+                                                Customer: {selectedOrder.userId.name || selectedOrder.userId.email || selectedOrder.shippingAddress?.name || 'Unknown'}
                                             </p>
                                         )}
                                     </div>

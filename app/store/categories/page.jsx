@@ -9,6 +9,7 @@ import { MdEdit, MdCategory, MdOutlineCheckCircleOutline } from 'react-icons/md'
 import Loading from '@/components/Loading';
 
 const MAX_CATEGORIES = 10;
+const IMAGE_FALLBACK = `data:image/svg+xml;utf8,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="300" height="300"><rect width="100%" height="100%" fill="#e2e8f0"/><text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" fill="#64748b" font-family="Arial" font-size="16">No Image</text></svg>')}`;
 
 function slugify(text = '') {
   return text
@@ -21,6 +22,11 @@ function slugify(text = '') {
 function buildCategoryUrl(name = '') {
   const slug = slugify(name);
   return slug ? `/${slug}` : '/';
+}
+
+function getSafeImageSrc(image) {
+  if (typeof image === 'string' && image.trim()) return image.trim();
+  return IMAGE_FALLBACK;
 }
 
 export default function StoreCategoryMenu() {
@@ -52,12 +58,16 @@ export default function StoreCategoryMenu() {
       // Fetch custom store menu categories
       const { data } = await axios.get('/api/store/category-menu', {
         headers: { Authorization: `Bearer ${token}` },
+        params: { t: Date.now() },
       });
       setCategories(data.categories || []);
 
       // Fetch existing system categories
       try {
-        const existingRes = await axios.get('/api/store/categories');
+        const existingRes = await axios.get('/api/store/categories', {
+          headers: { Authorization: `Bearer ${token}` },
+          params: { t: Date.now() },
+        });
         setExistingCategories(existingRes.data.categories || []);
       } catch (error) {
         console.log('No existing categories');
@@ -110,15 +120,32 @@ export default function StoreCategoryMenu() {
 
       // Upload image if new file selected
       if (imageFile) {
-        const uploadFormData = new FormData();
-        uploadFormData.append('files', imageFile);
-        const uploadRes = await axios.post('/api/upload', uploadFormData, {
-          headers: {
-            'Content-Type': 'multipart/form-data',
-            Authorization: `Bearer ${token}`,
-          },
-        });
-        imageUrl = uploadRes.data?.urls?.[0] || uploadRes.data?.url || '';
+        const fileBaseName = slugify(formData.name) || `category-${Date.now()}`;
+
+        // Use dedicated category upload endpoint first.
+        try {
+          const uploadRes = await axios.post('/api/store/upload-category-image', {
+            base64Image: imagePreview,
+            fileName: fileBaseName,
+          }, {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          imageUrl = uploadRes.data?.url || '';
+        } catch (categoryUploadError) {
+          // Fallback to generic upload endpoint for compatibility.
+          const uploadFormData = new FormData();
+          uploadFormData.append('files', imageFile);
+          const uploadRes = await axios.post('/api/upload', uploadFormData, {
+            headers: {
+              'Content-Type': 'multipart/form-data',
+              Authorization: `Bearer ${token}`,
+            },
+          });
+          imageUrl = uploadRes.data?.urls?.[0] || uploadRes.data?.url || '';
+        }
       }
 
       if (!imageUrl) {
@@ -186,16 +213,77 @@ export default function StoreCategoryMenu() {
 
     try {
       const token = await getToken();
+      const categoryToRemove = categories[idx];
       const updatedCategories = categories.filter((_, i) => i !== idx);
       
       await axios.post('/api/store/category-menu', { categories: updatedCategories }, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
+      // Also remove matching system category so it doesn't continue showing in Browse System
+      // after deletion from My Categories.
+      if (categoryToRemove) {
+        const targetSlug = slugify(categoryToRemove.name);
+        const matchedSystemCategory = existingCategories.find((cat) => {
+          const catSlug = (cat?.slug || '').toLowerCase();
+          const catName = (cat?.name || '').trim().toLowerCase();
+          const removeName = (categoryToRemove?.name || '').trim().toLowerCase();
+          return (targetSlug && catSlug === targetSlug) || (removeName && catName === removeName);
+        });
+
+        if (matchedSystemCategory?._id) {
+          try {
+            await axios.delete(`/api/store/categories/${matchedSystemCategory._id}`, {
+              headers: { Authorization: `Bearer ${token}` },
+            });
+          } catch (deleteError) {
+            const message = deleteError?.response?.data?.error || '';
+            if (message.toLowerCase().includes('subcategories')) {
+              toast('Removed from My Categories. System category has subcategories, so it was kept.');
+            } else {
+              toast('Removed from My Categories. Could not remove from System list.');
+            }
+          }
+        }
+      }
+
       setCategories(updatedCategories);
       toast.success('Category removed');
+      fetchCategories();
     } catch (error) {
       toast.error('Failed to remove category');
+    }
+  };
+
+  const handleDeleteSystemCategory = async (category) => {
+    if (!category?._id) return;
+    if (!confirm(`Delete system category "${category.name}"?`)) return;
+
+    try {
+      const token = await getToken();
+
+      await axios.delete(`/api/store/categories/${category._id}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const categoryName = (category?.name || '').trim().toLowerCase();
+      const categorySlug = (category?.slug || '').trim().toLowerCase();
+
+      const updatedCategories = categories.filter((cat) => {
+        const name = (cat?.name || '').trim().toLowerCase();
+        const slug = slugify(cat?.name || '').toLowerCase();
+        return name !== categoryName && slug !== categorySlug;
+      });
+
+      await axios.post('/api/store/category-menu', { categories: updatedCategories }, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      setCategories(updatedCategories);
+      toast.success('System category deleted');
+      fetchCategories();
+    } catch (error) {
+      toast.error(error?.response?.data?.error || 'Failed to delete system category');
     }
   };
 
@@ -477,9 +565,12 @@ export default function StoreCategoryMenu() {
                     {/* Image */}
                     <div className="relative h-48 overflow-hidden bg-slate-100">
                       <img
-                        src={cat.image}
+                        src={getSafeImageSrc(cat.image)}
                         alt={cat.name}
                         className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                        onError={(e) => {
+                          e.currentTarget.src = IMAGE_FALLBACK;
+                        }}
                       />
                       <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-20 transition duration-300" />
                     </div>
@@ -544,9 +635,12 @@ export default function StoreCategoryMenu() {
                           <div className="relative w-24 h-24 flex-shrink-0 overflow-hidden rounded-xl border-2 border-emerald-300 shadow-md">
                             {parent.image && (
                               <img
-                                src={parent.image}
+                                src={getSafeImageSrc(parent.image)}
                                 alt={parent.name}
                                 className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.src = IMAGE_FALLBACK;
+                                }}
                               />
                             )}
                             <div className="absolute top-1 right-1 bg-emerald-600 text-white px-2 py-0.5 rounded-full text-xs font-bold">
@@ -574,22 +668,29 @@ export default function StoreCategoryMenu() {
                                 )}
                               </div>
 
-                              {/* Use Parent Button */}
-                              <button
-                                onClick={() => {
-                                  setFormData({
-                                    name: parent.name,
-                                    image: parent.image || '',
-                                    url: `/shop?category=${parent.slug}`,
-                                  });
-                                  setImagePreview(parent.image || '');
-                                  setShowForm(true);
-                                  setActiveTab('my-categories');
-                                }}
-                                className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-semibold text-sm whitespace-nowrap flex items-center gap-2"
-                              >
-                                <FiCheckCircle /> Use
-                              </button>
+                              <div className="flex items-center gap-2">
+                                <button
+                                  onClick={() => {
+                                    setFormData({
+                                      name: parent.name,
+                                      image: parent.image || '',
+                                      url: `/shop?category=${parent.slug}`,
+                                    });
+                                    setImagePreview(parent.image || '');
+                                    setShowForm(true);
+                                    setActiveTab('my-categories');
+                                  }}
+                                  className="px-4 py-2 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-semibold text-sm whitespace-nowrap flex items-center gap-2"
+                                >
+                                  <FiCheckCircle /> Use
+                                </button>
+                                <button
+                                  onClick={() => handleDeleteSystemCategory(parent)}
+                                  className="px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition font-semibold text-sm whitespace-nowrap flex items-center gap-2"
+                                >
+                                  <FiTrash2 /> Remove
+                                </button>
+                              </div>
                             </div>
                           </div>
                         </div>
@@ -607,9 +708,12 @@ export default function StoreCategoryMenu() {
                               <div className="relative h-32 overflow-hidden bg-slate-100">
                                 {child.image && (
                                   <img
-                                    src={child.image}
+                                    src={getSafeImageSrc(child.image)}
                                     alt={child.name}
                                     className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-300"
+                                    onError={(e) => {
+                                      e.currentTarget.src = IMAGE_FALLBACK;
+                                    }}
                                   />
                                 )}
                                 <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-10 transition duration-300" />
@@ -630,22 +734,29 @@ export default function StoreCategoryMenu() {
                                   <p className="text-xs text-slate-600 mb-3 line-clamp-2">{child.description}</p>
                                 )}
 
-                                {/* Use Child Button */}
-                                <button
-                                  onClick={() => {
-                                    setFormData({
-                                      name: child.name,
-                                      image: child.image || '',
-                                      url: `/shop?category=${child.slug}`,
-                                    });
-                                    setImagePreview(child.image || '');
-                                    setShowForm(true);
-                                    setActiveTab('my-categories');
-                                  }}
-                                  className="w-full py-2 text-blue-600 font-semibold hover:bg-blue-50 rounded-lg transition text-xs flex items-center justify-center gap-1"
-                                >
-                                  <FiCheckCircle size={14} /> Use This
-                                </button>
+                                <div className="flex gap-2">
+                                  <button
+                                    onClick={() => {
+                                      setFormData({
+                                        name: child.name,
+                                        image: child.image || '',
+                                        url: `/shop?category=${child.slug}`,
+                                      });
+                                      setImagePreview(child.image || '');
+                                      setShowForm(true);
+                                      setActiveTab('my-categories');
+                                    }}
+                                    className="flex-1 py-2 text-blue-600 font-semibold hover:bg-blue-50 rounded-lg transition text-xs flex items-center justify-center gap-1"
+                                  >
+                                    <FiCheckCircle size={14} /> Use This
+                                  </button>
+                                  <button
+                                    onClick={() => handleDeleteSystemCategory(child)}
+                                    className="flex-1 py-2 text-red-600 font-semibold hover:bg-red-50 rounded-lg transition text-xs flex items-center justify-center gap-1"
+                                  >
+                                    <FiTrash2 size={14} /> Remove
+                                  </button>
+                                </div>
                               </div>
                             </div>
                           ))}

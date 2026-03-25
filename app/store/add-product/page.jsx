@@ -149,7 +149,9 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
     useEffect(() => {
         const fetchCategories = async () => {
             try {
-                const res = await fetch('/api/store/categories');
+                const res = await fetch(`/api/store/categories?t=${Date.now()}`, {
+                    cache: 'no-store',
+                });
 
                 if (!res.ok) {
                     const errorData = await res.json().catch(() => ({}));
@@ -163,6 +165,7 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
 
                 if (categories.length > 0) {
                     setDbCategories(categories);
+                    setSelectedCategories((prev) => prev.filter((id) => categories.some((cat) => cat._id === id)));
                     return;
                 }
 
@@ -216,9 +219,13 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                         })
                 );
 
-                const refetchRes = await fetch('/api/store/categories');
+                const refetchRes = await fetch(`/api/store/categories?t=${Date.now()}`, {
+                    cache: 'no-store',
+                });
                 const refetchData = refetchRes.ok ? await refetchRes.json() : {};
-                setDbCategories(Array.isArray(refetchData?.categories) ? refetchData.categories : []);
+                const latestCategories = Array.isArray(refetchData?.categories) ? refetchData.categories : [];
+                setDbCategories(latestCategories);
+                setSelectedCategories((prev) => prev.filter((id) => latestCategories.some((cat) => cat._id === id)));
             } catch (error) {
                 console.error('Error fetching categories:', error);
                 setDbCategories([]);
