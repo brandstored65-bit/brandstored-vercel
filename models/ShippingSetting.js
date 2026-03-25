@@ -13,6 +13,11 @@ const ShippingSettingSchema = new mongoose.Schema({
   additionalWeightFee: { type: Number, default: 2 },
   freeShippingMin: { type: Number, default: 499 },
   enableProductSpecificFreeShipping: { type: Boolean, default: false },
+  productSpecificFreeShippingMode: {
+    type: String,
+    enum: ["ORDER_LEVEL", "MARKED_ITEMS_ONLY"],
+    default: "ORDER_LEVEL"
+  },
   localDeliveryFee: Number,
   regionalDeliveryFee: Number,
   estimatedDays: { type: String, default: "3-5" },

@@ -40,6 +40,7 @@ export async function GET(request) {
         additionalWeightFee: 0,
         freeShippingMin: 0,
         enableProductSpecificFreeShipping: false,
+        productSpecificFreeShippingMode: "ORDER_LEVEL",
         localDeliveryFee: null,
         regionalDeliveryFee: null,
         estimatedDays: "3-5",
@@ -113,6 +114,10 @@ export async function PUT(request) {
       // Free Shipping
       freeShippingMin: Number(body.freeShippingMin ?? 499),
       enableProductSpecificFreeShipping: Boolean(body.enableProductSpecificFreeShipping ?? false),
+      productSpecificFreeShippingMode:
+        body.productSpecificFreeShippingMode === 'MARKED_ITEMS_ONLY'
+          ? 'MARKED_ITEMS_ONLY'
+          : 'ORDER_LEVEL',
       // Regional
       localDeliveryFee: body.localDeliveryFee ? Number(body.localDeliveryFee) : null,
       regionalDeliveryFee: body.regionalDeliveryFee ? Number(body.regionalDeliveryFee) : null,

@@ -5,6 +5,29 @@ import Category from "@/models/Category";
 import { NextResponse } from "next/server";
 import { getCachedData, setCachedData, generateCacheKey } from "@/lib/cache";
 
+function isMongoConnectionError(error) {
+    const message = error?.message || '';
+    return (
+        message.includes('Could not connect to any servers in your MongoDB Atlas cluster') ||
+        message.includes('Server selection timed out') ||
+        message.includes('ECONNREFUSED') ||
+        message.includes('ENOTFOUND')
+    );
+}
+
+function createProductsResponse(products, headers = {}) {
+    return NextResponse.json(
+        { products },
+        {
+            headers: {
+                'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200',
+                'X-Cache': 'MISS',
+                ...headers,
+            },
+        }
+    );
+}
+
 export async function POST(request) {
     try {
         await dbConnect();
@@ -57,7 +80,6 @@ export async function POST(request) {
 
 export async function GET(request){
     try {
-        await dbConnect();
         const { searchParams } = new URL(request.url);
         const sortBy = searchParams.get('sortBy');
         const fetchAll = searchParams.get('all') === 'true';
@@ -76,6 +98,28 @@ export async function GET(request){
         // if (cachedProducts) {
         //     return NextResponse.json({ products: cachedProducts, fromCache: true });
         // }
+
+        try {
+            await dbConnect();
+        } catch (dbError) {
+            const cachedProducts = getCachedData(cacheKey);
+            if (cachedProducts) {
+                return createProductsResponse(cachedProducts, {
+                    'X-Cache': 'STALE',
+                    'X-Data-Source': 'memory-cache',
+                });
+            }
+
+            if (process.env.NODE_ENV !== 'production' && isMongoConnectionError(dbError)) {
+                console.warn('[products API] MongoDB unavailable in development, returning empty product list:', dbError.message);
+                return createProductsResponse([], {
+                    'Cache-Control': 'no-store',
+                    'X-Data-Source': 'fallback-empty',
+                });
+            }
+
+            throw dbError;
+        }
 
         // OPTIMIZED: Use simple find with field selection (aggregation was causing errors)
         const matchStage = includeOutOfStock ? {} : { inStock: true };
@@ -217,12 +261,7 @@ export async function GET(request){
             // Continue without cache if cache fails
         }
 
-        return NextResponse.json({ products: enrichedProducts }, {
-            headers: {
-                'Cache-Control': 'public, s-maxage=600, stale-while-revalidate=1200', // 10 min cache, 20 min stale
-                'X-Cache': 'MISS'
-            }
-        });
+        return createProductsResponse(enrichedProducts);
     } catch (error) {
         console.error('Error in products API:', error);
         if (error instanceof Error && error.stack) {
