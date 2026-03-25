@@ -320,7 +320,7 @@ export async function PUT(request) {
             }
 
             const product = await Product.findById(productId)
-              .select('_id name slug price mrp AED')
+              .select('_id name slug price mrp AED storeId')
               .lean();
             if (!product || product.storeId !== storeId) {
                 return NextResponse.json({ error: "Not authorized" }, { status: 401 });
@@ -380,7 +380,7 @@ export async function PUT(request) {
         let product;
         try {
             product = await Product.findById(productId)
-              .select('_id name slug price mrp AED images description')
+              .select('_id name slug price mrp AED images description storeId')
               .lean();
         } catch (err) {
             console.error('Product.findById error:', err, 'productId:', productId);
