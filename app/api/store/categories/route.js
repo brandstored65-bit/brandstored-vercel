@@ -1,5 +1,6 @@
 import { NextResponse } from "next/server";
 import authAdmin from "@/middlewares/authAdmin";
+import authSeller from "@/middlewares/authSeller";
 import connectDB from '@/lib/mongodb';
 import Category from '@/models/Category';
 import Store from '@/models/Store';
@@ -58,9 +59,8 @@ export async function POST(req) {
         if (userId && email && await authAdmin(userId, email)) {
             isAuthorized = true;
         } else if (userId) {
-            // Check if user has a store
-            const store = await Store.findOne({ userId }).lean();
-            if (store) {
+            const storeId = await authSeller(userId);
+            if (storeId) {
                 isAuthorized = true;
             }
         }

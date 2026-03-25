@@ -2,6 +2,7 @@ import dbConnect from '@/lib/mongodb';
 import StoreMenu from '@/models/StoreMenu';
 import { getAuth } from '@/lib/firebase-admin';
 import { NextResponse } from 'next/server';
+import authSeller from '@/middlewares/authSeller';
 
 function slugify(text = '') {
   return text
@@ -33,9 +34,13 @@ export async function GET(request) {
     const firebaseAuth = getAuth();
     const decoded = await firebaseAuth.verifyIdToken(token);
     const userId = decoded.uid;
+    const storeId = await authSeller(userId);
+    if (!storeId) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 });
+    }
 
     await dbConnect();
-    const storeMenu = await StoreMenu.findOne({ storeId: userId });
+    const storeMenu = await StoreMenu.findOne({ storeId });
     
     return NextResponse.json({ 
       categories: storeMenu?.categories || []
@@ -58,6 +63,10 @@ export async function POST(request) {
     const firebaseAuth = getAuth();
     const decoded = await firebaseAuth.verifyIdToken(token);
     const userId = decoded.uid;
+    const storeId = await authSeller(userId);
+    if (!storeId) {
+      return NextResponse.json({ error: 'Store not found' }, { status: 404 });
+    }
 
     await dbConnect();
     const { categories } = await request.json();
@@ -83,9 +92,9 @@ export async function POST(request) {
     }));
 
     const storeMenu = await StoreMenu.findOneAndUpdate(
-      { storeId: userId },
+      { storeId },
       { 
-        storeId: userId,
+        storeId,
         categories: normalizedCategories
       },
       { upsert: true, new: true }

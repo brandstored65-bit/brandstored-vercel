@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import connectDB from '@/lib/mongodb';
-import Store from '@/models/Store';
 import StoreUser from '@/models/StoreUser';
+import authSeller from '@/middlewares/authSeller';
 import { getAuth } from '@/lib/firebase-admin';
 
 export async function POST(request) {
@@ -21,15 +21,14 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Missing userEmail' }, { status: 400 });
     }
 
-    // Find store owned by this user
-    const store = await Store.findOne({ userId }).lean();
-    if (!store) {
+    const storeId = await authSeller(userId);
+    if (!storeId) {
       return NextResponse.json({ error: 'Store not found' }, { status: 404 });
     }
 
     // Delete the store user
     await StoreUser.deleteOne({ 
-      storeId: store._id.toString(), 
+      storeId,
       email: userEmail 
     });
 

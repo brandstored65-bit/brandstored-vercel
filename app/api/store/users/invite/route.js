@@ -1,8 +1,8 @@
 
 import { NextResponse } from "next/server";
 import connectDB from '@/lib/mongodb';
-import Store from '@/models/Store';
 import StoreUser from '@/models/StoreUser';
+import authSeller from '@/middlewares/authSeller';
 import { getAuth } from '@/lib/firebase-admin';
 import { randomBytes } from "crypto";
 import { Resend } from 'resend';
@@ -26,13 +26,12 @@ export async function POST(request) {
     const { email } = await request.json();
     if (!email) return NextResponse.json({ error: 'Missing email' }, { status: 400 });
 
-    // Find the store owned/admin by this user
-    const store = await Store.findOne({ userId }).lean();
-    if (!store) return NextResponse.json({ error: 'Store not found' }, { status: 404 });
+    const storeId = await authSeller(userId);
+    if (!storeId) return NextResponse.json({ error: 'Store not found' }, { status: 404 });
 
     // Check if already invited or member
     const existing = await StoreUser.findOne({ 
-      storeId: store._id.toString(), 
+      storeId,
       email 
     }).lean();
     if (existing && ["invited", "pending", "approved"].includes(existing.status)) {
@@ -45,7 +44,7 @@ export async function POST(request) {
 
     // Create invite in DB
     await StoreUser.create({
-      storeId: store._id.toString(),
+      storeId,
       email,
       role: 'member',
       status: 'invited',
@@ -57,12 +56,12 @@ export async function POST(request) {
 
     // Custom email subject and body
     const inviteUrl = `${APP_URL}/store/invite/accept?token=${inviteToken}`;
-    const emailSubject = `🚀 You're invited to join ${store.name} on brandstored!`;
+    const emailSubject = `🚀 You're invited to join our store on brandstored!`;
     const emailBody = `
       <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto;">
         <h2 style="color: #ff6600;">brandstored Store Invitation</h2>
         <p>Hello,</p>
-        <p><b>${store.name}</b> has invited you to join their store team on <a href="https://brandstored.com" style="color: #ff6600;">brandstored</a>.</p>
+        <p>You have been invited to join a store team on <a href="https://brandstored.com" style="color: #ff6600;">brandstored</a>.</p>
         <p style="margin: 24px 0;">
           <a href="${inviteUrl}" style="background: #ff6600; color: #fff; padding: 12px 24px; border-radius: 6px; text-decoration: none; font-weight: bold;">Accept Invitation</a>
         </p>
