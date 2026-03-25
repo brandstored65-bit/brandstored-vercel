@@ -29,6 +29,20 @@ function getSafeImageSrc(image) {
   return IMAGE_FALLBACK;
 }
 
+function normalizeMenuCategoriesForSave(menuCategories = []) {
+  return menuCategories.map((category, index) => {
+    const name = (category?.name || '').trim();
+    const fallbackId = slugify(name) || `category-${Date.now()}-${index}`;
+    return {
+      ...category,
+      id: String(category?.id || category?._id || fallbackId),
+      name,
+      image: category?.image || '',
+      url: category?.url || buildCategoryUrl(name),
+    };
+  });
+}
+
 export default function StoreCategoryMenu() {
   const { user, getToken } = useAuth();
   const [categories, setCategories] = useState([]);
@@ -160,6 +174,8 @@ export default function StoreCategoryMenu() {
         // Update existing category
         updatedCategories = [...categories];
         updatedCategories[editingIdx] = {
+          ...updatedCategories[editingIdx],
+          id: updatedCategories[editingIdx]?.id || updatedCategories[editingIdx]?._id || slugify(formData.name),
           name: formData.name.trim(),
           image: imageUrl,
           url: generatedUrl,
@@ -170,6 +186,7 @@ export default function StoreCategoryMenu() {
         updatedCategories = [
           ...categories,
           {
+            id: slugify(formData.name) || `category-${Date.now()}`,
             name: formData.name.trim(),
             image: imageUrl,
             url: generatedUrl,
@@ -178,8 +195,10 @@ export default function StoreCategoryMenu() {
         toast.success('Category added!');
       }
 
+      const normalizedCategories = normalizeMenuCategoriesForSave(updatedCategories);
+
       // Save to backend
-      await axios.post('/api/store/category-menu', { categories: updatedCategories }, {
+      await axios.post('/api/store/category-menu', { categories: normalizedCategories }, {
         headers: { Authorization: `Bearer ${token}` },
       });
 
@@ -197,7 +216,7 @@ export default function StoreCategoryMenu() {
         }
       }
 
-      setCategories(updatedCategories);
+      setCategories(normalizedCategories);
       handleCancel();
     } catch (error) {
       toast.error(error?.response?.data?.error || 'Failed to save category');
@@ -214,7 +233,7 @@ export default function StoreCategoryMenu() {
     try {
       const token = await getToken();
       const categoryToRemove = categories[idx];
-      const updatedCategories = categories.filter((_, i) => i !== idx);
+      const updatedCategories = normalizeMenuCategoriesForSave(categories.filter((_, i) => i !== idx));
       
       await axios.post('/api/store/category-menu', { categories: updatedCategories }, {
         headers: { Authorization: `Bearer ${token}` },
@@ -269,11 +288,11 @@ export default function StoreCategoryMenu() {
       const categoryName = (category?.name || '').trim().toLowerCase();
       const categorySlug = (category?.slug || '').trim().toLowerCase();
 
-      const updatedCategories = categories.filter((cat) => {
+      const updatedCategories = normalizeMenuCategoriesForSave(categories.filter((cat) => {
         const name = (cat?.name || '').trim().toLowerCase();
         const slug = slugify(cat?.name || '').toLowerCase();
         return name !== categoryName && slug !== categorySlug;
-      });
+      }));
 
       await axios.post('/api/store/category-menu', { categories: updatedCategories }, {
         headers: { Authorization: `Bearer ${token}` },
