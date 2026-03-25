@@ -13,7 +13,8 @@ import MobileProductActions from "./MobileProductActions";
 import { useAuth } from '@/lib/useAuth';
 import { trackMetaEvent } from "@/lib/metaPixelClient";
 
-const ProductDetails = ({ product, reviews = [], hideTitle = false, offerData = null }) => {
+const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false, offerData = null }) => {
+  const product = productProp || {};
   // Assume product loading state from redux if available
   const loading = useSelector(state => state.product?.status === 'loading');
   const currency = 'AED';
@@ -61,6 +62,51 @@ const ProductDetails = ({ product, reviews = [], hideTitle = false, offerData = 
     ? reviewsToUse.length
     : (typeof product.ratingCount === 'number' ? product.ratingCount : 0);
 
+  // Variants support
+  const variants = Array.isArray(product.variants) ? product.variants : [];
+  const bulkVariants = variants.filter(v => v?.options && (v.options.bundleQty || v.options.bundleQty === 0));
+  const variantColors = [...new Set(variants.map(v => v.options?.color).filter(Boolean))];
+  const variantSizes = [...new Set(variants.map(v => v.options?.size).filter(Boolean))];
+  const [selectedColor, setSelectedColor] = useState(variantColors[0] || product.colors?.[0] || null);
+  const [selectedSize, setSelectedSize] = useState(variantSizes[0] || product.sizes?.[0] || null);
+  const [selectedBundleQty, setSelectedBundleQty] = useState(
+    bulkVariants.length ? Number(bulkVariants[0].options.bundleQty) : null
+  );
+
+  const selectedVariant = (bulkVariants.length
+    ? bulkVariants.find(v => Number(v.options?.bundleQty) === Number(selectedBundleQty))
+    : variants.find(v => {
+        const cOk = v.options?.color ? v.options.color === selectedColor : true;
+        const sOk = v.options?.size ? v.options.size === selectedSize : true;
+        return cOk && sOk;
+      })
+  ) || null;
+
+  const basePrice = selectedVariant?.price ?? product.price;
+  const baseAED = selectedVariant?.AED ?? product.AED ?? basePrice;
+  const isSpecialOffer = !!product.specialOffer?.isSpecialOffer;
+  const specialDiscountPercent = Number(product.specialOffer?.discountPercent);
+  let effPrice = basePrice;
+  let effAED = baseAED;
+
+  if (isSpecialOffer && Number.isFinite(specialDiscountPercent) && specialDiscountPercent > 0) {
+    const offerBase = Number(basePrice) > 0 ? Number(basePrice) : Number(baseAED) || 0;
+    const discounted = offerBase * (1 - (specialDiscountPercent / 100));
+    effAED = offerBase || effAED;
+    effPrice = Number.isFinite(discounted) ? Math.round(discounted * 100) / 100 : effPrice;
+  }
+
+  // Debug logging for special offers
+  if (product.specialOffer?.isSpecialOffer) {
+    console.log('ProductDetails - Special Offer Prices:', {
+      product_price: product.price,
+      product_AED: product.AED,
+      effPrice,
+      effAED,
+      specialOffer: product.specialOffer
+    });
+  }
+
   useEffect(() => {
     if (!product?._id) return;
     if (typeof window === 'undefined') return;
@@ -88,7 +134,7 @@ const ProductDetails = ({ product, reviews = [], hideTitle = false, offerData = 
     });
 
     sessionStorage.setItem(eventKey, '1');
-  }, [product?._id, product?.id, product?.name, product?.title, product?.price, effPrice]);
+  }, [product?._id, product?.id, product?.name, product?.title, product?.price]);
 
   useEffect(() => {
     router.prefetch('/checkout');
@@ -146,51 +192,6 @@ const ProductDetails = ({ product, reviews = [], hideTitle = false, offerData = 
     fetchFbtProducts();
   }, [product._id]);
 
-  // Variants support
-  const variants = Array.isArray(product.variants) ? product.variants : [];
-  const bulkVariants = variants.filter(v => v?.options && (v.options.bundleQty || v.options.bundleQty === 0));
-  const variantColors = [...new Set(variants.map(v => v.options?.color).filter(Boolean))];
-  const variantSizes = [...new Set(variants.map(v => v.options?.size).filter(Boolean))];
-  const [selectedColor, setSelectedColor] = useState(variantColors[0] || product.colors?.[0] || null);
-  const [selectedSize, setSelectedSize] = useState(variantSizes[0] || product.sizes?.[0] || null);
-  const [selectedBundleQty, setSelectedBundleQty] = useState(
-    bulkVariants.length ? Number(bulkVariants[0].options.bundleQty) : null
-  );
-
-  const selectedVariant = (bulkVariants.length
-    ? bulkVariants.find(v => Number(v.options?.bundleQty) === Number(selectedBundleQty))
-    : variants.find(v => {
-        const cOk = v.options?.color ? v.options.color === selectedColor : true;
-        const sOk = v.options?.size ? v.options.size === selectedSize : true;
-        return cOk && sOk;
-      })
-  ) || null;
-
-  const basePrice = selectedVariant?.price ?? product.price;
-  const baseAED = selectedVariant?.AED ?? product.AED ?? basePrice;
-  const isSpecialOffer = !!product.specialOffer?.isSpecialOffer;
-  const specialDiscountPercent = Number(product.specialOffer?.discountPercent);
-  let effPrice = basePrice;
-  let effAED = baseAED;
-
-  if (isSpecialOffer && Number.isFinite(specialDiscountPercent) && specialDiscountPercent > 0) {
-    const offerBase = Number(basePrice) > 0 ? Number(basePrice) : Number(baseAED) || 0;
-    const discounted = offerBase * (1 - (specialDiscountPercent / 100));
-    effAED = offerBase || effAED;
-    effPrice = Number.isFinite(discounted) ? Math.round(discounted * 100) / 100 : effPrice;
-  }
-  
-  // Debug logging for special offers
-  if (product.specialOffer?.isSpecialOffer) {
-    console.log('ProductDetails - Special Offer Prices:', {
-      product_price: product.price,
-      product_AED: product.AED,
-      effPrice,
-      effAED,
-      specialOffer: product.specialOffer
-    });
-  }
-  
   const availableStock = (typeof selectedVariant?.stock === 'number')
     ? selectedVariant.stock
     : (typeof product.stockQuantity === 'number' ? product.stockQuantity : 0);
@@ -1136,30 +1137,17 @@ const ProductDetails = ({ product, reviews = [], hideTitle = false, offerData = 
               </button>
 
               {isSelectionInStock && (
-                cartItems[product._id] ? (
-                  <button
-                    onClick={() => router.push('/cart')}
-                    className="flex-1 bg-green-600 text-white py-3.5 px-6 rounded-lg font-semibold text-base hover:bg-green-700 transition flex items-center justify-center gap-2"
-                  >
-                    Go to Cart
-                    <ShoppingCartIcon size={20} />
-                  </button>
-                ) : (
-                  <button 
-                    onClick={handleAddToCart}
-                    className="relative w-12 h-12 rounded-lg transition flex items-center justify-center flex-shrink-0 text-white"
-                    style={{ backgroundColor: cartCount > 0 ? '#262626' : '#DC013C' }}
-                    onMouseEnter={(e) => e.currentTarget.style.backgroundColor = cartCount > 0 ? '#1a1a1a' : '#b8012f'}
-                    onMouseLeave={(e) => e.currentTarget.style.backgroundColor = cartCount > 0 ? '#262626' : '#DC013C'}
-                  >
-                    <ShoppingCartIcon size={20} />
-                    {cartCount > 0 && (
-                      <span className="absolute -top-2 -right-2 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5" style={{ backgroundColor: '#DC013C' }}>
-                        {cartCount > 99 ? '99+' : cartCount}
-                      </span>
-                    )}
-                  </button>
-                )
+                <button
+                  onClick={cartItems[product._id] ? () => router.push('/cart') : handleAddToCart}
+                  className="relative w-12 h-12 rounded-lg transition flex items-center justify-center flex-shrink-0 text-white bg-black hover:bg-neutral-800"
+                >
+                  <ShoppingCartIcon size={20} />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-2 -right-2 text-white text-xs font-bold rounded-full min-w-[20px] h-5 flex items-center justify-center px-1.5" style={{ backgroundColor: '#DC013C' }}>
+                      {cartCount > 99 ? '99+' : cartCount}
+                    </span>
+                  )}
+                </button>
               )}
             </div>
 

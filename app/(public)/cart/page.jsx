@@ -208,22 +208,17 @@ export default function Cart() {
 
         if (isSignedIn) {
             try {
-                const token = await getToken();
+                const token = (await user?.getIdToken?.()) || (await getToken());
                 if (token) {
                     await axios.delete('/api/cart', {
                         headers: { Authorization: `Bearer ${token}` },
                         data: { productId: key },
                     });
-
-                    // Force DB cart to exactly match current Redux cart (extra safety)
-                    const latestCart = store.getState()?.cart?.cartItems || {};
-                    await axios.post('/api/cart', { cart: latestCart }, {
-                        headers: { Authorization: `Bearer ${token}` },
-                    });
+                    await dispatch(fetchCart({ getToken: async () => token }));
                 } else {
                     await dispatch(uploadCart({ getToken }));
+                    await dispatch(fetchCart({ getToken }));
                 }
-                await dispatch(fetchCart({ getToken }));
             } finally {
                 setDeletingKeys((prev) => {
                     const next = { ...prev };
@@ -319,11 +314,11 @@ export default function Cart() {
                                                     <p className="text-sm font-semibold text-gray-900">Total: {currency}{((item._cartPrice ?? item.price ?? 0) * item.quantity).toLocaleString()}</p>
                                                     <button
                                                         onClick={() => handleDeleteItemFromCart(item._cartKey || item._id)}
-                                                        disabled={!!deletingKeys[item._cartKey]}
+                                                        disabled={!!deletingKeys[item._cartKey || item._id]}
                                                         type="button"
                                                         className="text-red-500 hover:text-red-700 text-sm font-medium"
                                                     >
-                                                        {deletingKeys[item._cartKey] ? 'REMOVING...' : 'REMOVE'}
+                                                        {deletingKeys[item._cartKey || item._id] ? 'REMOVING...' : 'REMOVE'}
                                                     </button>
                                                 </div>
                                             </div>
@@ -331,7 +326,7 @@ export default function Cart() {
                                             <div className="hidden md:flex flex-col items-end justify-between">
                                                 <button
                                                     onClick={() => handleDeleteItemFromCart(item._cartKey || item._id)}
-                                                    disabled={!!deletingKeys[item._cartKey]}
+                                                    disabled={!!deletingKeys[item._cartKey || item._id]}
                                                     type="button"
                                                     className="text-gray-400 hover:text-red-500 transition-colors"
                                                 >
@@ -382,11 +377,11 @@ export default function Cart() {
                                                             <p className="text-sm font-semibold text-gray-900">Total: {currency}{((item._cartPrice ?? item.price ?? 0) * item.quantity).toLocaleString()}</p>
                                                             <button
                                                                 onClick={() => handleDeleteItemFromCart(item._cartKey || item._id)}
-                                                                disabled={!!deletingKeys[item._cartKey]}
+                                                                disabled={!!deletingKeys[item._cartKey || item._id]}
                                                                 type="button"
                                                                 className="text-red-500 hover:text-red-700 text-sm font-medium"
                                                             >
-                                                                {deletingKeys[item._cartKey] ? 'REMOVING...' : 'REMOVE'}
+                                                                {deletingKeys[item._cartKey || item._id] ? 'REMOVING...' : 'REMOVE'}
                                                             </button>
                                                         </div>
                                                     </div>
@@ -394,7 +389,7 @@ export default function Cart() {
                                                     <div className="hidden md:flex flex-col items-end justify-between">
                                                         <button
                                                             onClick={() => handleDeleteItemFromCart(item._cartKey || item._id)}
-                                                            disabled={!!deletingKeys[item._cartKey]}
+                                                            disabled={!!deletingKeys[item._cartKey || item._id]}
                                                             type="button"
                                                             className="text-gray-400 hover:text-red-500 transition-colors"
                                                         >

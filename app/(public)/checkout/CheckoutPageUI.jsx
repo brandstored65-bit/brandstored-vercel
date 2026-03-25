@@ -6,7 +6,7 @@ import { countryCodes } from "@/assets/countryCodes";
 import { indiaStatesAndDistricts } from "@/assets/indiaStatesAndDistricts";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchAddress } from "@/lib/features/address/addressSlice";
-import { clearCart, addToCart, removeFromCart, deleteItemFromCart } from "@/lib/features/cart/cartSlice";
+import { clearCart, addToCart, removeFromCart, deleteItemFromCart, uploadCart } from "@/lib/features/cart/cartSlice";
 import { fetchShippingSettings, calculateShipping } from "@/lib/shipping";
 import FbqInitiateCheckout from "@/components/FbqInitiateCheckout";
 import { trackMetaEvent } from "@/lib/metaPixelClient";
@@ -56,13 +56,13 @@ export default function CheckoutPage() {
   // For India state/district dropdowns
   const keralaDistricts = indiaStatesAndDistricts.find(s => s.state === 'Kerala')?.districts || [];
   const uaeEmirates = [
-    'Abu Dhabi',
-    'Dubai',
-    'Sharjah',
-    'Ajman',
-    'Umm Al Quwain',
-    'Ras Al Khaimah',
-    'Fujairah',
+    { value: 'Abu Dhabi', label: 'Abu Dhabi (أبو ظبي)' },
+    { value: 'Dubai', label: 'Dubai (دبي)' },
+    { value: 'Sharjah', label: 'Sharjah (الشارقة)' },
+    { value: 'Ajman', label: 'Ajman (عجمان)' },
+    { value: 'Umm Al Quwain', label: 'Umm Al Quwain (أم القيوين)' },
+    { value: 'Ras Al Khaimah', label: 'Ras Al Khaimah (رأس الخيمة)' },
+    { value: 'Fujairah', label: 'Fujairah (الفجيرة)' },
   ];
   const [districts, setDistricts] = useState(keralaDistricts);
   const [placingOrder, setPlacingOrder] = useState(false);
@@ -557,6 +557,10 @@ export default function CheckoutPage() {
   const isPurchasableProduct = (product) => {
     if (!product) return false;
     if (product.inStock === false) return false;
+    if (Array.isArray(product.variants) && product.variants.length > 0) {
+      const hasVariantStock = product.variants.some((v) => Number(v?.stock || 0) > 0);
+      if (hasVariantStock) return true;
+    }
     if (typeof product.stockQuantity === 'number' && product.stockQuantity <= 0) return false;
     return true;
   };
@@ -580,6 +584,110 @@ export default function CheckoutPage() {
   
   console.log('Checkout - Final Cart Array:', cartArray);
 
+  const cartDisplayItems = Object.entries(cartItems || {}).map(([key, value]) => {
+    const product = products?.find((p) => String(p._id) === String(key));
+    const quantity = typeof value === 'number' ? value : value?.quantity || 0;
+    const variantOptions = typeof value === 'object' ? value?.variantOptions : undefined;
+    let maxQty = typeof product?.stockQuantity === 'number' ? Math.max(0, product.stockQuantity) : null;
+
+    if (product && variantOptions && Array.isArray(product.variants) && product.variants.length > 0) {
+      const { color, size, bundleQty } = variantOptions || {};
+      const match = product.variants.find((v) => {
+        const cOk = v.options?.color ? v.options.color === color : !color;
+        const sOk = v.options?.size ? v.options.size === size : !size;
+        const bOk = v.options?.bundleQty ? Number(v.options.bundleQty) === Number(bundleQty) : !bundleQty;
+        return cOk && sOk && bOk;
+      });
+      if (match && typeof match.stock === 'number') {
+        maxQty = Math.max(0, match.stock);
+      }
+    }
+
+    return {
+      id: key,
+      name: product?.name || 'Product',
+      quantity,
+      image: product?.images?.[0] || '/placeholder.png',
+      maxQty,
+      exists: !!product,
+    };
+  }).filter((item) => item.quantity > 0);
+
+  const syncCartForSignedIn = async () => {
+    if (!user) return;
+    await dispatch(uploadCart({ getToken }));
+  };
+
+  const handleIncreaseCartQty = async (item) => {
+    if (typeof item.maxQty === 'number' && item.maxQty > 0 && item.quantity >= item.maxQty) return;
+    dispatch(addToCart({ productId: item.id, ...(typeof item.maxQty === 'number' ? { maxQty: item.maxQty } : {}) }));
+    await syncCartForSignedIn();
+  };
+
+  const handleDecreaseCartQty = async (item) => {
+    if (item.quantity <= 1) return;
+    dispatch(removeFromCart({ productId: item.id }));
+    await syncCartForSignedIn();
+  };
+
+  const handleDeleteCartItem = async (item) => {
+    dispatch(deleteItemFromCart({ productId: item.id }));
+    await syncCartForSignedIn();
+  };
+
+  const stockIssues = [];
+  for (const [key, value] of Object.entries(cartItems || {})) {
+    const product = products?.find((p) => String(p._id) === String(key));
+    const requestedQty = Math.min(Number(typeof value === 'number' ? value : value?.quantity || 0), 20);
+    if (!product || requestedQty <= 0) continue;
+
+    const variantOptions = typeof value === 'object' ? value?.variantOptions : undefined;
+    let availableQty = typeof product.stockQuantity === 'number' ? product.stockQuantity : Number.MAX_SAFE_INTEGER;
+
+    if (variantOptions && Array.isArray(product.variants) && product.variants.length > 0) {
+      const { color, size, bundleQty } = variantOptions || {};
+      const match = product.variants.find((v) => {
+        const cOk = v.options?.color ? v.options.color === color : !color;
+        const sOk = v.options?.size ? v.options.size === size : !size;
+        const bOk = v.options?.bundleQty ? Number(v.options.bundleQty) === Number(bundleQty) : !bundleQty;
+        return cOk && sOk && bOk;
+      });
+
+      if (!match) continue;
+
+      if (typeof match.stock === 'number') {
+        availableQty = match.stock;
+      }
+    }
+
+    if (product.inStock === false) {
+      stockIssues.push({ id: key, name: product.name || 'Product', reason: 'Out of stock' });
+      continue;
+    }
+
+    if ((!variantOptions || availableQty === Number.MAX_SAFE_INTEGER) && Array.isArray(product.variants) && product.variants.length > 0) {
+      const hasAnyVariantStock = product.variants.some((v) => Number(v?.stock || 0) > 0);
+      if (hasAnyVariantStock) {
+        continue;
+      }
+    }
+
+    if (availableQty <= 0) {
+      stockIssues.push({ id: key, name: product.name || 'Product', reason: 'Out of stock' });
+      continue;
+    }
+
+    if (availableQty < requestedQty) {
+      stockIssues.push({
+        id: key,
+        name: product.name || 'Product',
+        reason: `Only ${availableQty} left (you selected ${requestedQty})`
+      });
+    }
+  }
+
+  const hasStockIssues = stockIssues.length > 0;
+
   const subtotal = cartArray.reduce((sum, item) => sum + (item._cartPrice ?? item.price ?? 0) * item.quantity, 0);
   
   // Calculate coupon discount
@@ -600,7 +708,7 @@ export default function CheckoutPage() {
     (maxCODAmount > 0 && totalAfterWallet > maxCODAmount);
   const isPaymentMissing = needsPaymentSelection && !form.payment;
   const isInvalidPaymentSelection = form.payment === 'cod' && isCODDisabledForOrder;
-  const isPlaceOrderDisabled = placingOrder || isPaymentMissing || isInvalidPaymentSelection;
+  const isPlaceOrderDisabled = placingOrder || isPaymentMissing || isInvalidPaymentSelection || hasStockIssues;
   const selectedAddressForView = form.addressId ? addressList.find((a) => a._id === form.addressId) : null;
   const shouldShowPhoneRequired =
     !!user &&
@@ -869,6 +977,13 @@ export default function CheckoutPage() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setFormError("");
+
+    if (hasStockIssues) {
+      const firstIssue = stockIssues[0];
+      setFormError(`${firstIssue.name}: ${firstIssue.reason}. Please update cart quantity.`);
+      return;
+    }
+
     // Validate required fields
     if (cartArray.length === 0) {
       setFormError("All items in your cart are currently out of stock. Please remove them to continue.");
@@ -882,8 +997,7 @@ export default function CheckoutPage() {
     const fallbackPhone = cleanDigits(selectedAddr?.phone) || cleanDigits(user?.phoneNumber || user?.phone);
     const resolvedPhone = cleanedPhone || fallbackPhone;
     const resolvedCountry = form.country || selectedAddr?.country || 'United Arab Emirates';
-    const isIndiaCheckout = isIndiaCountry(resolvedCountry);
-    let resolvedPincode = sanitizePincode(form.pincode);
+    const resolvedPincode = '';
 
     if (!cleanedPhone && resolvedPhone) {
       setForm((f) => ({ ...f, phone: resolvedPhone }));
@@ -891,30 +1005,6 @@ export default function CheckoutPage() {
 
     if (!form.country && resolvedCountry) {
       setForm((f) => ({ ...f, country: resolvedCountry }));
-    }
-
-    if (isIndiaCheckout) {
-      // Auto-fill pincode from selected saved address if user entered invalid zero-only pincode
-      if (!resolvedPincode || isZeroOnlyPincode(resolvedPincode)) {
-        const fallbackPincode = pickValidPincode(selectedAddr?.zip, selectedAddr?.pincode);
-
-        if (fallbackPincode) {
-          resolvedPincode = fallbackPincode;
-          setForm((f) => ({ ...f, pincode: fallbackPincode }));
-        }
-      }
-
-      if (!resolvedPincode || isZeroOnlyPincode(resolvedPincode)) {
-        setFormError('Please enter a valid pincode.');
-        return;
-      }
-
-      if (resolvedPincode.length !== 6) {
-        setFormError('Please enter a valid 6-digit Indian pincode.');
-        return;
-      }
-    } else {
-      resolvedPincode = '';
     }
 
     console.log('Checkout validation - Phone details:', {
@@ -982,7 +1072,7 @@ export default function CheckoutPage() {
             payload.addressId = addressId;
           }
         } else {
-          if (!form.name || !form.email || !resolvedPhone || !form.street || !form.city || !form.state || !resolvedCountry || (isIndiaCheckout && !resolvedPincode)) {
+          if (!form.name || !form.email || !resolvedPhone || !form.street || !form.city || !form.state || !resolvedCountry) {
             setFormError("Please fill all required shipping details.");
             setPlacingOrder(false);
             return;
@@ -1102,7 +1192,7 @@ export default function CheckoutPage() {
         // Only add addressId if it exists
         if (addressId || (addressList[0] && addressList[0]._id)) {
           payload.addressId = addressId || addressList[0]._id;
-        } else if (form.street && form.city && form.state && form.country && (isIndiaCheckout ? !!resolvedPincode : true)) {
+        } else if (form.street && form.city && form.state && form.country) {
           // User is logged in but has no saved address - include address in payload
           payload.addressData = {
             name: form.name || user.displayName || '',
@@ -1351,8 +1441,7 @@ export default function CheckoutPage() {
     );
   }
 
-  const isIndiaFormCountry = isIndiaCountry(form.country || 'United Arab Emirates');
-  const isGuestAddressReady = !!(form.name && form.phone && form.city && form.state && form.street && (!isIndiaFormCountry || form.pincode));
+  const isGuestAddressReady = !!(form.name && form.phone && form.city && form.state && form.street);
 
   if (showPrepaidModal || navigatingToSuccess) {
     // If we just placed a COD order, show the prepaid upsell modal even though cart is empty
@@ -1415,164 +1504,11 @@ export default function CheckoutPage() {
         contentIds={cartArray.map((item) => String(item?._id || item?._cartKey || '')).filter(Boolean)}
         numItems={cartArray.reduce((sum, item) => sum + Number(item?.quantity || 0), 0)}
       />
-      <div className="py-10 bg-white md:pb-0 pb-20 min-h-0 md:min-h-[35dvh]">
-      <div className="max-w-[1250px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-8">
+      <div className="py-10 bg-[#f5f5f7] md:pb-0 pb-20 min-h-screen">
+      <div className="max-w-[1250px] mx-auto grid grid-cols-1 md:grid-cols-3 gap-6 px-4">
         {/* Left column: address, form, payment */}
         <div className="md:col-span-2">
-          <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8">
-            {/* Cart Items Section */}
-            <div className="mb-6">
-              <h2 className="text-xl font-bold mb-2 text-gray-900">Your order</h2>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {cartArray.map((item) => (
-                  <div key={item._cartKey || item._id} className="flex items-center bg-gray-50 border border-gray-200 rounded-lg p-3 gap-3">
-                    <img src={item.image || item.images?.[0] || '/placeholder.png'} alt={item.name} className="w-14 h-14 object-cover rounded-md border" />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-gray-900 truncate">{item.name}</div>
-                      <div className="text-xs text-gray-500 truncate">{item.brand || ''}</div>
-                      <div className="text-xs text-gray-400">AED {Number(item._cartPrice ?? item.price ?? 0).toLocaleString()}</div>
-                    </div>
-                    <div className="flex flex-col items-center gap-1">
-                      <div className="flex items-center gap-1">
-                        <button 
-                          type="button" 
-                          className="px-2 py-0.5 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 active:bg-gray-400" 
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            if (item.quantity > 1) {
-                              dispatch(removeFromCart({ productId: item._cartKey || item._id }));
-                            } else {
-                              dispatch(deleteItemFromCart({ productId: item._cartKey || item._id }));
-                            }
-                          }}
-                        >-</button>
-                        <span className="px-2 text-sm">{item.quantity}</span>
-                        <button 
-                          type="button" 
-                          className="px-2 py-0.5 rounded bg-gray-200 text-gray-700 hover:bg-gray-300 active:bg-gray-400" 
-                          onClick={(e) => {
-                            e.preventDefault();
-                            e.stopPropagation();
-                            dispatch(addToCart({ productId: item._cartKey || item._id, price: item._cartPrice ?? item.price }));
-                          }}
-                        >+</button>
-                      </div>
-                      <button 
-                        type="button" 
-                        className="text-xs text-red-500 hover:text-red-700 hover:underline mt-1 active:text-red-800" 
-                        onClick={(e) => {
-                          e.preventDefault();
-                          e.stopPropagation();
-                          dispatch(deleteItemFromCart({ productId: item._cartKey || item._id }));
-                        }}
-                      >Remove</button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-            {/* Shipping Method Section */}
-            <div className="mb-6">
-              <h2 className="text-xl font-bold mb-4 text-gray-900">Delivery Method</h2>
-              <div className="space-y-2">
-                <label className={`block border rounded-lg p-4 cursor-pointer transition-all ${
-                  shippingMethod === 'standard' 
-                    ? 'border-green-500 bg-green-50 shadow-sm' 
-                    : 'border-gray-200 bg-white'
-                }`}>
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="radio"
-                      name="shippingMethod"
-                      value="standard"
-                      checked={shippingMethod === 'standard'}
-                      onChange={(e) => setShippingMethod(e.target.value)}
-                      className="mt-1 w-5 h-5 cursor-pointer flex-shrink-0"
-                    />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-base">📦</span>
-                        <div>
-                          <div className="font-medium text-sm text-gray-900">Standard delivery mode</div>
-                          <div className="text-xs text-gray-600">{shippingSetting?.estimatedDays || '2-5'} </div>
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-right flex-shrink-0">
-                      <div className="font-bold text-lg text-green-600">
-                        {(() => {
-                          const baseShip = calculateShipping({ 
-                            cartItems: cartArray, 
-                            shippingSetting,
-                            paymentMethod: form.payment === 'cod' ? 'COD' : 'CARD',
-                            shippingState: form.state
-                          });
-                          return baseShip === 0 ? 'Free' : `AED${baseShip}`;
-                        })()}
-                      </div>
-                    </div>
-                  </div>
-                </label>
-
-                {/* Express Shipping Option - Only show if enabled */}
-                {shippingSetting?.enableExpressShipping && String(form.state || '').trim().toLowerCase() === 'kerala' && (
-                  <label className={`block border rounded-lg p-4 cursor-pointer transition-all ${
-                    shippingMethod === 'express' 
-                      ? 'border-blue-500 bg-blue-50 shadow-sm' 
-                      : 'border-gray-200 bg-white'
-                  }`}>
-                    <div className="flex items-start gap-3">
-                      <input
-                        type="radio"
-                        name="shippingMethod"
-                        value="express"
-                        checked={shippingMethod === 'express'}
-                        onChange={(e) => setShippingMethod(e.target.value)}
-                        className="mt-1 w-5 h-5 cursor-pointer flex-shrink-0"
-                      />
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-base">⚡</span>
-                          <div>
-                            <div className="font-medium text-sm text-gray-900">Express delivery mode</div>
-                            <div className="text-xs text-gray-600">{shippingSetting?.expressEstimatedDays || '1-2'} days</div>
-                          </div>
-                        </div>
-                        <div className="text-xs text-blue-600 ml-7">+AED{shippingSetting?.expressShippingFee || 0} extra</div>
-                      </div>
-                      <div className="text-right flex-shrink-0">
-                        <div className="font-bold text-lg text-blue-600">
-                          AED
-                          {(() => {
-                            const baseShip = calculateShipping({ 
-                              cartItems: cartArray, 
-                              shippingSetting,
-                              paymentMethod: form.payment === 'cod' ? 'COD' : 'CARD',
-                              shippingState: form.state
-                            });
-                            const expressTotal = baseShip + Number(shippingSetting.expressShippingFee || 0);
-                            return expressTotal;
-                          })()}
-                        </div>
-                      </div>
-                    </div>
-                  </label>
-                )}
-              </div>
-              
-              {/* State-wise charge note */}
-              {form.state && shippingSetting?.stateCharges && Array.isArray(shippingSetting.stateCharges) && (() => {
-                const stateCharge = shippingSetting.stateCharges.find(
-                  (entry) => String(entry?.state || '').trim().toLowerCase() === String(form.state || '').trim().toLowerCase()
-                );
-                return stateCharge ? (
-                  <div className="text-xs text-slate-600 mt-2">
-                    ℹ️ <span className="font-medium">Shipping charge for {form.state}:</span> AED{stateCharge.fee} (varies by state)
-                  </div>
-                ) : null;
-              })()}
-            </div>
+          <div className="p-2 md:p-0">
             {/* Shipping Details Section */}
             <form id="checkout-form" onSubmit={handleSubmit} className="flex flex-col gap-0">
               {formError && (
@@ -1605,8 +1541,66 @@ export default function CheckoutPage() {
                   </div>
                 </div>
               )}
+
+              {cartDisplayItems.length > 0 && (
+                <div className="mb-4 border border-gray-200 rounded-lg bg-white">
+                  <div className="px-4 py-3 border-b border-gray-200 text-sm font-semibold text-gray-900">Products in cart</div>
+                  <div className="p-3 space-y-2">
+                    {cartDisplayItems.map((item) => {
+                      const stockIssue = stockIssues.find((issue) => String(issue.id) === String(item.id));
+                      return (
+                        <div key={item.id} className="flex items-center justify-between gap-4 text-sm border border-gray-100 rounded-md p-3">
+                          <div className="flex items-center gap-3.5 min-w-0">
+                            <img src={item.image} alt={item.name} className="w-14 h-14 rounded object-cover border border-gray-200" />
+                            <div className="min-w-0">
+                              <div className="font-semibold text-gray-900 truncate text-base">{item.name}</div>
+                              <div className="flex items-center gap-2 mt-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => handleDecreaseCartQty(item)}
+                                  disabled={item.quantity <= 1}
+                                  className="w-7 h-7 rounded border border-gray-300 text-gray-700 disabled:opacity-40"
+                                >
+                                  -
+                                </button>
+                                <span className="text-sm text-gray-700 min-w-[24px] text-center">{item.quantity}</span>
+                                <button
+                                  type="button"
+                                  onClick={() => handleIncreaseCartQty(item)}
+                                  disabled={typeof item.maxQty === 'number' && item.maxQty > 0 && item.quantity >= item.maxQty}
+                                  className="w-7 h-7 rounded border border-gray-300 text-gray-700 disabled:opacity-40"
+                                >
+                                  +
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteCartItem(item)}
+                                  className="text-sm text-red-600 font-medium ml-1"
+                                >
+                                  Delete
+                                </button>
+                              </div>
+                            </div>
+                          </div>
+                          {stockIssue ? (
+                            <span className="text-xs text-red-600 font-medium">{stockIssue.reason}</span>
+                          ) : (
+                            <span className="text-xs text-green-600 font-medium">In stock</span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {hasStockIssues && (
+                <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
+                  Unable to place order for: {stockIssues.map((issue) => issue.name).join(', ')}. Please reduce quantity or remove unavailable items.
+                </div>
+              )}
               
-              <h2 className="text-xl font-bold mb-1 mt-3 text-gray-900">Shipping details</h2>
+              <h2 className="text-3xl font-bold mb-4 mt-1 text-gray-900">Shipping details</h2>
               {/* ...existing code for address/guest form... */}
               {/* Show address fetch error if present */}
               {addressFetchError && (
@@ -1751,11 +1745,11 @@ export default function CheckoutPage() {
                   <span className="text-xl">+</span> Add Delivery Address
                 </button>
               ) : (!user) ? (
-                <div className="flex flex-col gap-3">{/* Guest form starts here */}
+                <div className="flex flex-col gap-3.5">{/* Guest form starts here */}
                   {/* ...existing code for guest/inline address form... */}
                   {/* Name */}
                   <input
-                    className="border border-gray-200 bg-white rounded px-4 py-2 focus:border-gray-400"
+                    className="border border-gray-200 bg-white rounded px-4 py-3.5 focus:border-gray-400"
                     type="text"
                     name="name"
                     placeholder="Name"
@@ -1764,9 +1758,9 @@ export default function CheckoutPage() {
                     required
                   />
                   {/* Phone input */}
-                  <div className="flex gap-2">
+                  <div className="flex gap-3">
                     <select
-                      className="border border-gray-200 bg-white rounded px-2 py-2 focus:border-gray-400"
+                      className="border border-gray-200 bg-white rounded px-2 py-3.5 focus:border-gray-400"
                       name="phoneCode"
                       value={form.phoneCode}
                       onChange={handleChange}
@@ -1778,7 +1772,7 @@ export default function CheckoutPage() {
                       ))}
                     </select>
                     <input
-                      className="border border-gray-200 bg-white rounded px-4 py-2 flex-1 focus:border-gray-400"
+                      className="border border-gray-200 bg-white rounded px-4 py-3.5 flex-1 focus:border-gray-400"
                       type="tel"
                       name="phone"
                       placeholder="Phone number"
@@ -1817,7 +1811,7 @@ export default function CheckoutPage() {
                     <>
                       <div className="flex gap-2">
                         <select
-                          className="border border-gray-200 bg-white rounded px-2 py-2 focus:border-gray-400"
+                          className="border border-gray-200 bg-white rounded px-2 py-3.5 focus:border-gray-400"
                           name="alternatePhoneCode"
                           value={form.alternatePhoneCode}
                           onChange={handleChange}
@@ -1828,7 +1822,7 @@ export default function CheckoutPage() {
                           ))}
                         </select>
                         <input
-                          className="border border-gray-200 bg-white rounded px-4 py-2 flex-1 focus:border-gray-400"
+                          className="border border-gray-200 bg-white rounded px-4 py-3.5 flex-1 focus:border-gray-400"
                           type="tel"
                           name="alternatePhone"
                           placeholder="Alternate phone (optional)"
@@ -1850,66 +1844,19 @@ export default function CheckoutPage() {
                   )}
                   {/* Email (optional) */}
                   <input
-                    className="border border-gray-200 bg-white rounded px-4 py-2 focus:border-gray-400"
+                    className="border border-gray-200 bg-white rounded px-4 py-3.5 focus:border-gray-400"
                     type="email"
                     name="email"
                     placeholder="Email address "
                     value={form.email || ''}
                     onChange={handleChange}
                   />
-                  {/* Pincode / Postal code */}
-                  {isIndiaCountry(form.country) ? (
-                    <>
-                      <div className="flex gap-2 items-center">
-                        <input
-                          className="border border-gray-200 bg-white rounded px-4 py-2 focus:border-gray-400 flex-1"
-                          type="text"
-                          name="pincode"
-                          placeholder="Pincode"
-                          value={form.pincode || ''}
-                          onChange={(e) => {
-                            const value = e.target.value.replace(/\D/g, '').slice(0, 6);
-                            handleChange({ target: { name: 'pincode', value } });
-                          }}
-                          maxLength={6}
-                          pattern="[0-9]{6}"
-                          required
-                        />
-                        <button
-                          type="button"
-                          onClick={handleAutoFillClick}
-                          className="px-4 py-2 bg-orange-500 text-white rounded hover:bg-orange-600 whitespace-nowrap text-sm font-semibold"
-                        >
-                          Auto-fill
-                        </button>
-                      </div>
-                      {form.pincode && /^0+$/.test(String(form.pincode).trim()) ? (
-                        <div className="text-xs text-red-500 -mt-2">
-                          Please enter a valid pincode. All-zero values are not allowed.
-                        </div>
-                      ) : form.pincode ? (
-                        <div className="text-xs text-gray-500 -mt-2">
-                          ✓ Address auto-filled from pincode
-                        </div>
-                      ) : null}
-                    </>
-                  ) : (
-                    <input
-                      className="border border-gray-200 bg-white rounded px-4 py-2 focus:border-gray-400"
-                      type="text"
-                      name="pincode"
-                      placeholder="Postal code (optional)"
-                      value={form.pincode || ''}
-                      onChange={handleChange}
-                      maxLength={20}
-                    />
-                  )}
-                  {/* City - Auto-filled from pincode */}
+                  {/* City */}
                   <input
-                    className="border border-gray-200 bg-white rounded px-4 py-2 focus:border-gray-400"
+                    className="border border-gray-200 bg-white rounded px-4 py-3.5 focus:border-gray-400"
                     type="text"
                     name="city"
-                    placeholder="City (auto-filled from pincode)"
+                    placeholder="City"
                     value={form.city || ''}
                     onChange={handleChange}
                     required
@@ -1917,7 +1864,7 @@ export default function CheckoutPage() {
                   {/* District dropdown (for India) */}
                   {form.country === 'India' && (
                     <select
-                      className="border border-gray-200 bg-white rounded px-4 py-2 focus:border-gray-400"
+                      className="border border-gray-200 bg-white rounded px-4 py-3.5 focus:border-gray-400"
                       name="district"
                       value={form.district}
                       onChange={handleChange}
@@ -1932,7 +1879,7 @@ export default function CheckoutPage() {
                   )}
                   {/* Full Address Line (street) */}
                   <input
-                    className="border border-gray-200 bg-white rounded px-4 py-2 focus:border-gray-400"
+                    className="border border-gray-200 bg-white rounded px-4 py-3.5 focus:border-gray-400"
                     type="text"
                     name="street"
                     placeholder="Full Address Line (Street, Building, Apartment)"
@@ -1943,7 +1890,7 @@ export default function CheckoutPage() {
                   {/* State/Emirate */}
                   {form.country === 'India' ? (
                     <select
-                      className="border border-gray-200 bg-white rounded px-4 py-2 focus:border-gray-400"
+                      className="border border-gray-200 bg-white rounded px-4 py-3.5 focus:border-gray-400"
                       name="state"
                       value={form.state}
                       onChange={handleChange}
@@ -1956,7 +1903,7 @@ export default function CheckoutPage() {
                     </select>
                   ) : form.country === 'United Arab Emirates' ? (
                     <select
-                      className="border border-gray-200 bg-white rounded px-4 py-2 focus:border-gray-400"
+                      className="border border-gray-200 bg-white rounded px-4 py-3.5 focus:border-gray-400"
                       name="state"
                       value={form.state}
                       onChange={handleChange}
@@ -1964,7 +1911,7 @@ export default function CheckoutPage() {
                     >
                       <option value="">Select Emirate</option>
                       {uaeEmirates.map((emirate) => (
-                        <option key={emirate} value={emirate}>{emirate}</option>
+                        <option key={emirate.value} value={emirate.value}>{emirate.label}</option>
                       ))}
                     </select>
                   ) : (
@@ -1980,7 +1927,7 @@ export default function CheckoutPage() {
                   )}
                   {/* Country dropdown (default India) */}
                   <select
-                    className="border border-gray-200 bg-white rounded px-4 py-2 focus:border-gray-400"
+                    className="border border-gray-200 bg-white rounded px-4 py-3.5 focus:border-gray-400"
                     name="country"
                     value={form.country}
                     onChange={handleChange}
@@ -1993,7 +1940,7 @@ export default function CheckoutPage() {
                   </select>
                 </div>
               ) : null}
-              <h2 className="text-xl font-bold mb-3 mt-4 text-gray-900">Payment methods</h2>
+              <h2 className="text-3xl font-bold mb-4 mt-6 text-gray-900">Payment methods</h2>
 
               <div className="flex flex-col gap-2 mb-4">
                 {/* Credit Card Option */}
@@ -2078,143 +2025,34 @@ export default function CheckoutPage() {
                   <span className="font-semibold text-green-900">✓ Guest Checkout Available:</span> You can place COD orders without creating an account. Your order will be processed instantly!
                 </div>
               )}
+
+              <button
+                type="submit"
+                form="checkout-form"
+                className={`hidden md:block mt-4 w-full text-white font-bold py-3 rounded text-lg transition ${isPlaceOrderDisabled ? 'bg-gray-400 cursor-not-allowed opacity-75' : 'bg-red-600 hover:bg-red-700'}`}
+                disabled={isPlaceOrderDisabled}
+                aria-busy={placingOrder}
+              >
+                {placingOrder ? 'Placing order...' : 'Place order'}
+              </button>
             </form>
           </div>
         </div>
-        {/* Right column: discount input, order summary and place order button */}
-        <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-8 h-fit flex flex-col justify-between">
-          {/* Price Breakdown */}
-          <hr className="my-3" />
-          <div className="space-y-2 mb-4 pb-4 border-b border-gray-200">
-            <div className="flex justify-between text-sm text-gray-900">
+        {/* Right column: order details */}
+        <div className="h-fit p-2 md:p-0 md:pt-2">
+          <h2 className="text-3xl font-bold mb-4 text-gray-900">Order details</h2>
+          <div className="space-y-3">
+            <div className="flex justify-between text-lg text-gray-900">
               <span>Items</span>
-              <span>AED {subtotal.toLocaleString()}</span>
+              <span className="font-semibold">AED {subtotal.toLocaleString()}</span>
             </div>
-            <div className="flex justify-between text-sm text-gray-900">
+            <div className="flex justify-between text-lg text-gray-900">
               <span>Shipping & handling</span>
-              <span>{shipping > 0 ? `AED ${shipping.toLocaleString()}` : 'AED 0'}</span>
+              <span className="font-semibold">{shipping > 0 ? `AED ${shipping.toLocaleString()}` : 'AED 0'}</span>
             </div>
-            {appliedCoupon && couponDiscount > 0 && (
-              <div className="flex justify-between text-sm text-blue-600 font-semibold">
-                <span>Coupon discount ({appliedCoupon.code})</span>
-                <span>-AED {couponDiscount.toLocaleString()}</span>
-              </div>
-            )}
-          </div>
-          
-          <hr className="my-3" />
-          
-          {/* Coupon Discount Display */}
-          {appliedCoupon && couponDiscount > 0 && (
-            <div className="space-y-2 mb-4 p-3 bg-green-50 border border-green-200 rounded-lg">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-700">Coupon applied</span>
-                <span className="font-semibold text-gray-900">{appliedCoupon.code}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-700">{appliedCoupon.title}</span>
-                <span className="font-semibold text-green-600">-AED {couponDiscount.toLocaleString()}</span>
-              </div>
-              <button
-                onClick={() => {
-                  setAppliedCoupon(null);
-                  setCoupon('');
-                }}
-                className="text-xs text-red-600 hover:text-red-700 font-semibold"
-              >
-                Remove coupon
-              </button>
-            </div>
-          )}
-          
-          {/* Final Total */}
-          <div className="mb-4 pb-4 border-b border-gray-200">
-            <div className="flex justify-between font-bold text-lg text-gray-900">
-              <span>Total to pay</span>
+            <div className="border-t border-gray-300 pt-3 flex justify-between text-xl font-bold text-gray-900">
+              <span>Total</span>
               <span>AED {totalAfterWallet.toLocaleString()}</span>
-            </div>
-          </div>
-          <button
-            type="submit"
-            form="checkout-form"
-            className={`hidden md:block relative w-full text-white font-bold py-3 rounded text-lg transition shadow-md hover:shadow-lg ${isPlaceOrderDisabled ? 'bg-gray-400 cursor-not-allowed opacity-75' : 'bg-red-600 hover:bg-red-700'} ${placingOrder ? 'animate-bounce' : ''}`}
-            disabled={isPlaceOrderDisabled}
-            aria-busy={placingOrder}
-          >
-            {placingOrder ? (
-              <span className="inline-flex items-center gap-2">
-                <svg className="animate-spin h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
-                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"></path>
-                </svg>
-                Placing order...
-              </span>
-            ) : (
-              'Place order'
-            )}
-            {placingOrder && (
-              <span className="absolute left-0 top-0 h-full w-full overflow-hidden rounded opacity-20">
-                <span className="block h-full w-1/3 bg-white animate-[shimmer_1.2s_ease_infinite]" />
-              </span>
-            )}
-          </button>
-          
-          {/* Safe & Secure Checkout */}
-          <div className="mt-6 pt-6 border-t border-gray-200">
-            <div className="flex items-center gap-2 mb-4">
-              <svg className="w-5 h-5 text-green-600" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M2.166 4.999A11.954 11.954 0 0010 1.944 11.954 11.954 0 0017.834 5c.11.65.166 1.32.166 2.001 0 5.225-3.34 9.67-8 11.317C5.34 16.67 2 12.225 2 7c0-.682.057-1.35.166-2.001zm11.541 3.708a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-              <h3 className="font-semibold text-gray-900">Safe & Secure Checkout</h3>
-            </div>
-            
-            <div className="grid grid-cols-2 gap-3 mb-4">
-              <div className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                <span className="text-xs text-gray-700">SSL Encrypted Payment</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                <span className="text-xs text-gray-700">100% Secure Transactions</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                <span className="text-xs text-gray-700">Your Data is Protected</span>
-              </div>
-              <div className="flex items-start gap-2">
-                <svg className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" />
-                </svg>
-                <span className="text-xs text-gray-700">Safe & Easy Returns</span>
-              </div>
-            </div>
-            
-            <div className="bg-blue-50 border border-blue-200 rounded-lg p-3 mb-4">
-              <div className="flex items-start gap-2">
-                <svg className="w-5 h-5 text-blue-600 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
-                  <path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" />
-                </svg>
-                <div>
-                  <p className="text-sm font-semibold text-blue-900">We protect your payment information</p>
-                  <p className="text-xs text-blue-700 mt-1">All transactions are encrypted and secure. We never store your card details.</p>
-                </div>
-              </div>
-            </div>
-            
-            <div className="flex flex-wrap items-center gap-2 text-xs text-gray-500">
-              
-              <span className="text-gray-300">•</span>
-              <a href="/terms-of-use" className="text-gray-600 hover:text-gray-900 hover:underline">Terms of Use</a>
-              <span className="text-gray-300">•</span>
-              <a href="/terms-of-sale" className="text-gray-600 hover:text-gray-900 hover:underline">Terms of Sale</a>
-              <span className="text-gray-300">•</span>
-              <a href="/privacy-policy" className="text-gray-600 hover:text-gray-900 hover:underline">Privacy Policy</a>
             </div>
           </div>
         </div>
