@@ -19,6 +19,8 @@ import Creditimage1 from '../../../assets/creditcards/19 - Copy.webp';
 import Creditimage2 from '../../../assets/creditcards/16 - Copy.webp';
 import Creditimage3 from '../../../assets/creditcards/20.webp';
 import Creditimage4 from '../../../assets/creditcards/11.webp';
+import ApplePayIcon from '../../../assets/icons/apple-pay.png';
+import GooglePayIcon from '../../../assets/icons/google-pay.png';
 
 const SignInModal = dynamic(() => import("@/components/SignInModal"), { ssr: false });
 const AddressModal = dynamic(() => import("@/components/AddressModal"), { ssr: false });
@@ -87,6 +89,7 @@ export default function CheckoutPage() {
   const [couponLoading, setCouponLoading] = useState(false);
   const [storeId, setStoreId] = useState(null);
   const [formError, setFormError] = useState("");
+  const [walletSupport, setWalletSupport] = useState({ applePay: true, googlePay: true });
 
   const pushDataLayerEvent = (event, ecommerce) => {
     if (typeof window === 'undefined') return;
@@ -99,6 +102,7 @@ export default function CheckoutPage() {
   const isZeroOnlyPincode = (value) => /^0+$/.test(String(value || '').trim());
   const isIndiaCountry = (value) => String(value || '').trim().toLowerCase() === 'india';
   const hasValidPhone = (value) => /^[0-9]{7,15}$/.test(cleanDigits(value));
+  const isStripePaymentOption = (value) => ['card', 'applepay', 'googlepay'].includes(String(value || '').toLowerCase());
   const pickValidPincode = (...values) => {
     for (const value of values) {
       const normalized = sanitizePincode(value);
@@ -114,8 +118,8 @@ export default function CheckoutPage() {
       return;
     }
 
-    if (form.payment !== 'card') {
-      setCouponError('Coupons are available only for card payments.');
+    if (!isStripePaymentOption(form.payment)) {
+      setCouponError('Coupons are available only for online payments (Card/Apple Pay/Google Pay).');
       return;
     }
     
@@ -711,6 +715,30 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
+    const ua = window.navigator.userAgent || '';
+    const isMac = /Macintosh|Mac OS X/.test(ua);
+    const isIOS = /iPhone|iPad|iPod/.test(ua);
+    const isSafari = /Safari/.test(ua) && !/Chrome|CriOS|Edg|OPR|SamsungBrowser/.test(ua);
+    const isAndroid = /Android/.test(ua);
+    const isChrome = /Chrome|CriOS/.test(ua) && !/Edg|OPR|SamsungBrowser/.test(ua);
+
+    setWalletSupport({
+      applePay: (isSafari && (isMac || isIOS)),
+      googlePay: (isAndroid || isChrome),
+    });
+  }, []);
+
+  useEffect(() => {
+    if (form.payment === 'applepay' && !walletSupport.applePay) {
+      setForm((f) => ({ ...f, payment: 'card' }));
+    }
+    if (form.payment === 'googlepay' && !walletSupport.googlePay) {
+      setForm((f) => ({ ...f, payment: 'card' }));
+    }
+  }, [form.payment, walletSupport.applePay, walletSupport.googlePay]);
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
     if (cartArray.length === 0) return;
 
     const orderKey = cartArray
@@ -740,10 +768,10 @@ export default function CheckoutPage() {
   }, [hasPersonalizedOfferItem, form.payment]);
 
   useEffect(() => {
-    if (appliedCoupon && form.payment !== 'card') {
+    if (appliedCoupon && !isStripePaymentOption(form.payment)) {
       setAppliedCoupon(null);
       setCoupon('');
-      setCouponError('Coupons are available only for card payments.');
+      setCouponError('Coupons are available only for online payments (Card/Apple Pay/Google Pay).');
     }
   }, [appliedCoupon, form.payment]);
 
@@ -905,8 +933,8 @@ export default function CheckoutPage() {
       return;
     }
     
-    // For card payment, create Stripe checkout session
-    if (form.payment === 'card') {
+    // For online payment (Card / Apple Pay / Google Pay), create Stripe checkout session
+    if (isStripePaymentOption(form.payment)) {
       setPlacingOrder(true);
       try {
         const itemsFromStateCard = cartArray.map((item) => {
@@ -1748,7 +1776,7 @@ export default function CheckoutPage() {
                       </svg>
                       <div>
                         <span className="font-semibold text-gray-900">Credit / Debit Card</span>
-                        <div className="text-xs text-gray-600">Visa, Mastercard, Amex</div>
+                        <div className="text-xs text-gray-600">Secure Stripe checkout • Visa, Mastercard, Amex</div>
                       </div>
                     </div>
                     <div className="flex items-center gap-1">
@@ -1757,6 +1785,50 @@ export default function CheckoutPage() {
                       <Image src={Creditimage2} alt="Card" width={24} height={16} className="object-contain"/>
                       <Image src={Creditimage1} alt="Card" width={24} height={16} className="object-contain"/>
                     </div>
+                  </div>
+                </label>
+
+                {/* Apple Pay Option */}
+                <label className={`flex items-center gap-3 p-4 border-2 rounded-lg transition-all ${walletSupport.applePay ? 'cursor-pointer border-gray-200 hover:border-blue-400 hover:bg-blue-50/30 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50' : 'opacity-60 cursor-not-allowed border-gray-200 bg-gray-50'}`}>
+                  <input
+                    type="radio"
+                    name="payment"
+                    value="applepay"
+                    checked={form.payment === 'applepay'}
+                    onChange={handleChange}
+                    disabled={!walletSupport.applePay}
+                    className="accent-blue-600 w-5 h-5"
+                  />
+                  <div className="flex-1 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <span className="font-semibold text-gray-900">Apple Pay</span>
+                        <div className="text-xs text-gray-600">{walletSupport.applePay ? 'Will open in Stripe secure checkout' : 'Available on Safari (iPhone/iPad/Mac)'}</div>
+                      </div>
+                    </div>
+                    <Image src={ApplePayIcon} alt="Apple Pay" width={52} height={20} className="object-contain" />
+                  </div>
+                </label>
+
+                {/* Google Pay Option */}
+                <label className={`flex items-center gap-3 p-4 border-2 rounded-lg transition-all ${walletSupport.googlePay ? 'cursor-pointer border-gray-200 hover:border-blue-400 hover:bg-blue-50/30 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50' : 'opacity-60 cursor-not-allowed border-gray-200 bg-gray-50'}`}>
+                  <input
+                    type="radio"
+                    name="payment"
+                    value="googlepay"
+                    checked={form.payment === 'googlepay'}
+                    onChange={handleChange}
+                    disabled={!walletSupport.googlePay}
+                    className="accent-blue-600 w-5 h-5"
+                  />
+                  <div className="flex-1 flex items-center justify-between">
+                    <div className="flex items-center gap-2">
+                      <div>
+                        <span className="font-semibold text-gray-900">Google Pay</span>
+                        <div className="text-xs text-gray-600">{walletSupport.googlePay ? 'Will open in Stripe secure checkout' : 'Available on Chrome/Android'}</div>
+                      </div>
+                    </div>
+                    <Image src={GooglePayIcon} alt="Google Pay" width={52} height={20} className="object-contain" />
                   </div>
                 </label>
 
@@ -1863,7 +1935,7 @@ export default function CheckoutPage() {
                 ? 'bg-gray-400 cursor-not-allowed opacity-75' 
                 : form.payment === 'cod' 
                   ? 'bg-green-600 hover:bg-green-700' 
-                  : form.payment === 'card'
+                  : isStripePaymentOption(form.payment)
                     ? 'bg-blue-600 hover:bg-blue-700'
                     : form.payment === 'wallet'
                       ? 'bg-green-600 hover:bg-green-700'
@@ -2016,9 +2088,9 @@ export default function CheckoutPage() {
                 />
                 <button
                   type="submit"
-                  disabled={form.payment !== 'card'}
+                  disabled={!isStripePaymentOption(form.payment)}
                   className={`font-semibold px-6 py-3 rounded-lg transition whitespace-nowrap w-full sm:w-auto ${
-                    form.payment !== 'card'
+                    !isStripePaymentOption(form.payment)
                       ? 'bg-gray-300 text-gray-600 cursor-not-allowed'
                       : 'bg-blue-600 hover:bg-blue-700 text-white'
                   }`}
@@ -2026,9 +2098,9 @@ export default function CheckoutPage() {
                   Apply
                 </button>
               </form>
-              {form.payment !== 'card' && (
+              {!isStripePaymentOption(form.payment) && (
                 <div className="text-xs text-amber-600 mt-2">
-                  Coupons are available only for card payments.
+                  Coupons are available only for online payments (Card/Apple Pay/Google Pay).
                 </div>
               )}
               {couponError && <div className="text-red-500 text-xs mt-2">{couponError}</div>}
@@ -2060,7 +2132,7 @@ export default function CheckoutPage() {
                   
                   const cartProductIds = cartItemsArray.map(item => item.productId);
                   
-                  const canUseCoupons = form.payment === 'card';
+                  const canUseCoupons = isStripePaymentOption(form.payment);
                   let isEligible = true;
                   let ineligibleReason = '';
 
