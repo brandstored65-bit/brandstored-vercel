@@ -69,6 +69,7 @@ export default function ProductBySlug() {
     const { slug } = useParams();
     const [product, setProduct] = useState(null);
     const [loading, setLoading] = useState(true);
+    const [notFound, setNotFound] = useState(false);
     const [recommendedProducts, setRecommendedProducts] = useState([]);
     const [reviews, setReviews] = useState([]);
     const [loadingReviews, setLoadingReviews] = useState(false);
@@ -76,11 +77,12 @@ export default function ProductBySlug() {
 
     const fetchProduct = async () => {
         setLoading(true);
+        setNotFound(false);
         try {
             let found = products.find((product) => product.slug === slug);
             
-            // If the Redux product is missing variants, refetch from backend to get full data
-            const needsFresh = !found || !Array.isArray(found.variants) || found.variants.length === 0;
+            // Only refetch from backend if: not in Redux at all, OR product has variants but they aren't loaded yet
+            const needsFresh = !found || (found.hasVariants && (!Array.isArray(found.variants) || found.variants.length === 0));
             
             if (needsFresh) {
                 const { data } = await axios.get(`/api/products/by-slug?slug=${encodeURIComponent(slug)}`);
@@ -105,6 +107,9 @@ export default function ProductBySlug() {
             }
         } catch (error) {
             console.error('Error fetching product:', error);
+            if (error?.response?.status === 404) {
+                setNotFound(true);
+            }
             setProduct(null);
         } finally {
             setLoading(false);
@@ -188,6 +193,13 @@ export default function ProductBySlug() {
                         <ProductDescriptionSkeleton />
                         <RelatedProductsSkeleton />
                     </>
+                ) : notFound ? (
+                    <div className="text-center py-24">
+                        <div className="text-6xl mb-4">🔍</div>
+                        <h1 className="text-2xl font-bold text-slate-800 mb-2">Product Not Found</h1>
+                        <p className="text-slate-500 mb-6">This product doesn't exist or may have been removed.</p>
+                        <a href="/shop" className="inline-block bg-orange-500 hover:bg-orange-600 text-white font-semibold px-8 py-3 rounded-lg transition-colors">Browse Products</a>
+                    </div>
                 ) : product ? (
                     <>
                         <ProductDetails product={product} reviews={reviews} loadingReviews={loadingReviews} />
