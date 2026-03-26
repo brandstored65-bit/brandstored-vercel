@@ -6,10 +6,12 @@ import AbandonedCart from "@/models/AbandonedCart";
 import authSeller from "@/middlewares/authSeller";
 import { NextResponse } from "next/server";
 import { getAuth } from "@/lib/firebase-admin";
+import { migrateProductsToActiveStore } from "@/lib/migrateProductsToActiveStore";
 
 // Next.js API route handler for GET
 export async function GET(request) {
    try {
+   const requestStartedAt = Date.now();
       // Firebase Auth: Extract token from Authorization header
       const authHeader = request.headers.get('authorization');
       if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -28,34 +30,64 @@ export async function GET(request) {
          return NextResponse.json({ error: 'Forbidden: Seller not approved or no store found.' }, { status: 403 });
       }
 
+      const dbConnectStartedAt = Date.now();
       await dbConnect();
-      // Get all orders for seller
-      const orders = await Order.find({ storeId }).lean();
+      const dbConnectMs = Date.now() - dbConnectStartedAt;
 
-      // Get all products with ratings for seller
-      const products = await Product.find({ storeId }).lean();
+      const migration = await migrateProductsToActiveStore({ userId, activeStoreId: storeId });
 
-      const ratings = await Rating.find({
-         productId: { $in: products.map(product => product._id.toString()) }
-      }).lean();
+      const queriesStartedAt = Date.now();
+      const [
+         totalOrders,
+         totalProducts,
+         abandonedCarts,
+         uniqueCustomerIds,
+         orderRevenue,
+         productIds,
+      ] = await Promise.all([
+         Order.countDocuments({ storeId }),
+         Product.countDocuments({ storeId }),
+         AbandonedCart.countDocuments({ storeId }),
+         Order.distinct('userId', { storeId }),
+         Order.aggregate([
+            { $match: { storeId } },
+            { $group: { _id: null, totalEarnings: { $sum: { $ifNull: ['$total', 0] } } } }
+         ]),
+         Product.distinct('_id', { storeId }),
+      ]);
+      const parallelQueriesMs = Date.now() - queriesStartedAt;
 
-      // Get unique customers who have ordered from this store
-      const uniqueCustomerIds = [...new Set(orders.map(order => order.userId))];
-      const totalCustomers = uniqueCustomerIds.length;
-
-      // Get abandoned carts for this store
-      const abandonedCarts = await AbandonedCart.countDocuments({ storeId });
+      const ratingsStartedAt = Date.now();
+      const totalRatings = productIds.length
+         ? await Rating.countDocuments({ productId: { $in: productIds } })
+         : 0;
+      const ratingsQueryMs = Date.now() - ratingsStartedAt;
 
       const dashboardData = {
-         ratings,
-         totalOrders: orders.length,
-         totalEarnings: Math.round(orders.reduce((acc, order) => acc + (order.total || 0), 0)),
-         totalProducts: products.length,
-         totalCustomers,
-         abandonedCarts
+         ratings: [],
+         totalRatings,
+         totalOrders,
+         totalEarnings: Math.round(orderRevenue?.[0]?.totalEarnings || 0),
+         totalProducts,
+         totalCustomers: uniqueCustomerIds.length,
+         abandonedCarts,
       };
 
-      return NextResponse.json({ dashboardData });
+      const totalMs = Date.now() - requestStartedAt;
+      console.info('[store/dashboard] timing', {
+         totalMs,
+         dbConnectMs,
+         parallelQueriesMs,
+         ratingsQueryMs,
+         migratedProducts: migration.migratedCount,
+         totalOrders,
+         totalProducts,
+         totalCustomers: uniqueCustomerIds.length,
+      });
+
+      const response = NextResponse.json({ dashboardData });
+      response.headers.set('x-dashboard-api-ms', String(totalMs));
+      return response;
    } catch (error) {
       console.error(error);
       return NextResponse.json({ error: error.code || error.message }, { status: 400 });

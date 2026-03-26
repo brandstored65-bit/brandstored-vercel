@@ -49,7 +49,7 @@ export default function StoreShippingSettings() {
         const token = await getToken();
         const [shippingRes, productsRes] = await Promise.all([
           axios.get('/api/shipping', { headers: token ? { Authorization: `Bearer ${token}` } : {} }),
-          axios.get('/api/store/product')
+          axios.get('/api/store/product', { headers: token ? { Authorization: `Bearer ${token}` } : {} })
         ]);
         if (shippingRes.data?.setting) {
           setForm({

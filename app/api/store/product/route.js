@@ -5,9 +5,34 @@ import Product from '@/models/Product';
 import authSeller from "@/middlewares/authSeller";
 import { NextResponse } from "next/server";
 import { getAuth } from '@/lib/firebase-admin';
+import { migrateProductsToActiveStore } from '@/lib/migrateProductsToActiveStore';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
+
+const MAX_PRODUCT_IMAGES = 8;
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+
+const validateProductImageFiles = (images) => {
+    if (images.length > MAX_PRODUCT_IMAGES) {
+        return `Maximum ${MAX_PRODUCT_IMAGES} images are allowed`;
+    }
+
+    for (const image of images) {
+        if (typeof image === 'string') continue;
+
+        const mimeType = String(image?.type || '');
+        if (!mimeType.startsWith('image/')) {
+            return 'Only image files are allowed for product images';
+        }
+
+        if (typeof image?.size === 'number' && image.size > MAX_IMAGE_SIZE_BYTES) {
+            return 'Each product image must be 5MB or smaller';
+        }
+    }
+
+    return null;
+};
 
 // Helper: Upload images to ImageKit
 const uploadImages = async (images) => {
@@ -84,6 +109,10 @@ export async function POST(request) {
         
         const sku = formData.get("sku") || null;
         const images = formData.getAll("images");
+        const imageValidationError = validateProductImageFiles(images);
+        if (imageValidationError) {
+            return NextResponse.json({ error: imageValidationError }, { status: 400 });
+        }
         const stockQuantity = formData.get("stockQuantity") ? Number(formData.get("stockQuantity")) : 0;
         // New: variants support
         const hasVariants = String(formData.get("hasVariants") || "false").toLowerCase() === "true";
@@ -269,8 +298,35 @@ export async function GET(request) {
     try {
         await connectDB();
 
-        // ADMIN/GLOBAL: Return all products, no auth required
-        const products = await Product.find({}).sort({ createdAt: -1 }).lean();
+        const authHeader = request.headers.get('authorization');
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        let userId = null;
+        const idToken = authHeader.split('Bearer ')[1];
+        try {
+            const adminAuth = getAuth();
+            const decodedToken = await adminAuth.verifyIdToken(idToken);
+            userId = decodedToken.uid;
+        } catch (e) {
+            return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        const storeId = await authSeller(userId);
+        if (!storeId) {
+            return NextResponse.json({ error: "Not authorized" }, { status: 401 });
+        }
+
+        const migration = await migrateProductsToActiveStore({ userId, activeStoreId: storeId });
+        if (migration.migratedCount > 0) {
+            console.info('[store/product GET] migrated legacy products to active store', {
+                migratedCount: migration.migratedCount,
+                activeStoreId: storeId,
+            });
+        }
+
+        const products = await Product.find({ storeId }).sort({ createdAt: -1 }).lean();
         return NextResponse.json(
             { products },
             {
@@ -355,6 +411,10 @@ export async function PUT(request) {
         const categoriesRaw = formData.get("categories"); // New: JSON array of category IDs
         const sku = formData.get("sku");
         const images = formData.getAll("images");
+        const imageValidationError = validateProductImageFiles(images);
+        if (imageValidationError) {
+            return NextResponse.json({ error: imageValidationError }, { status: 400 });
+        }
         const stockQuantity = formData.get("stockQuantity") ? Number(formData.get("stockQuantity")) : undefined;
         // Variants support
         const hasVariants = String(formData.get("hasVariants") || "").toLowerCase() === "true";

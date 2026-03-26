@@ -764,13 +764,13 @@ const Navbar = () => {
                 )}
                 <div className="flex flex-col leading-tight">
                   <span className="font-medium text-gray-900 text-sm">Hi, {getShortName(firebaseUser.displayName || firebaseUser.email)}</span>
-                  <Link
+                  {/* <Link
                     href="/wallet"
                     className="mt-0 inline-flex items-center gap-1 px-2 py-0 bg-emerald-500 rounded-full text-white text-[10px] font-bold hover:bg-emerald-600 transition w-fit shadow-sm"
                   >
                     <Image src={WalletIcon} alt="Wallet" width={14} height={14} />
                     <span>Wallet: AED{Number(walletCoins || 0).toLocaleString()}</span>
-                  </Link>
+                  </Link> */}
                 </div>
                 {/* Dashboard button for seller */}
                 {isSeller && (

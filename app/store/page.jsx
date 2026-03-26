@@ -46,18 +46,24 @@ export default function Dashboard() {
         { title: 'Total Orders', value: dashboardData.totalOrders, icon: TagsIcon },
         { title: 'Total Customers', value: dashboardData.totalCustomers, icon: UsersIcon },
         { title: 'Abandoned Carts', value: dashboardData.abandonedCarts, icon: ShoppingCartIcon },
-        { title: 'Total Ratings', value: dashboardData.ratings?.length || 0, icon: StarIcon },
+        { title: 'Total Ratings', value: (dashboardData.totalRatings ?? dashboardData.ratings?.length ?? 0), icon: StarIcon },
     ]
 
     // Fetch team users
     const fetchTeamUsers = async () => {
+        const startedAt = performance.now();
         try {
             const token = await getToken();
-            const { data } = await axios.get('/api/store/users', {
+            const response = await axios.get('/api/store/users', {
                 headers: { Authorization: `Bearer ${token}` }
             });
+            const { data } = response;
             const allUsers = [...(data.users || []), ...(data.pending || [])];
             setTeamUsers(allUsers);
+            console.info('[store/page] team-users fetch timing', {
+                durationMs: Math.round(performance.now() - startedAt),
+                totalUsers: allUsers.length,
+            });
         } catch (error) {
             console.error('Failed to fetch team users:', error);
         } finally {
@@ -74,14 +80,21 @@ export default function Dashboard() {
             }
 
             try {
+                const startedAt = performance.now();
                 const token = await getToken();
-                const { data } = await axios.get('/api/store/dashboard', {
+                const response = await axios.get('/api/store/dashboard', {
                     headers: { Authorization: `Bearer ${token}` }
                 });
+                const { data } = response;
+                const apiMs = response.headers?.['x-dashboard-api-ms'];
+                console.info('[store/page] dashboard fetch timing', {
+                    durationMs: Math.round(performance.now() - startedAt),
+                    apiMs: apiMs ? Number(apiMs) : null,
+                });
                 setDashboardData(data.dashboardData);
-                
-                // Fetch team users
-                await fetchTeamUsers();
+
+                // Fetch team users in background (do not block dashboard cards)
+                fetchTeamUsers();
             } catch (error) {
                 console.error('Dashboard fetch error:', error);
                 toast.error(error?.response?.data?.error || 'Failed to load dashboard');

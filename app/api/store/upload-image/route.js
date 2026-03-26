@@ -2,6 +2,8 @@ import authSeller from "@/middlewares/authSeller";
 import imagekit from "@/configs/imageKit";
 import { getAuth } from '@/lib/firebase-admin';
 
+const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
+const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024;
 
 export async function POST(request) {
     try {
@@ -31,6 +33,25 @@ export async function POST(request) {
         if (!image) {
             return Response.json({ error: "No image provided" }, { status: 400 });
         }
+
+        const mimeType = String(image.type || '');
+        const isImage = mimeType.startsWith('image/');
+        const isVideo = mimeType.startsWith('video/');
+
+        if (!isImage && !isVideo) {
+            return Response.json({ error: "Only image and video files are allowed" }, { status: 400 });
+        }
+
+        if ((type === 'logo' || type === 'banner') && !isImage) {
+            return Response.json({ error: "Logo and banner uploads must be image files" }, { status: 400 });
+        }
+
+        const maxSize = isVideo ? MAX_VIDEO_SIZE_BYTES : MAX_IMAGE_SIZE_BYTES;
+        if (typeof image.size === 'number' && image.size > maxSize) {
+            return Response.json({
+                error: isVideo ? "Video must be 50MB or smaller" : "Image must be 5MB or smaller"
+            }, { status: 400 });
+        }
         
         // Convert file to buffer
         const buffer = Buffer.from(await image.arrayBuffer());
@@ -51,7 +72,9 @@ export async function POST(request) {
             ? [{ quality: "auto" }, { format: "webp" }, { width: "200", height: "200" }]
             : type === 'banner'
             ? [{ quality: "auto" }, { format: "webp" }, { width: "1200" }]
-            : [{ quality: "auto" }, { format: "webp" }, { width: "800" }];
+            : isImage
+            ? [{ quality: "auto" }, { format: "webp" }, { width: "800" }]
+            : [{ quality: "auto" }];
         
         const url = imagekit.url({
             path: response.filePath,

@@ -89,7 +89,7 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
         const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
         const [images, setImages] = useState({ "1": null, "2": null, "3": null, "4": null, "5": null, "6": null, "7": null, "8": null });
         const [productInfo, setProductInfo] = useState({
-            name: '', slug: '', brand: '', shortDescription: '', description: '', AED: '', price: '', category: '', sku: '', stockQuantity: 0, colors: [], sizes: [], fastDelivery: false, freeShippingEligible: false, allowReturn: true, allowReplacement: true, reviews: [], badges: [], imageAspectRatio: '1:1', tags: [], deliveredBy: '', soldBy: '', paymentInfo: ''
+            name: '', slug: '', brand: '', shortDescription: '', description: '', AED: '', price: '', category: '', sku: '', stockQuantity: '', colors: [], sizes: [], fastDelivery: false, freeShippingEligible: false, allowReturn: true, allowReplacement: true, reviews: [], badges: [], imageAspectRatio: '1:1', tags: [], deliveredBy: '', soldBy: '', paymentInfo: ''
         });
         const [tagInput, setTagInput] = useState('');
         const [loading, setLoading] = useState(false);
@@ -328,7 +328,7 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                 price: product.price || "",
                 category: product.category?._id || product.category || "",
                 sku: product.sku || "",
-                stockQuantity: product.stockQuantity || 0,
+                stockQuantity: product.stockQuantity ?? '',
                 colors: product.colors || [],
                 sizes: product.sizes || [],
                 fastDelivery: product.fastDelivery || false,
@@ -715,7 +715,7 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                         <input 
                             type="number" 
                             name="stockQuantity" 
-                            value={productInfo.stockQuantity || 0} 
+                            value={productInfo.stockQuantity ?? ''} 
                             onChange={onChangeHandler} 
                             className="w-full border-2 border-blue-100 rounded px-3 py-2" 
                             placeholder="Available stock quantity" 
