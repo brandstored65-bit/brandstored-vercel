@@ -560,15 +560,42 @@ export default function CheckoutPage() {
   };
   console.log('Checkout - Cart Items:', cartItems);
   console.log('Checkout - Products:', products?.map(p => ({ id: p._id, name: p.name })));
+
+  const resolveCartUnitPrice = (product, cartEntry) => {
+    // The stored price IS the full bundle total for a single bundle unit.
+    // Subtotal = storedPrice × quantity (number of bundles in cart).
+    const priceOverride = typeof cartEntry === 'number' ? undefined : cartEntry?.price;
+    const parsedOverride = Number(priceOverride);
+    if (Number.isFinite(parsedOverride) && parsedOverride > 0) {
+      return parsedOverride;
+    }
+
+    const variantOptions = typeof cartEntry === 'object' ? cartEntry?.variantOptions : undefined;
+    if (product && variantOptions && Array.isArray(product.variants) && product.variants.length > 0) {
+      const { color, size, bundleQty } = variantOptions || {};
+      const match = product.variants.find((variant) => {
+        const colorMatches = variant.options?.color ? variant.options.color === color : !color;
+        const sizeMatches = variant.options?.size ? variant.options.size === size : !size;
+        const bundleMatches = variant.options?.bundleQty ? Number(variant.options.bundleQty) === Number(bundleQty) : !bundleQty;
+        return colorMatches && sizeMatches && bundleMatches;
+      });
+
+      const matchedPrice = Number(match?.price);
+      if (Number.isFinite(matchedPrice) && matchedPrice > 0) {
+        return matchedPrice; // bundle total price, not divided
+      }
+    }
+
+    return Number(product?.salePrice ?? product?.price ?? 0) || 0;
+  };
   
   for (const [key, value] of Object.entries(cartItems || {})) {
     const product = products?.find((p) => String(p._id) === String(key));
     const qty = typeof value === 'number' ? value : value?.quantity || 0;
-    const priceOverride = typeof value === 'number' ? undefined : value?.price;
     if (product && qty > 0) {
       if (isPurchasableProduct(product)) {
         console.log('Found purchasable product for key:', key, product.name);
-        const unitPrice = Number(priceOverride ?? product.salePrice ?? product.price ?? 0) || 0;
+        const unitPrice = resolveCartUnitPrice(product, value);
         cartArray.push({ ...product, quantity: qty, _cartPrice: unitPrice, _cartKey: key });
       }
     } else {

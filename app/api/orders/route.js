@@ -224,7 +224,7 @@ export async function POST(request) {
             let product;
             try {
                 product = await Product.findById(item.id)
-                                    .select('_id name slug price mrp AED images category sku inStock stockQuantity storeId')
+                                    .select('_id name slug price mrp AED images category sku inStock stockQuantity storeId variants')
                   .lean();
             } catch (err) {
                 console.error('Product.findById error:', err, 'productId:', item.id);
@@ -238,7 +238,7 @@ export async function POST(request) {
                 console.error('Trying to find any product with this ID...');
                 // Try alternative lookups
                 const altProduct = await Product.findOne({$or: [{_id: item.id}, {id: item.id}, {slug: item.id}]})
-                                    .select('_id name slug price mrp AED images category sku inStock stockQuantity storeId')
+                                    .select('_id name slug price mrp AED images category sku inStock stockQuantity storeId variants')
                   .lean();
                 if (!altProduct) {
                     return NextResponse.json({ 
@@ -257,6 +257,7 @@ export async function POST(request) {
             }
             // If variantOptions provided, validate against matching variant stock; else product stockQuantity
             let availableQty = typeof product.stockQuantity === 'number' ? product.stockQuantity : 0;
+            let matchedVariant = null;
             if (item.variantOptions && Array.isArray(product.variants) && product.variants.length > 0) {
                 const { color, size, bundleQty } = item.variantOptions || {};
                 const match = product.variants.find(v => {
@@ -268,6 +269,7 @@ export async function POST(request) {
                 if (!match) {
                     return NextResponse.json({ error: 'Selected variant not found', id: item.id, variantOptions: item.variantOptions }, { status: 400 });
                 }
+                matchedVariant = match;
                 availableQty = typeof match.stock === 'number' ? match.stock : availableQty;
             }
             if (availableQty < requestedQty) {
@@ -275,7 +277,14 @@ export async function POST(request) {
             }
             
             // Check for personalized offer token and validate
-            let finalPrice = product.price;
+            let finalPrice = Number(product.price) || 0;
+            if (matchedVariant) {
+                const matchedVariantPrice = Number(matchedVariant.price);
+                if (Number.isFinite(matchedVariantPrice) && matchedVariantPrice > 0) {
+                    // Store full bundle total; grandSubtotal += bundleTotal × numberOfBundles
+                    finalPrice = matchedVariantPrice;
+                }
+            }
             let appliedOffer = null;
             
             if (item.offerToken) {
@@ -294,16 +303,17 @@ export async function POST(request) {
                         
                         if (isValid) {
                             // Apply discount
-                            const discountAmount = (product.price * offer.discountPercent) / 100;
-                            finalPrice = Math.round(product.price - discountAmount);
+                            const basePriceForDiscount = Number(finalPrice) || 0;
+                            const discountAmount = (basePriceForDiscount * offer.discountPercent) / 100;
+                            finalPrice = Math.round((basePriceForDiscount - discountAmount) * 100) / 100;
                             appliedOffer = {
                                 offerId: offer._id,
                                 offerToken: offer.offerToken,
                                 discountPercent: offer.discountPercent,
-                                originalPrice: product.price,
+                                originalPrice: basePriceForDiscount,
                                 discountedPrice: finalPrice
                             };
-                            console.log(`Applied personalized offer: ${offer.discountPercent}% off. Price: ${product.price} -> ${finalPrice}`);
+                            console.log(`Applied personalized offer: ${offer.discountPercent}% off. Price: ${basePriceForDiscount} -> ${finalPrice}`);
                         } else {
                             console.warn(`Offer token ${item.offerToken} is invalid or expired`);
                             // Continue with regular price

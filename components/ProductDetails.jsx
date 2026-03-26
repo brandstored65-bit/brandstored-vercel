@@ -447,14 +447,11 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
       if (!Number.isFinite(qty) || qty <= 0) {
         qty = 1;
       }
-      // In bundle mode, effPrice is the bundle-total price; divide by bundleQty for correct per-unit price
-      const perUnitPrice = (bulkVariants.length && selectedBundleQty && selectedBundleQty > 1)
-        ? effPrice / selectedBundleQty
-        : effPrice;
+      // effPrice is the full bundle total; store it as-is so cart × quantity = correct subtotal
       for (let i = 0; i < qty; i++) {
         const payload = {
           productId: product._id, 
-          price: perUnitPrice,
+          price: effPrice,
           variantOptions: {
             color: selectedColor || null,
             size: selectedSize || null,
@@ -487,14 +484,11 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
     if (!Number.isFinite(qty) || qty <= 0) {
       qty = 1;
     }
-    // In bundle mode, effPrice is the bundle-total price; divide by bundleQty for correct per-unit price
-    const perUnitPrice = (bulkVariants.length && selectedBundleQty && selectedBundleQty > 1)
-      ? effPrice / selectedBundleQty
-      : effPrice;
+    // effPrice is the full bundle total; store it as-is so cart × quantity = correct subtotal
     for (let i = 0; i < qty; i++) {
       const payload = {
         productId: product._id,
-        price: perUnitPrice,
+        price: effPrice,
         variantOptions: {
           color: selectedColor || null,
           size: selectedSize || null,

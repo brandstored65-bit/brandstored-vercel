@@ -33,6 +33,34 @@ export default function Cart() {
     const shippingFee = 0;
     const [deletingKeys, setDeletingKeys] = useState({});
 
+    const resolveCartUnitPrice = (product, cartEntry) => {
+        // The stored price IS the full bundle total for a single bundle unit.
+        // Subtotal = storedPrice × quantity (number of bundles in cart).
+        const priceOverride = typeof cartEntry === 'number' ? undefined : cartEntry?.price;
+        const parsedOverride = Number(priceOverride);
+        if (Number.isFinite(parsedOverride) && parsedOverride > 0) {
+            return parsedOverride;
+        }
+
+        const variantOptions = typeof cartEntry === 'object' ? cartEntry?.variantOptions : undefined;
+        if (product && variantOptions && Array.isArray(product.variants) && product.variants.length > 0) {
+            const { color, size, bundleQty } = variantOptions || {};
+            const match = product.variants.find((variant) => {
+                const colorMatches = variant.options?.color ? variant.options.color === color : !color;
+                const sizeMatches = variant.options?.size ? variant.options.size === size : !size;
+                const bundleMatches = variant.options?.bundleQty ? Number(variant.options.bundleQty) === Number(bundleQty) : !bundleQty;
+                return colorMatches && sizeMatches && bundleMatches;
+            });
+
+            const matchedPrice = Number(match?.price);
+            if (Number.isFinite(matchedPrice) && matchedPrice > 0) {
+                return matchedPrice; // bundle total price, not divided
+            }
+        }
+
+        return Number(product?.salePrice ?? product?.price ?? 0) || 0;
+    };
+
 
     // Ensure products list is loaded for cart display
     useEffect(() => {
@@ -114,7 +142,7 @@ export default function Cart() {
             const qty = typeof value === 'number' ? value : value?.quantity || 0;
             
             if (product && qty > 0) {
-                const unitPrice = (typeof value === 'object' ? value?.price : undefined) ?? product.price ?? 0;
+                const unitPrice = resolveCartUnitPrice(product, value);
                 arr.push({ ...product, quantity: qty, _cartPrice: unitPrice, _cartKey: key });
                 const isOutOfStock = product.inStock === false || (typeof product.stockQuantity === 'number' && product.stockQuantity <= 0);
                 if (!isOutOfStock) {
