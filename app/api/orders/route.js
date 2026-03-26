@@ -42,7 +42,8 @@ export async function POST(request) {
             addressId,
             addressData,
             items,
-            couponCode,
+            couponCode: rawCouponCode,
+            coupon: couponPayload,
             paymentMethod,
             isGuest,
             guestInfo,
@@ -52,6 +53,7 @@ export async function POST(request) {
             razorpayOrderId,
             razorpaySignature
         } = body;
+        const couponCode = rawCouponCode || couponPayload?.code;
         let userId = null;
         let isPlusMember = false;
 
@@ -190,6 +192,7 @@ export async function POST(request) {
 
         // Coupon logic
         let coupon = null;
+        let checkoutDiscountAmount = 0;
         if (couponCode) {
             coupon = await Coupon.findOne({ code: couponCode }).lean();
             if (!coupon) return NextResponse.json({ error: 'Coupon not found' }, { status: 400 });
@@ -199,6 +202,11 @@ export async function POST(request) {
             }
             if (coupon.forMember && !isPlusMember) {
                 return NextResponse.json({ error: 'Coupon valid for members only' }, { status: 400 });
+            }
+
+            const providedDiscountAmount = Number(couponPayload?.discountAmount || 0);
+            if (Number.isFinite(providedDiscountAmount) && providedDiscountAmount > 0) {
+                checkoutDiscountAmount = Number(providedDiscountAmount.toFixed(2));
             }
         }
 
@@ -320,6 +328,19 @@ export async function POST(request) {
             grandSubtotal += Number(finalPrice) * Number(requestedQty);
         }
 
+        if (couponCode && coupon && checkoutDiscountAmount <= 0) {
+            if (coupon.discountType === 'percentage') {
+                checkoutDiscountAmount = (grandSubtotal * Number(coupon.discountValue || coupon.discount || 0)) / 100;
+                if (coupon.maxDiscount) {
+                    checkoutDiscountAmount = Math.min(checkoutDiscountAmount, Number(coupon.maxDiscount || 0));
+                }
+            } else {
+                checkoutDiscountAmount = Number(coupon.discountValue || coupon.discount || 0);
+            }
+            checkoutDiscountAmount = Number(checkoutDiscountAmount.toFixed(2));
+        }
+        checkoutDiscountAmount = Math.min(checkoutDiscountAmount, grandSubtotal);
+
         // Shipping: use from payload, fallback to 0
         let shippingFee = typeof body.shippingFee === 'number' ? body.shippingFee : 0;
         let isShippingFeeAdded = false;
@@ -340,7 +361,9 @@ export async function POST(request) {
         // Order creation
         let orderIds = [];
         let fullAmount = 0;
-        for (const [storeId, sellerItems] of ordersByStore.entries()) {
+        let remainingDiscountAmount = checkoutDiscountAmount;
+        const storeEntries = Array.from(ordersByStore.entries());
+        for (const [entryIndex, [storeId, sellerItems]] of storeEntries.entries()) {
             // Ensure user exists in DB (upsert)
             if (userId) {
                 await User.findOneAndUpdate(
@@ -376,14 +399,19 @@ export async function POST(request) {
                 }
             }
             
-            let total = sellerItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
-            if (couponCode && coupon) {
-                if (coupon.discountType === 'percentage') {
-                    total -= (total * coupon.discount) / 100;
+            const storeSubtotal = sellerItems.reduce((acc, item) => acc + (item.price * item.quantity), 0);
+            let storeDiscount = 0;
+            if (checkoutDiscountAmount > 0 && grandSubtotal > 0) {
+                if (entryIndex === storeEntries.length - 1) {
+                    storeDiscount = Math.min(Number(remainingDiscountAmount.toFixed(2)), storeSubtotal);
                 } else {
-                    total -= Math.min(coupon.discount, total);
+                    const proportionalDiscount = (storeSubtotal / grandSubtotal) * checkoutDiscountAmount;
+                    storeDiscount = Math.min(Number(proportionalDiscount.toFixed(2)), storeSubtotal);
+                    remainingDiscountAmount = Math.max(0, Number((remainingDiscountAmount - storeDiscount).toFixed(2)));
                 }
             }
+
+            let total = Math.max(0, Number((storeSubtotal - storeDiscount).toFixed(2)));
             if (!isPlusMember && !isShippingFeeAdded) {
                 total += shippingFee;
                 isShippingFeeAdded = true;
@@ -409,8 +437,17 @@ export async function POST(request) {
                 shippingFee: shippingFee,
                 paymentMethod,
                 paymentStatus: paymentStatus || 'PENDING',
-                isCouponUsed: !!coupon,
-                coupon: coupon || {},
+                isCouponUsed: storeDiscount > 0,
+                coupon: storeDiscount > 0 ? {
+                    code: couponCode,
+                    title: couponPayload?.title || coupon?.title || '',
+                    description: couponPayload?.description || coupon?.description || '',
+                    discountType: 'fixed',
+                    discount: Number(storeDiscount.toFixed(2)),
+                    discountAmount: Number(storeDiscount.toFixed(2)),
+                    originalDiscountType: coupon?.discountType || couponPayload?.discountType || null,
+                    discountValue: coupon?.discountValue || coupon?.discount || couponPayload?.discountValue || null,
+                } : {},
                 coinsRedeemed,
                 walletDiscount,
                 orderItems: sellerItems.map(item => ({
@@ -599,14 +636,6 @@ export async function POST(request) {
                 );
             }
             
-            // Increment coupon usage count if coupon was applied
-            if (coupon && coupon.code) {
-                await Coupon.findOneAndUpdate(
-                    { code: coupon.code.toUpperCase(), storeId: storeId },
-                    { $inc: { usedCount: 1 } }
-                );
-            }
-            
             // Set shortOrderNumber (last 6 hex digits of ObjectId as decimal)
             const hex = order._id.toString().slice(-6);
             const shortOrderNumber = parseInt(hex, 16);
@@ -717,7 +746,7 @@ export async function POST(request) {
         // Coupon usage count
         if (couponCode && coupon) {
             await Coupon.findOneAndUpdate(
-                { code: couponCode },
+                { code: couponCode, ...(coupon.storeId ? { storeId: coupon.storeId } : {}) },
                 { $inc: { usedCount: 1 } }
             );
         }

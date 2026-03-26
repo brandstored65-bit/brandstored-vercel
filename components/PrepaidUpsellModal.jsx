@@ -59,12 +59,8 @@ export default function PrepaidUpsellModal({ open, onClose, onNoThanks, onPayNow
                 onClick={onPayNow}
                 disabled={loading || navigating}
               >
-                <span>⚡</span>
-                <span>PAY NOW</span>
-                <span className="inline-flex gap-1">
-                  <span className="text-xs bg-white/30 px-1 rounded">💳</span>
-                  <span className="text-xs bg-white/30 px-1 rounded">🏧</span>
-                </span>
+                <span>💳</span>
+                <span>{loading ? 'REDIRECTING TO STRIPE...' : 'PAY BY CARD'}</span>
               </button>
               <button
                 className={`w-full rounded-xl py-3.5 font-semibold text-slate-700 bg-white border-2 border-slate-200 hover:bg-slate-50 ${navigating ? 'opacity-70 cursor-not-allowed' : ''}`}

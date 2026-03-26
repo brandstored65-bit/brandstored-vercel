@@ -79,7 +79,8 @@ function OrderSuccessContent() {
   const subtotal = products.reduce((sum, item) => sum + (item.price * item.quantity), 0);
   // Use shippingFee from order if available
   const shipping = typeof order?.shippingFee === 'number' ? order.shippingFee : 0;
-  const discount = order?.coupon?.discount ? (order.coupon.discountType === 'percentage' ? (order.coupon.discount / 100 * subtotal) : Math.min(order.coupon.discount, subtotal)) : 0;
+  const discount = Number(order?.coupon?.discountAmount ?? order?.coupon?.discount ?? 0)
+    || (order?.coupon?.discountType === 'percentage' ? (order.coupon.discount / 100 * subtotal) : Math.min(order?.coupon?.discount || 0, subtotal));
   const walletDiscount = Number(order?.walletDiscount || 0);
   const total = typeof order?.total === 'number' ? order.total : (subtotal + shipping - discount - walletDiscount);
   const orderDate = order?.createdAt ? new Date(order.createdAt).toLocaleDateString() : new Date().toLocaleDateString();

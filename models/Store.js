@@ -21,6 +21,7 @@ const StoreSchema = new mongoose.Schema({
   status: { type: String, default: "pending", enum: ["pending", "approved", "rejected"] },
   featuredProductIds: { type: [String], default: [] }, // Array of featured product IDs
   carouselProductIds: { type: [String], default: [] }, // Array of product IDs for carousel slider
+  designSettings: { type: mongoose.Schema.Types.Mixed, default: {} }, // Home page design/appearance settings
   homeMenuCategories: {
     count: { type: Number, default: 6 },
     items: [

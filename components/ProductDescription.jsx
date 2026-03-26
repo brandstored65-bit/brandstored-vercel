@@ -2,11 +2,12 @@
 import { ArrowRight, StarIcon } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { useState, useEffect } from "react"
+import { useState, useEffect, useMemo } from "react"
 import ReviewForm from "./ReviewForm"
 import axios from "axios"
 import ProductCard from "./ProductCard"
 import { useSelector } from "react-redux"
+import { normalizeProductDescriptionHtml } from "@/lib/normalizeProductDescription"
 
 // Helper function to get relative time
 const getRelativeTime = (dateString) => {
@@ -36,6 +37,7 @@ const ProductDescription = ({ product, reviews = [], loadingReviews = false, onR
     const allProducts = useSelector((state) => state.product.list || [])
     const [lightboxImage, setLightboxImage] = useState(null)
     const [visibleReviews, setVisibleReviews] = useState(5)
+    const normalizedDescription = useMemo(() => normalizeProductDescriptionHtml(product.description || ''), [product.description])
 
     // Calculate rating distribution
     const ratingCounts = [0, 0, 0, 0, 0]
@@ -118,7 +120,7 @@ const ProductDescription = ({ product, reviews = [], loadingReviews = false, onR
                         [&_tbody_td]:px-4 [&_tbody_td]:py-3 [&_tbody_td]:text-gray-700 [&_tbody_td]:border [&_tbody_td]:border-gray-300
                         [&_tfoot_th]:text-left [&_tfoot_th]:px-4 [&_tfoot_th]:py-3 [&_tfoot_th]:font-semibold [&_tfoot_th]:text-gray-800 [&_tfoot_th]:border [&_tfoot_th]:border-gray-300 [&_tfoot_th]:bg-gray-50
                         [&_br]:block"
-                        dangerouslySetInnerHTML={{ __html: product.description }}
+                        dangerouslySetInnerHTML={{ __html: normalizedDescription }}
                     />
                 </div>
             </div>

@@ -3,13 +3,13 @@
 import { useAuth } from '@/lib/useAuth';
 
 export const dynamic = 'force-dynamic'
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { toast } from "react-hot-toast"
 import Image from "next/image"
 import Loading from "@/components/Loading"
 
 import axios from "axios"
-import { StarIcon, Search, Filter } from "lucide-react"
+import { StarIcon, Search, Filter, Download, Upload, FileSpreadsheet } from "lucide-react"
 
 
 export default function StoreReviews() {
@@ -33,6 +33,166 @@ export default function StoreReviews() {
     })
     const [imagePreviews, setImagePreviews] = useState([])
     const [videoPreviews, setVideoPreviews] = useState([])
+    const [exporting, setExporting] = useState(false)
+    const [importing, setImporting] = useState(false)
+    const fileInputRef = useRef(null)
+
+    const toExcelSafeValue = (value) => {
+        if (value === null || value === undefined) return ''
+        return String(value).replace(/\t|\r|\n/g, ' ').trim()
+    }
+
+    const buildReviewRows = (sourceProducts = []) => {
+        return sourceProducts.flatMap((product) => {
+            const reviews = Array.isArray(product?.rating) ? product.rating : []
+
+            return reviews.map((rev) => ({
+                customerName: toExcelSafeValue(rev?.customerName || rev?.user?.name || ''),
+                customerEmail: toExcelSafeValue(rev?.customerEmail || rev?.user?.email || ''),
+                productSku: toExcelSafeValue(product?.sku || ''),
+                productName: toExcelSafeValue(product?.name || ''),
+                reviewRating: Number(rev?.rating || 0),
+                reviewDescription: toExcelSafeValue(rev?.review || rev?.comment || ''),
+                date: rev?.createdAt ? new Date(rev.createdAt).toISOString().slice(0, 10) : '',
+            }))
+        })
+    }
+
+    const downloadWorksheet = async ({ rows, fileName, successMessage }) => {
+        const XLSX = await import('xlsx')
+        const headers = ['Customer Name', 'Customer Email', 'Product SKU (Identifier)', 'Product Name (Identifier)', 'Review Rating', 'Review Description', 'Date']
+        const worksheetRows = rows.map((row) => [
+            row.customerName,
+            row.customerEmail,
+            row.productSku,
+            row.productName,
+            row.reviewRating,
+            row.reviewDescription,
+            row.date,
+        ])
+        const worksheetData = [headers, ...worksheetRows]
+        const worksheet = XLSX.utils.aoa_to_sheet(worksheetData)
+
+        worksheet['!cols'] = headers.map((header, headerIndex) => {
+            const maxCellLength = Math.max(
+                header.length,
+                ...worksheetRows.map((row) => String(row[headerIndex] ?? '').length)
+            )
+            return { wch: Math.min(Math.max(maxCellLength + 2, 14), 40) }
+        })
+
+        const workbook = XLSX.utils.book_new()
+        XLSX.utils.book_append_sheet(workbook, worksheet, 'Reviews')
+        XLSX.writeFile(workbook, fileName)
+
+        if (successMessage) {
+            toast.success(successMessage)
+        }
+    }
+
+    const handleExportReviews = async () => {
+        const reviewRows = buildReviewRows(filteredProducts)
+
+        if (!reviewRows.length) {
+            toast.error('No reviews available to export in the current view')
+            return
+        }
+
+        try {
+            setExporting(true)
+            const dateLabel = new Date().toISOString().slice(0, 10)
+            await downloadWorksheet({
+                rows: reviewRows,
+                fileName: `store-reviews-${dateLabel}.xlsx`,
+                successMessage: `Exported ${reviewRows.length} review${reviewRows.length !== 1 ? 's' : ''}`,
+            })
+        } catch (error) {
+            console.error('Review export failed:', error)
+            toast.error('Failed to export review Excel file')
+        } finally {
+            setExporting(false)
+        }
+    }
+
+    const handleDownloadTemplate = async () => {
+        const sampleDate = new Date().toISOString().slice(0, 10)
+        const sampleProduct = products.find((product) => product?.sku || product?.name)
+
+        try {
+            await downloadWorksheet({
+                rows: [
+                    {
+                        customerName: 'John Doe',
+                        customerEmail: 'john@example.com',
+                        productSku: sampleProduct?.sku || 'SKU-001',
+                        productName: '',
+                        reviewRating: 5,
+                        reviewDescription: 'Great product, fast delivery, and good quality.',
+                        date: sampleDate,
+                    },
+                ],
+                fileName: 'store-review-import-template.xlsx',
+                successMessage: 'Review import template downloaded',
+            })
+        } catch (error) {
+            console.error('Template download failed:', error)
+            toast.error('Failed to download template')
+        }
+    }
+
+    const handleImportClick = () => {
+        fileInputRef.current?.click()
+    }
+
+    const handleImportFile = async (event) => {
+        const selectedFile = event.target.files?.[0]
+        event.target.value = ''
+
+        if (!selectedFile) return
+
+        const allowedTypes = [
+            'application/vnd.ms-excel',
+            'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            'text/csv',
+        ]
+
+        const lowerName = selectedFile.name.toLowerCase()
+        const isSupportedFile = allowedTypes.includes(selectedFile.type) || lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls') || lowerName.endsWith('.csv')
+
+        if (!isSupportedFile) {
+            toast.error('Please upload an Excel or CSV file')
+            return
+        }
+
+        try {
+            setImporting(true)
+            const token = await getToken()
+            const form = new FormData()
+            form.append('file', selectedFile)
+
+            const { data } = await axios.post('/api/store/reviews/import', form, {
+                headers: { Authorization: `Bearer ${token}` },
+            })
+
+            const summary = data?.summary || {}
+            toast.success(`Imported ${summary.imported || 0} review(s). Skipped ${summary.skipped || 0}, failed ${summary.failed || 0}.`)
+
+            if (Array.isArray(data?.failures) && data.failures.length > 0) {
+                const failurePreview = data.failures
+                    .slice(0, 3)
+                    .map((failure) => `Row ${failure.row}: ${failure.reason}`)
+                    .join(' | ')
+                toast.error(failurePreview)
+            }
+
+            fetchReviews()
+        } catch (error) {
+            console.error('Review import failed:', error)
+            toast.error(error?.response?.data?.error || error.message)
+        } finally {
+            setImporting(false)
+        }
+    }
 
     const fetchReviews = async () => {
         try {
@@ -138,6 +298,53 @@ export default function StoreReviews() {
                 <p className="text-sm text-slate-600">
                     Manage reviews for your products. Search for a product to add or moderate reviews.
                 </p>
+            </div>
+
+            <div className="bg-white border rounded-lg p-4 mb-6 shadow-sm">
+                <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                    <div>
+                        <h2 className="text-base font-semibold text-slate-800">Import or export reviews</h2>
+                        <p className="text-sm text-slate-600 mt-1">
+                            Use the Excel template for bulk review uploads with customer name, email, rating, review description, date, and either Product SKU or Product Name to identify the product.
+                        </p>
+                    </div>
+
+                    <div className="flex flex-col sm:flex-row gap-3">
+                        <button
+                            type="button"
+                            onClick={handleDownloadTemplate}
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 border border-slate-300 rounded-lg text-slate-700 hover:bg-slate-50 transition font-medium"
+                        >
+                            <FileSpreadsheet size={18} />
+                            Download Template
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleImportClick}
+                            disabled={importing}
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-600 text-white rounded-lg hover:bg-emerald-700 transition font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            <Upload size={18} />
+                            {importing ? 'Importing...' : 'Import Reviews'}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={handleExportReviews}
+                            disabled={exporting}
+                            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            <Download size={18} />
+                            {exporting ? 'Exporting...' : 'Export Excel'}
+                        </button>
+                        <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept=".xlsx,.xls,.csv"
+                            className="hidden"
+                            onChange={handleImportFile}
+                        />
+                    </div>
+                </div>
             </div>
 
             {/* Search and Filter Bar */}

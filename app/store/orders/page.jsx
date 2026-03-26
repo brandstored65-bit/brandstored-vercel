@@ -1957,7 +1957,7 @@ export default function StoreOrders() {
                                     {selectedOrder.isCouponUsed && (
                                         <div>
                                             <p className="text-slate-500">Coupon Used</p>
-                                            <p className="font-medium text-green-600">{selectedOrder.coupon.code} ({selectedOrder.coupon.discount}% off)</p>
+                                            <p className="font-medium text-green-600">{selectedOrder.coupon.code} (-AED{Number(selectedOrder.coupon.discountAmount ?? selectedOrder.coupon.discount ?? 0).toFixed(2)})</p>
                                         </div>
                                     )}
                                     <div>

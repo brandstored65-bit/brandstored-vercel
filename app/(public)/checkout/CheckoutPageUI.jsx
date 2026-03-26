@@ -1242,9 +1242,23 @@ export default function CheckoutPage() {
 
     setPayingNow(true);
     try {
-      setNavigatingToSuccess(true);
+      const orderRes = await fetch('/api/stripe/prepaid-session', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          orderId: upsellOrderId,
+        }),
+      });
+
+      const orderData = await orderRes.json();
+      if (!orderRes.ok || !orderData?.url) {
+        throw new Error(orderData?.error || orderData?.message || 'Failed to initiate card payment.');
+      }
+
       setShowPrepaidModal(false);
-      router.push(`/order-success?orderId=${upsellOrderId}`);
+      window.location.href = orderData.url;
+    } catch (error) {
+      setFormError(error?.message || 'Unable to process prepaid payment right now.');
     } finally {
       setPayingNow(false);
     }

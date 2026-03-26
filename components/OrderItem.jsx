@@ -241,7 +241,7 @@ const OrderItem = ({ order: initialOrder }) => {
                             {order.isCouponUsed && (
                               <div className="flex justify-between text-sm">
                                 <span className="text-green-600">Discount Applied:</span>
-                                <span className="font-medium text-green-600">-{currency}{(order.coupon?.discount || 0).toFixed(2)}</span>
+                                                                <span className="font-medium text-green-600">-{currency}{Number(order.coupon?.discountAmount ?? order.coupon?.discount ?? 0).toFixed(2)}</span>
                               </div>
                             )}
                             <div className="flex justify-between font-bold text-slate-800 pt-3 border-t border-slate-300">

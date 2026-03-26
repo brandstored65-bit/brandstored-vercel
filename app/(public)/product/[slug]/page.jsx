@@ -80,13 +80,17 @@ export default function ProductBySlug() {
         setNotFound(false);
         try {
             let found = products.find((product) => product.slug === slug);
-            
-            // Only refetch from backend if: not in Redux at all, OR product has variants but they aren't loaded yet
-            const needsFresh = !found || (found.hasVariants && (!Array.isArray(found.variants) || found.variants.length === 0));
-            
-            if (needsFresh) {
+
+            // Always fetch latest product details to avoid stale Redux/cache data
+            // (important for updated description formatting and recent edits from dashboard)
+            try {
                 const { data } = await axios.get(`/api/products/by-slug?slug=${encodeURIComponent(slug)}`);
                 found = data.product || found || null;
+            } catch (fetchError) {
+                // Keep Redux fallback when API fails, but surface 404 when nothing available
+                if (fetchError?.response?.status === 404 && !found) {
+                    throw fetchError;
+                }
             }
             
             setProduct(found);

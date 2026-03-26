@@ -839,7 +839,7 @@ export default function DashboardOrdersPage() {
                             {order.isCouponUsed && (
                               <div className="flex justify-between text-sm">
                                 <span className="text-green-600">Discount Applied:</span>
-                                <span className="font-medium text-green-600">-AED{(order.coupon?.discount || 0).toFixed(2)}</span>
+                                <span className="font-medium text-green-600">-AED{Number(order.coupon?.discountAmount ?? order.coupon?.discount ?? 0).toFixed(2)}</span>
                               </div>
                             )}
                             <div className="flex justify-between font-bold text-slate-800 pt-3 border-t border-slate-300">

@@ -320,9 +320,22 @@ const OrderSummary = ({ totalPrice, items }) => {
 
         setPayingNow(true);
         try {
-            setNavigatingToSuccess(true);
             setShowPrepaidModal(false);
-            router.push(`/order-success?orderId=${upsellOrderId}`);
+            const response = await fetch('/api/stripe/prepaid-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderId: upsellOrderId }),
+            });
+
+            const data = await response.json();
+            if (!response.ok || !data?.url) {
+                throw new Error(data?.error || data?.message || 'Failed to initiate card payment.');
+            }
+
+            window.location.href = data.url;
+        } catch (error) {
+            console.error('Prepaid Stripe redirect failed:', error);
+            setShowPrepaidModal(true);
         } finally {
             setPayingNow(false);
         }

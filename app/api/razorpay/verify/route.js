@@ -49,13 +49,24 @@ export async function POST(request) {
           }
 
           // Apply 5% prepaid discount and mark as paid
-          const discountedTotal = Number((existingOrder.total * 0.95).toFixed(2));
+          const originalTotal = Number(existingOrder.total || 0);
+          const discountAmount = Number((originalTotal * 0.05).toFixed(2));
+          const discountedTotal = Number((originalTotal - discountAmount).toFixed(2));
           existingOrder.total = discountedTotal;
           existingOrder.isPaid = true;
           existingOrder.paymentMethod = 'CARD';
           existingOrder.paymentStatus = 'paid';
           existingOrder.isCouponUsed = true;
-          existingOrder.coupon = { code: 'PREPAID5', discountType: 'percentage', discount: 5 };
+          existingOrder.coupon = {
+            code: 'PREPAID5',
+            title: '5% prepaid discount',
+            description: 'Applied when converting COD to prepaid payment',
+            discountType: 'fixed',
+            discount: discountAmount,
+            discountAmount,
+            originalDiscountType: 'percentage',
+            discountValue: 5,
+          };
           await existingOrder.save();
 
           return NextResponse.json({ 
