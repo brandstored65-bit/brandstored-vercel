@@ -43,7 +43,7 @@ export default function HomePreferences() {
             const { data: featuredData } = await axios.get('/api/store/featured-products', {
                 headers: { Authorization: `Bearer ${token}` }
             })
-            setSelectedProducts(featuredData.productIds || [])
+            setSelectedProducts((featuredData.productIds || []).map(id => String(id)))
 
             // Fetch appearance settings
             try {
@@ -74,10 +74,11 @@ export default function HomePreferences() {
 
     // Handle product selection
     const toggleProduct = (productId) => {
+        const normalizedId = String(productId)
         setSelectedProducts(prev =>
-            prev.includes(productId)
-                ? prev.filter(id => id !== productId)
-                : [...prev, productId]
+            prev.includes(normalizedId)
+                ? prev.filter(id => id !== normalizedId)
+                : [...prev, normalizedId]
         )
     }
 
@@ -87,7 +88,7 @@ export default function HomePreferences() {
             setSaving(true)
             const token = await getToken()
             await axios.post('/api/store/featured-products',
-                { productIds: selectedProducts },
+                { productIds: selectedProducts.map(id => String(id)) },
                 { headers: { Authorization: `Bearer ${token}` } }
             )
             toast.success('Featured products saved successfully')
@@ -221,7 +222,7 @@ export default function HomePreferences() {
                         {/* Action Buttons */}
                         <div className="flex gap-3">
                             <button
-                                onClick={() => setSelectedProducts(products.map(p => p._id))}
+                                onClick={() => setSelectedProducts(products.map(p => String(p._id)))}
                                 className="px-4 py-2 bg-slate-200 text-slate-700 rounded-lg hover:bg-slate-300 transition font-medium text-sm"
                             >
                                 Select All
@@ -260,7 +261,7 @@ export default function HomePreferences() {
                             </div>
                         ) : (
                             filteredProducts.map(product => {
-                                const isSelected = selectedProducts.includes(product._id)
+                                const isSelected = selectedProducts.includes(String(product._id))
                                 const primaryImage = product.images?.[0] || 'https://ik.imagekit.io/jrstupuke/placeholder.png'
 
                                 return (
@@ -279,6 +280,7 @@ export default function HomePreferences() {
                                                 <input
                                                     type="checkbox"
                                                     checked={isSelected}
+                                                    onClick={(e) => e.stopPropagation()}
                                                     onChange={() => toggleProduct(product._id)}
                                                     className="w-5 h-5 rounded cursor-pointer"
                                                 />
