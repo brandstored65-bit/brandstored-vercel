@@ -74,6 +74,7 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
     const defaultVariant = bulkVariants.find(v => v.options?.isDefault);
     return Number((defaultVariant || bulkVariants[0]).options.bundleQty);
   });
+  const singleBundleVariant = bulkVariants.find(v => Number(v.options?.bundleQty) === 1) || null;
 
   const selectedVariant = (bulkVariants.length
     ? bulkVariants.find(v => Number(v.options?.bundleQty) === Number(selectedBundleQty))
@@ -84,8 +85,8 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
       })
   ) || null;
 
-  const basePrice = selectedVariant?.price ?? product.price;
-  const baseAED = selectedVariant?.AED ?? product.AED ?? basePrice;
+  const basePrice = selectedVariant?.price ?? singleBundleVariant?.price ?? product.price;
+  const baseAED = selectedVariant?.AED ?? singleBundleVariant?.AED ?? product.AED ?? basePrice;
   const isSpecialOffer = !!product.specialOffer?.isSpecialOffer;
   const specialDiscountPercent = Number(product.specialOffer?.discountPercent);
   let effPrice = basePrice;
@@ -209,8 +210,9 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
     ? Math.round(((effAED - effPrice) / effAED) * 100)
     : 0;
   const displayQty = Math.max(1, Number(quantity) || 1);
-  const displayPrice = effPrice * displayQty;
-  const displayAED = effAED * displayQty;
+  const isBundleSelectionActive = bulkVariants.length > 0 && Number(selectedBundleQty) > 0;
+  const displayPrice = isBundleSelectionActive ? effPrice : (effPrice * displayQty);
+  const displayAED = isBundleSelectionActive ? effAED : (effAED * displayQty);
   const displaySavings = Math.max(0, displayAED - displayPrice);
 
   const deliveredByText = String(
