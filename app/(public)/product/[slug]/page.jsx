@@ -51,7 +51,7 @@ const ProductDescriptionSkeleton = () => (
 );
 
 const RelatedProductsSkeleton = () => (
-    <div className="px-4 mt-12 mb-16">
+    <div className="px-4 mt-12 mb-6 md:mb-16">
         <div className="h-8 bg-slate-200 rounded w-48 mb-6 animate-pulse"></div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-5 xl:grid-cols-5 gap-6">
             {[1, 2, 3, 4, 5].map(i => (
@@ -189,7 +189,7 @@ export default function ProductBySlug() {
 
     return (
         <div className="w-full">
-            <div className="w-full md:max-w-[1250px] md:mx-auto px-0 md:px-2 md:sm:px-6 pb-24 lg:pb-0">
+            <div className="w-full md:max-w-[1250px] md:mx-auto px-0 md:px-2 md:sm:px-6 pb-2 lg:pb-0">
                 {/* Product Details */}
                 {loading ? (
                     <>
@@ -210,9 +210,9 @@ export default function ProductBySlug() {
                         <ProductDescription product={product} reviews={reviews || []} loadingReviews={loadingReviews} onReviewAdded={() => fetchReviews(product._id || product.id)} />
                         {/* Recommended Products */}
                         {recommendedProducts.length > 0 && (
-                            <div className="-mx-0 md:mx-0 mt-12 mb-16">
+                            <div className="-mx-0 md:mx-0 mt-4 mb-0 md:mb-16">
                                 <div className="px-4 md:px-0">
-                                    <h2 className="text-2xl font-semibold text-slate-800 mb-6">Recommended Products</h2>
+                                    <h2 className="text-2xl font-semibold text-slate-800 mb-3">Recommended Products</h2>
                                 </div>
                                 <div className="px-4 md:px-0">
                                     <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 lg:grid-cols-5 xl:grid-cols-5 gap-6">

@@ -110,7 +110,7 @@ const ProductDescription = ({ product, reviews = [], loadingReviews = false, onR
     // Remove fetchReviews and handleReviewAdded, use parent handler
 
     return (
-        <div className="my-4 sm:my-8 -mx-0 md:mx-0">
+        <div className="my-2 sm:my-8 -mx-0 md:mx-0">
 
             {/* Product Description Section */}
             <div className="bg-white border-0 md:border md:border-gray-200 mb-4 sm:mb-6">
@@ -312,8 +312,8 @@ const ProductDescription = ({ product, reviews = [], loadingReviews = false, onR
 
             {/* Suggested Products Section */}
             {suggestedProducts.length > 0 && (
-                <div className="bg-white border-0 md:border md:border-gray-200 mt-6">
-                    <div className="border-b border-gray-200 px-6 py-4 flex items-center justify-between">
+                <div className="bg-white border-0 md:border md:border-gray-200 mt-3 mb-0">
+                    <div className="border-b border-gray-200 px-4 sm:px-6 py-3 sm:py-4 flex items-center justify-between">
                         <h2 className="text-xl font-bold text-gray-900">You May Also Like</h2>
                         {product.category && (
                             <Link 
@@ -324,8 +324,8 @@ const ProductDescription = ({ product, reviews = [], loadingReviews = false, onR
                             </Link>
                         )}
                     </div>
-                    <div className="p-6">
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+                    <div className="pt-3 pb-1 px-4 sm:p-6">
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 sm:gap-6">
                             {suggestedProducts.map((suggestedProduct) => (
                                 <ProductCard key={suggestedProduct._id} product={suggestedProduct} />
                             ))}
