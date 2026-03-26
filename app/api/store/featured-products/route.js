@@ -13,9 +13,36 @@ export async function GET(request) {
         const includeProducts = searchParams.get('includeProducts') === 'true'
         const limit = Number(searchParams.get('limit') || 0)
 
-        // Public: get the first (or only) store's featured products
-        // Optionally, you can filter by domain, subdomain, or query param for multi-store setups
-        const store = await Store.findOne().select('featuredProductIds')
+        const authHeader = request.headers.get('authorization')
+        let userId = null
+        if (authHeader?.startsWith('Bearer ')) {
+            const idToken = authHeader.split('Bearer ')[1]
+            try {
+                const adminAuth = getAuth()
+                const decodedToken = await adminAuth.verifyIdToken(idToken)
+                userId = decodedToken.uid
+            } catch (e) {
+                // token invalid
+            }
+        }
+
+        let store = null
+        if (userId) {
+            const storeId = await authSeller(userId)
+            if (!storeId) return NextResponse.json({ error: 'Not authorized' }, { status: 401 })
+            store = await Store.findById(storeId).select('featuredProductIds')
+        } else {
+            // Public fallback: prefer store with featured products updated most recently
+            store = await Store.findOne({ featuredProductIds: { $exists: true, $ne: [] } })
+                .sort({ updatedAt: -1 })
+                .select('featuredProductIds')
+
+            // Final fallback: first/only store
+            if (!store) {
+                store = await Store.findOne().select('featuredProductIds')
+            }
+        }
+
         const productIds = store?.featuredProductIds || []
 
         if (!includeProducts) {
