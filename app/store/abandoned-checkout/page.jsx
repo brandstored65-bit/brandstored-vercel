@@ -11,6 +11,26 @@ export default function AbandonedCheckoutPage() {
   const [carts, setCarts] = useState([]);
   const [error, setError] = useState("");
   const [filter, setFilter] = useState("all"); // all, cart, guest-cart, checkout
+  const [sendingEmail, setSendingEmail] = useState({}); // { [cartId]: true/false }
+
+  const handleSendRecoveryEmail = async (cartId) => {
+    setSendingEmail(prev => ({ ...prev, [cartId]: true }));
+    try {
+      const token = await getToken();
+      await axios.post("/api/store/abandoned-checkout/send-email",
+        { cartId },
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      // Update local state to show email was sent
+      setCarts(prev => prev.map(c =>
+        c._id === cartId ? { ...c, recoveryEmailSentAt: new Date().toISOString() } : c
+      ));
+    } catch (err) {
+      alert(err?.response?.data?.error || 'Failed to send email');
+    } finally {
+      setSendingEmail(prev => ({ ...prev, [cartId]: false }));
+    }
+  };
 
   const fetchCarts = async () => {
     try {
@@ -108,6 +128,7 @@ export default function AbandonedCheckoutPage() {
                 <th className="text-left p-3">Products in Cart</th>
                 <th className="text-left p-3">Total</th>
                 <th className="text-left p-3">Last Seen</th>
+                <th className="text-left p-3">Recovery Email</th>
               </tr>
             </thead>
             <tbody>
@@ -168,6 +189,26 @@ export default function AbandonedCheckoutPage() {
                   <td className="p-3">{c.currency || "AED"}{c.cartTotal ?? "-"}</td>
                   <td className="p-3">
                     {c.lastSeenAt ? new Date(c.lastSeenAt).toLocaleString() : "-"}
+                  </td>
+                  <td className="p-3">
+                    {c.email ? (
+                      <div className="flex flex-col gap-1">
+                        <button
+                          onClick={() => handleSendRecoveryEmail(c._id)}
+                          disabled={!!sendingEmail[c._id]}
+                          className="px-3 py-1.5 text-xs font-semibold rounded bg-red-600 text-white hover:bg-red-700 disabled:opacity-50 transition whitespace-nowrap"
+                        >
+                          {sendingEmail[c._id] ? 'Sending...' : '📧 Send Recovery Email'}
+                        </button>
+                        {c.recoveryEmailSentAt && (
+                          <span className="text-xs text-green-600 font-medium">
+                            ✓ Sent {new Date(c.recoveryEmailSentAt).toLocaleDateString()}
+                          </span>
+                        )}
+                      </div>
+                    ) : (
+                      <span className="text-xs text-slate-400 italic">No email</span>
+                    )}
                   </td>
                 </tr>
               ))}

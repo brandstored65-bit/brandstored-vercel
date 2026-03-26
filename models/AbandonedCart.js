@@ -12,6 +12,7 @@ const AbandonedCartSchema = new mongoose.Schema({
   currency: String,
   lastSeenAt: Date,
   source: { type: String, default: 'checkout' },
+  recoveryEmailSentAt: { type: Date, default: null },
 }, { timestamps: true });
 
 // Index for better query performance

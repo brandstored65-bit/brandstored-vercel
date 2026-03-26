@@ -69,9 +69,11 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
   const variantSizes = [...new Set(variants.map(v => v.options?.size).filter(Boolean))];
   const [selectedColor, setSelectedColor] = useState(variantColors[0] || product.colors?.[0] || null);
   const [selectedSize, setSelectedSize] = useState(variantSizes[0] || product.sizes?.[0] || null);
-  const [selectedBundleQty, setSelectedBundleQty] = useState(
-    bulkVariants.length ? Number(bulkVariants[0].options.bundleQty) : null
-  );
+  const [selectedBundleQty, setSelectedBundleQty] = useState(() => {
+    if (!bulkVariants.length) return null;
+    const defaultVariant = bulkVariants.find(v => v.options?.isDefault);
+    return Number((defaultVariant || bulkVariants[0]).options.bundleQty);
+  });
 
   const selectedVariant = (bulkVariants.length
     ? bulkVariants.find(v => Number(v.options?.bundleQty) === Number(selectedBundleQty))
@@ -206,6 +208,10 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
   const discountPercent = effAED > effPrice
     ? Math.round(((effAED - effPrice) / effAED) * 100)
     : 0;
+  const displayQty = Math.max(1, Number(quantity) || 1);
+  const displayPrice = effPrice * displayQty;
+  const displayAED = effAED * displayQty;
+  const displaySavings = Math.max(0, displayAED - displayPrice);
 
   const deliveredByText = String(
     product?.attributes?.deliveredBy ??
@@ -526,6 +532,17 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
     // Show cart toast
     setShowCartToast(true);
     setTimeout(() => setShowCartToast(false), 3000);
+  };
+
+  const handleQuantityChange = (nextQty) => {
+    const clampedQty = Math.max(1, Math.min(nextQty, maxOrderQty || 1));
+    setQuantity(clampedQty);
+
+    // If any bundle is selected and user increases quantity beyond
+    // selected bundle quantity, clear bundle selection so checkout uses plain quantity only.
+    if (Number(selectedBundleQty) > 0 && clampedQty > Number(selectedBundleQty)) {
+      setSelectedBundleQty(null);
+    }
   };
 
   // Toggle FBT product selection
@@ -908,12 +925,12 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
               )}
               <div className="flex items-baseline gap-3 flex-wrap">
                 <span className={`${isSpecialOffer ? 'text-green-600' : 'text-red-600'} text-4xl font-bold`}>
-                  {currency}  {effPrice.toLocaleString()}
+                  {currency}  {displayPrice.toLocaleString()}
                 </span>
-                {effAED > effPrice && (
+                {displayAED > displayPrice && (
                   <>
                     <span className="text-gray-400 text-xl line-through">
-                      {currency} {effAED.toLocaleString()}
+                      {currency} {displayAED.toLocaleString()}
                     </span>
                     <span className="bg-red-50 text-red-600 text-sm font-semibold px-3 py-1.5 rounded">
                       Save {discountPercent}%
@@ -921,13 +938,13 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
                   </>
                 )}
               </div>
-              {effAED > effPrice && (
+              {displayAED > displayPrice && (
                 <div className="flex items-center gap-2">
                   <svg className="w-5 h-5 text-orange-500" fill="currentColor" viewBox="0 0 20 20">
                     <path fillRule="evenodd" d="M12.395 2.553a1 1 0 00-1.45-.385c-.345.23-.614.558-.822.88-.214.33-.403.713-.57 1.116-.334.804-.614 1.768-.84 2.734a31.365 31.365 0 00-.613 3.58 2.64 2.64 0 01-.945-1.067c-.328-.68-.398-1.534-.398-2.654A1 1 0 005.05 6.05 6.981 6.981 0 003 11a7 7 0 1011.95-4.95c-.592-.591-.98-.985-1.348-1.467-.363-.476-.724-1.063-1.207-2.03zM12.12 15.12A3 3 0 017 13s.879.5 2.5.5c0-1 .5-4 1.25-4.5.5 1 .786 1.293 1.371 1.879A2.99 2.99 0 0113 13a2.99 2.99 0 01-.879 2.121z" clipRule="evenodd"/>
                   </svg>
                   <span className="text-orange-600 text-sm font-semibold">
-                    Save AED {(effAED - effPrice).toLocaleString()} 
+                    Save AED {displaySavings.toLocaleString()} 
                   </span>
                 </div>
               )}
@@ -1100,7 +1117,7 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
                 <label className="text-sm font-semibold text-gray-900">Quantity</label>
                 <div className="flex items-center gap-2">
                   <button
-                    onClick={() => setQuantity(Math.max(1, quantity - 1))}
+                    onClick={() => handleQuantityChange(quantity - 1)}
                     disabled={quantity <= 1}
                     className={`w-9 h-9 flex items-center justify-center border rounded transition ${quantity <= 1 ? 'border-gray-200 text-gray-300 cursor-not-allowed' : 'border-gray-300 hover:bg-gray-100 text-gray-700'}`}
                   >
@@ -1110,7 +1127,7 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
                     {quantity}
                   </div>
                   <button
-                    onClick={() => setQuantity(Math.min(quantity + 1, maxOrderQty || 1))}
+                    onClick={() => handleQuantityChange(quantity + 1)}
                     disabled={quantity >= (maxOrderQty || 1) || !isSelectionInStock}
                     className={`w-9 h-9 flex items-center justify-center border rounded transition ${
                       quantity >= (maxOrderQty || 1) || !isSelectionInStock

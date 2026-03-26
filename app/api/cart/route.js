@@ -151,8 +151,18 @@ export async function DELETE(request) {
         }
 
         const userId = decodedToken.uid;
-        const { productId } = await request.json();
-        const productKey = String(productId || "").trim();
+
+        let productIdFromBody = null;
+        try {
+            const body = await request.json();
+            productIdFromBody = body?.productId || null;
+        } catch (e) {
+            // ignore body parse issues for DELETE; query param fallback below
+        }
+
+        const { searchParams } = new URL(request.url);
+        const productIdFromQuery = searchParams.get('productId');
+        const productKey = String(productIdFromBody || productIdFromQuery || "").trim();
 
         if (!productKey) {
             return NextResponse.json({ error: "productId is required" }, { status: 400 });

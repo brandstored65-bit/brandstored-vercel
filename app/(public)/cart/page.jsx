@@ -219,6 +219,15 @@ export default function Cart() {
                     await dispatch(uploadCart({ getToken }));
                     await dispatch(fetchCart({ getToken }));
                 }
+            } catch (error) {
+                console.error('[Cart] Delete item failed, falling back to uploadCart sync:', error?.response?.data || error?.message || error);
+                // Fallback: push current local cart state to server so deleted item doesn't reappear
+                try {
+                    await dispatch(uploadCart({ getToken }));
+                    await dispatch(fetchCart({ getToken }));
+                } catch (syncError) {
+                    console.error('[Cart] Fallback cart sync failed:', syncError?.response?.data || syncError?.message || syncError);
+                }
             } finally {
                 setDeletingKeys((prev) => {
                     const next = { ...prev };

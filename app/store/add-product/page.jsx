@@ -383,7 +383,8 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                     price: v.price ?? '',
                     AED: v.AED ?? v.price ?? '',
                     stock: v.stock ?? 0,
-                    tag: v.tag || v.options?.tag || ''
+                    tag: v.tag || v.options?.tag || '',
+                    isDefault: !!v.options?.isDefault
                 }))
                 // Keep sorted by qty
                 mapped.sort((a,b)=>a.qty-b.qty)
@@ -542,7 +543,7 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                 variantsToSend = bulkOptions
                     .filter(b => Number(b.qty) > 0 && Number(b.price) > 0)
                     .map(b => ({
-                        options: { bundleQty: Number(b.qty), title: (b.title || undefined), tag: b.tag || undefined },
+                        options: { bundleQty: Number(b.qty), title: (b.title || undefined), tag: b.tag || undefined, isDefault: !!b.isDefault },
                         price: Number(b.price),
                         AED: Number(b.AED || b.price),
                         stock: Number(b.stock || 0),
@@ -1060,18 +1061,19 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                     {bulkEnabled && (
                         <div className="mt-3 space-y-3">
                             <div className="text-sm text-gray-600">Configure bundle quantities and pricing. At least one row is required.</div>
-                            <div className="grid grid-cols-7 gap-2 font-medium text-sm text-gray-700">
+                            <div className="grid grid-cols-8 gap-2 font-medium text-sm text-gray-700">
                                 <div>Label</div>
                                 <div>Qty</div>
                                 <div>Sale Price (AED)</div>
                                 <div>Regular Price (AED)</div>
                                 <div>Stock</div>
                                 <div>Tag</div>
+                                <div>Default</div>
                                 <div></div>
                             </div>
                             <div className="space-y-2">
                                 {bulkOptions.map((b, idx)=> (
-                                    <div key={idx} className="grid grid-cols-7 gap-2 items-center">
+                                    <div key={idx} className="grid grid-cols-8 gap-2 items-center">
                                         <input className="border rounded px-2 py-1" placeholder="e.g., Buy 1 / Bundle of 2" value={b.title || ''}
                                             onChange={(e)=>{ const v=[...bulkOptions]; v[idx] = { ...b, title: e.target.value }; setBulkOptions(v)}} />
                                         <input className="border rounded px-2 py-1" type="number" min={1} value={b.qty}
@@ -1090,13 +1092,31 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                                             <option value="MOST_POPULAR">Most Popular</option>
                                             <option value="BEST_VALUE">Best Value</option>
                                         </select>
+                                        <div className="flex justify-center">
+                                            <button
+                                                type="button"
+                                                onClick={()=>{ setBulkOptions(bulkOptions.map((o, i) => ({ ...o, isDefault: i === idx }))) }}
+                                                title="Set as default selection on product page"
+                                                className={`w-7 h-7 rounded-full border-2 flex items-center justify-center transition-all ${
+                                                    b.isDefault
+                                                        ? 'border-blue-600 bg-blue-600'
+                                                        : 'border-gray-300 bg-white hover:border-blue-400'
+                                                }`}
+                                            >
+                                                {b.isDefault && (
+                                                    <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                                                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                                                    </svg>
+                                                )}
+                                            </button>
+                                        </div>
                                         <div className="text-right">
                                             <button type="button" className="text-red-600 text-sm" onClick={()=> setBulkOptions(bulkOptions.filter((_,i)=>i!==idx))}>Remove</button>
                                         </div>
                                     </div>
                                 ))}
                             </div>
-                            <button type="button" className="text-green-600 text-sm font-medium" onClick={()=> setBulkOptions([...bulkOptions, { title: '', qty: 1, price: '', AED: '', stock: 0, tag: '' }])}>+ Add Bundle</button>
+                            <button type="button" className="text-green-600 text-sm font-medium" onClick={()=> setBulkOptions([...bulkOptions, { title: '', qty: 1, price: '', AED: '', stock: 0, tag: '', isDefault: false }])}>+ Add Bundle</button>
                         </div>
                     )}
 

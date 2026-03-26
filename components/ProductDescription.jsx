@@ -2,7 +2,7 @@
 import { ArrowRight, StarIcon } from "lucide-react"
 import Image from "next/image"
 import Link from "next/link"
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useCallback } from "react"
 import ReviewForm from "./ReviewForm"
 import axios from "axios"
 import ProductCard from "./ProductCard"
@@ -51,32 +51,61 @@ const ProductDescription = ({ product, reviews = [], loadingReviews = false, onR
         ? (reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length).toFixed(1)
         : 0
 
+    const fetchSuggestedProducts = useCallback(async () => {
+        const currentProductId = String(product?._id || product?.id || '')
+        const currentTags = Array.isArray(product?.tags)
+            ? product.tags
+            : (Array.isArray(product?.attributes?.tags) ? product.attributes.tags : [])
+
+        const getRelated = (sourceProducts = []) => {
+            return sourceProducts.filter((sourceProduct) => {
+                const sourceId = String(sourceProduct?._id || sourceProduct?.id || '')
+                if (!sourceId || sourceId === currentProductId) return false
+
+                if (sourceProduct?.category && product?.category && sourceProduct.category === product.category) {
+                    return true
+                }
+
+                const sourceTags = Array.isArray(sourceProduct?.tags)
+                    ? sourceProduct.tags
+                    : (Array.isArray(sourceProduct?.attributes?.tags) ? sourceProduct.attributes.tags : [])
+
+                if (currentTags.length && sourceTags.length) {
+                    return currentTags.some(tag => sourceTags.includes(tag))
+                }
+
+                return false
+            })
+        }
+
+        let related = getRelated(allProducts || [])
+
+        // Fallback: if store state doesn't have enough products, fetch from API directly
+        if (related.length === 0) {
+            try {
+                const { data } = await axios.get('/api/products?all=true&limit=300')
+                const apiProducts = Array.isArray(data?.products) ? data.products : []
+                related = getRelated(apiProducts)
+
+                // Final fallback: show recent products (excluding current) so section is never empty
+                if (related.length === 0) {
+                    related = apiProducts.filter((sourceProduct) => {
+                        const sourceId = String(sourceProduct?._id || sourceProduct?.id || '')
+                        return sourceId && sourceId !== currentProductId
+                    })
+                }
+            } catch (error) {
+                // keep empty if API fails
+            }
+        }
+
+        const shuffled = [...related].sort(() => 0.5 - Math.random())
+        setSuggestedProducts(shuffled.slice(0, 8))
+    }, [allProducts, product])
+
     useEffect(() => {
         fetchSuggestedProducts()
-    }, [product._id, allProducts])
-
-    const fetchSuggestedProducts = () => {
-        // Filter products by same category or tags, exclude current product
-        const related = allProducts.filter(p => {
-            if (p._id === product._id) return false
-            
-            // Match by category
-            if (p.category === product.category) return true
-            
-            // Match by tags if they exist
-            if (product.tags && p.tags) {
-                const productTags = Array.isArray(product.tags) ? product.tags : []
-                const pTags = Array.isArray(p.tags) ? p.tags : []
-                return productTags.some(tag => pTags.includes(tag))
-            }
-            
-            return false
-        })
-        
-        // Shuffle and take first 8 products
-        const shuffled = related.sort(() => 0.5 - Math.random())
-        setSuggestedProducts(shuffled.slice(0, 8))
-    }
+    }, [fetchSuggestedProducts])
 
     // Remove fetchReviews and handleReviewAdded, use parent handler
 
@@ -91,35 +120,23 @@ const ProductDescription = ({ product, reviews = [], loadingReviews = false, onR
                 <div className="p-4 sm:p-6">
                     <div 
                         className="max-w-none
-                        [&_h1]:text-2xl [&_h1]:font-bold [&_h1]:text-gray-900 [&_h1]:mb-4 [&_h1]:mt-4
-                        [&_h2]:text-xl [&_h2]:font-bold [&_h2]:text-gray-900 [&_h2]:mb-3 [&_h2]:mt-3
-                        [&_h3]:text-lg [&_h3]:font-bold [&_h3]:text-gray-900 [&_h3]:mb-2 [&_h3]:mt-2
-                        [&_p]:text-gray-700 [&_p]:leading-relaxed [&_p]:mb-4
-                        [&_strong]:font-semibold [&_strong]:text-gray-900
-                        [&_em]:italic [&_em]:text-gray-800
-                        [&_u]:underline
-                        [&_ul]:list-disc [&_ul]:list-inside [&_ul]:text-gray-700 [&_ul]:mb-4 [&_ul]:ml-4
-                        [&_ol]:list-decimal [&_ol]:list-inside [&_ol]:text-gray-700 [&_ol]:mb-4 [&_ol]:ml-4
-                        [&_li]:text-gray-700 [&_li]:mb-1
-                        [&_a]:text-blue-600 [&_a]:underline [&_a:hover]:text-blue-800
-                        [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg [&_img]:shadow-sm [&_img]:my-4
-                        [&_video]:max-w-full [&_video]:w-full [&_video]:h-auto [&_video]:rounded-lg [&_video]:shadow-sm [&_video]:my-4
-                        [&_figure]:my-6 [&_figure]:text-center
-                        [&_figcaption]:text-sm [&_figcaption]:text-gray-600 [&_figcaption]:mt-2
-                        [&_blockquote]:border-l-4 [&_blockquote]:border-orange-500 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:text-gray-700 [&_blockquote]:my-4
-                        [&_code]:bg-gray-100 [&_code]:px-2 [&_code]:py-1 [&_code]:rounded [&_code]:text-sm [&_code]:font-mono [&_code]:text-red-600
-                        [&_pre]:bg-gray-900 [&_pre]:text-gray-100 [&_pre]:p-4 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:my-4
-                        [&_pre_code]:bg-none [&_pre_code]:text-inherit [&_pre_code]:p-0
-                        [&_hr]:border-t-2 [&_hr]:border-gray-300 [&_hr]:my-6
-                        [&_table]:w-full [&_table]:border-collapse [&_table]:my-6 [&_table]:border [&_table]:border-gray-300
-                        [&_thead]:bg-gray-100
-                        [&_thead_th]:text-left [&_thead_th]:px-4 [&_thead_th]:py-3 [&_thead_th]:font-semibold [&_thead_th]:text-gray-800 [&_thead_th]:border [&_thead_th]:border-gray-300
-                        [&_tbody_tr]:border-b [&_tbody_tr]:border-gray-300
-                        [&_tbody_tr:hover]:bg-gray-50
-                        [&_tbody_tr:last-child]:border-b-0
-                        [&_tbody_td]:px-4 [&_tbody_td]:py-3 [&_tbody_td]:text-gray-700 [&_tbody_td]:border [&_tbody_td]:border-gray-300
-                        [&_tfoot_th]:text-left [&_tfoot_th]:px-4 [&_tfoot_th]:py-3 [&_tfoot_th]:font-semibold [&_tfoot_th]:text-gray-800 [&_tfoot_th]:border [&_tfoot_th]:border-gray-300 [&_tfoot_th]:bg-gray-50
-                        [&_br]:block"
+                        [&_p]:mb-4
+                        [&_ul]:list-disc [&_ul]:list-outside [&_ul]:mb-4 [&_ul]:pl-5
+                        [&_ol]:list-decimal [&_ol]:list-outside [&_ol]:mb-4 [&_ol]:pl-5
+                        [&_li]:mb-1
+                        [&_li_p]:inline [&_li_p]:m-0
+                        [&_li_div]:inline [&_li_div]:m-0
+                        [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg [&_img]:my-4
+                        [&_video]:max-w-full [&_video]:w-full [&_video]:h-auto [&_video]:rounded-lg [&_video]:my-4
+                        [&_figure]:my-6
+                        [&_figcaption]:text-sm [&_figcaption]:mt-2
+                        [&_blockquote]:border-l-4 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-4
+                        [&_pre]:p-4 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:my-4
+                        [&_hr]:my-6
+                        [&_table]:w-full [&_table]:border-collapse [&_table]:my-6 [&_table]:border
+                        [&_thead_th]:text-left [&_thead_th]:px-4 [&_thead_th]:py-3 [&_thead_th]:border
+                        [&_tbody_td]:px-4 [&_tbody_td]:py-3 [&_tbody_td]:border
+                        [&_tfoot_th]:text-left [&_tfoot_th]:px-4 [&_tfoot_th]:py-3 [&_tfoot_th]:border"
                         dangerouslySetInnerHTML={{ __html: normalizedDescription }}
                     />
                 </div>
