@@ -67,19 +67,29 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
   // Variants support
   const variants = Array.isArray(product.variants) ? product.variants : [];
   const bulkVariants = variants.filter(v => v?.options && (v.options.bundleQty || v.options.bundleQty === 0));
+  const sortedBulkVariants = bulkVariants
+    .slice()
+    .sort((a, b) => Number(a.options?.bundleQty) - Number(b.options?.bundleQty));
+  const bundleQtyOptions = sortedBulkVariants
+    .map((variant) => Math.max(1, Number(variant.options?.bundleQty) || 1))
+    .filter((qty, index, all) => all.indexOf(qty) === index);
   const variantColors = [...new Set(variants.map(v => v.options?.color).filter(Boolean))];
   const variantSizes = [...new Set(variants.map(v => v.options?.size).filter(Boolean))];
   const [selectedColor, setSelectedColor] = useState(variantColors[0] || product.colors?.[0] || null);
   const [selectedSize, setSelectedSize] = useState(variantSizes[0] || product.sizes?.[0] || null);
   const [selectedBundleQty, setSelectedBundleQty] = useState(() => {
-    if (!bulkVariants.length) return null;
-    const defaultVariant = bulkVariants.find(v => v.options?.isDefault);
-    return Number((defaultVariant || bulkVariants[0]).options.bundleQty);
+    if (!sortedBulkVariants.length) return null;
+    const defaultVariant = sortedBulkVariants.find(v => v.options?.isDefault);
+    return Number((defaultVariant || sortedBulkVariants[0]).options.bundleQty);
   });
-  const singleBundleVariant = bulkVariants.find(v => Number(v.options?.bundleQty) === 1) || null;
+  const singleBundleVariant = sortedBulkVariants.find(v => Number(v.options?.bundleQty) === 1) || null;
+  const selectedBundleVariant = selectedBundleQty == null
+    ? null
+    : sortedBulkVariants.find(v => Number(v.options?.bundleQty) === Number(selectedBundleQty)) || null;
+  const isBundleMode = bulkVariants.length > 0 && !!selectedBundleVariant;
 
   const selectedVariant = (bulkVariants.length
-    ? bulkVariants.find(v => Number(v.options?.bundleQty) === Number(selectedBundleQty))
+    ? (selectedBundleVariant || singleBundleVariant)
     : variants.find(v => {
         const cOk = v.options?.color ? v.options.color === selectedColor : true;
         const sOk = v.options?.size ? v.options.size === selectedSize : true;
@@ -198,7 +208,8 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
   }, [product._id]);
 
   const selectedBundleQtyNumber = Math.max(1, Number(selectedBundleQty) || 1);
-  const minQtyForSelection = bulkVariants.length > 0 ? selectedBundleQtyNumber : 1;
+  const highestBundleQty = bundleQtyOptions.length > 0 ? bundleQtyOptions[bundleQtyOptions.length - 1] : 1;
+  const minQtyForSelection = bulkVariants.length > 0 && isBundleMode ? selectedBundleQtyNumber : 1;
 
   useEffect(() => {
     if (bulkVariants.length === 0) return;
@@ -209,9 +220,18 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
   }, [bulkVariants.length, selectedBundleQtyNumber]);
 
   const availableStock = (typeof selectedVariant?.stock === 'number')
-    ? (selectedBundleQtyNumber > 1 ? (selectedVariant.stock * selectedBundleQtyNumber) : selectedVariant.stock)
+    ? (isBundleMode && selectedBundleQtyNumber > 1 ? (selectedVariant.stock * selectedBundleQtyNumber) : selectedVariant.stock)
     : (typeof product.stockQuantity === 'number' ? product.stockQuantity : 0);
   const maxOrderQty = Math.min(20, Math.max(0, availableStock));
+  const maxSelectableQty = bulkVariants.length > 0
+    ? Math.min(20, Math.max(0, ...sortedBulkVariants.map((variant) => {
+        const variantQty = Math.max(1, Number(variant.options?.bundleQty) || 1);
+        const variantStock = typeof variant?.stock === 'number'
+          ? variant.stock
+          : (typeof product.stockQuantity === 'number' ? product.stockQuantity : 0);
+        return variantQty > 1 ? variantStock * variantQty : variantStock;
+      })))
+    : maxOrderQty;
   const hasAnyVariantStock = variants.length > 0
     ? variants.some(v => Number(v?.stock || 0) > 0)
     : false;
@@ -223,7 +243,7 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
     ? Math.round(((effAED - effPrice) / effAED) * 100)
     : 0;
   const displayQty = Math.max(1, Number(quantity) || 1);
-  const bundleMultiplier = bulkVariants.length > 0 && Number(selectedBundleQty) > 0
+  const bundleMultiplier = isBundleMode
     ? (displayQty / selectedBundleQtyNumber)
     : displayQty;
   const displayPrice = (effPrice * bundleMultiplier);
@@ -576,7 +596,29 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
   };
 
   const handleQuantityChange = (nextQty) => {
-    const clampedQty = Math.max(minQtyForSelection, Math.min(nextQty, maxOrderQty || minQtyForSelection));
+    const fallbackMaxQty = Math.max(1, maxOrderQty || 1, maxSelectableQty || 1);
+    const clampedQty = Math.max(1, Math.min(nextQty, fallbackMaxQty));
+
+    if (bulkVariants.length === 0) {
+      setQuantity(clampedQty);
+      return;
+    }
+
+    const matchedBundleQty = bundleQtyOptions.find((qty) => qty === clampedQty) || null;
+
+    if (matchedBundleQty) {
+      setSelectedBundleQty(matchedBundleQty);
+      setQuantity(matchedBundleQty);
+      return;
+    }
+
+    if (clampedQty > highestBundleQty) {
+      setSelectedBundleQty(null);
+      setQuantity(clampedQty);
+      return;
+    }
+
+    setSelectedBundleQty(null);
     setQuantity(clampedQty);
   };
 
@@ -1057,9 +1099,7 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
                 <p className="text-xs font-semibold text-gray-700 uppercase tracking-wide mb-3">
                   BUNDLE AND SAVE MORE!
                 </p>
-                {bulkVariants
-                  .slice()
-                  .sort((a,b)=>Number(a.options.bundleQty)-Number(b.options.bundleQty))
+                {sortedBulkVariants
                   .map((v, idx)=>{
                     const qty = Number(v.options.bundleQty) || 1;
                     const isSelected = Number(selectedBundleQty) === qty;
@@ -1153,8 +1193,8 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleQuantityChange(quantity - 1)}
-                    disabled={quantity <= minQtyForSelection}
-                    className={`w-9 h-9 flex items-center justify-center border rounded transition ${quantity <= minQtyForSelection ? 'border-gray-200 text-gray-300 cursor-not-allowed' : 'border-gray-300 hover:bg-gray-100 text-gray-700'}`}
+                    disabled={quantity <= 1}
+                    className={`w-9 h-9 flex items-center justify-center border rounded transition ${quantity <= 1 ? 'border-gray-200 text-gray-300 cursor-not-allowed' : 'border-gray-300 hover:bg-gray-100 text-gray-700'}`}
                   >
                     <MinusIcon size={16} className="text-gray-700" />
                   </button>
@@ -1163,9 +1203,9 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
                   </div>
                   <button
                     onClick={() => handleQuantityChange(quantity + 1)}
-                    disabled={quantity >= (maxOrderQty || 1) || !isSelectionInStock}
+                    disabled={quantity >= (maxSelectableQty || maxOrderQty || 1) || !isSelectionInStock}
                     className={`w-9 h-9 flex items-center justify-center border rounded transition ${
-                      quantity >= (maxOrderQty || 1) || !isSelectionInStock
+                      quantity >= (maxSelectableQty || maxOrderQty || 1) || !isSelectionInStock
                         ? 'border-gray-200 text-gray-300 cursor-not-allowed'
                         : 'border-gray-300 hover:bg-gray-100 text-gray-700'
                     }`}
@@ -1445,9 +1485,16 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
           </div>
           <div>
             <p className="font-semibold text-gray-900">Added to cart!</p>
-            <a href="/cart" className="text-sm text-orange-500 hover:underline">
+            <button
+              type="button"
+              onClick={() => {
+                setShowCartToast(false);
+                router.push('/cart');
+              }}
+              className="text-sm text-orange-500 hover:underline"
+            >
               View Cart
-            </a>
+            </button>
           </div>
         </div>
       )}

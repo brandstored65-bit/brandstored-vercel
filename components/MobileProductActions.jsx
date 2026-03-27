@@ -50,8 +50,7 @@ export default function MobileProductActions({
         {!isOutOfStock && (
           <button
             onClick={onAddToCart}
-            className="relative flex items-center justify-center w-16 h-12 rounded-lg transition-all shadow-md"
-            style={{ backgroundColor: cartCount > 0 ? '#262626' : '#DC013C' }}
+            className="relative flex items-center justify-center w-16 h-12 rounded-lg transition-all shadow-md bg-red-600 active:bg-red-700"
           >
             <ShoppingCart size={24} className="text-white" strokeWidth={2.5} />
             {cartCount > 0 && (
