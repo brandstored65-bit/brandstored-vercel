@@ -33,6 +33,10 @@ export default function Cart() {
     const shippingFee = 0;
     const [deletingKeys, setDeletingKeys] = useState({});
     const bundleMigrationDoneRef = useRef(false);
+    const rawCartCount = Object.values(cartItems || {}).reduce((sum, entry) => {
+        if (typeof entry === 'number') return sum + entry;
+        return sum + Number(entry?.quantity || 0);
+    }, 0);
 
     const resolveCartUnitPrice = (product, cartEntry) => {
         const variantOptions = typeof cartEntry === 'object' ? cartEntry?.variantOptions : undefined;
@@ -59,6 +63,19 @@ export default function Cart() {
         }
 
         return Number(product?.salePrice ?? product?.price ?? 0) || 0;
+    };
+
+    // computeLineTotal: for bundle items the stored price is the bundle total,
+    // so we divide by bundleQty to get per-unit then multiply by qty.
+    // For non-bundle (bundleQty null/0/1) it's simply price * qty.
+    const computeLineTotal = (price, quantity, bundleQty) => {
+        const numericPrice = Number(price) || 0;
+        const numericQty = Number(quantity) || 0;
+        const numericBundleQty = Number(bundleQty) || 0;
+        if (numericBundleQty > 1) {
+            return (numericPrice / numericBundleQty) * numericQty;
+        }
+        return numericPrice * numericQty;
     };
 
 
@@ -135,7 +152,6 @@ export default function Cart() {
     const createCartArray = () => {
         let total = 0;
         const arr = [];
-        const invalidKeys = [];
 
         for (const [key, value] of Object.entries(cartItems || {})) {
             const product = products.find((p) => String(p._id) === String(key));
@@ -147,21 +163,12 @@ export default function Cart() {
                 arr.push({ ...product, quantity: qty, _cartPrice: unitPrice, _cartKey: key, _variantOptions: cartEntryVariantOptions });
                 const isOutOfStock = product.inStock === false || (typeof product.stockQuantity === 'number' && product.stockQuantity <= 0);
                 if (!isOutOfStock) {
-                    total += unitPrice * qty;
+                    total += computeLineTotal(unitPrice, qty, cartEntryVariantOptions?.bundleQty);
                 }
             } else if (!product && qty > 0) {
-                // Product not found - could be still loading or deleted
-                // Don't delete it, just skip display for now
+                // Product not found yet - keep cart row and wait for product fetch/sync.
                 console.warn('[Cart Page] Product not found in list:', key, 'qty:', qty);
-                invalidKeys.push(key);
             }
-        }
-
-        // Only delete after products are confirmed loaded
-        // (to avoid deleting valid items during initial load)
-        if (productsLoaded && invalidKeys.length > 0) {
-            invalidKeys.forEach((key) => dispatch(deleteItemFromCart({ productId: key })));
-            dispatch(uploadCart({ getToken }));
         }
 
         setCartArray(arr);
@@ -334,6 +341,19 @@ export default function Cart() {
 
     const getMaxQty = (item) => {
         if (item?.inStock === false) return 0;
+        if (item?._variantOptions && Array.isArray(item?.variants) && item.variants.length > 0) {
+            const { color, size, bundleQty } = item._variantOptions || {};
+            const match = item.variants.find((variant) => {
+                const colorMatches = variant.options?.color ? variant.options.color === color : !color;
+                const sizeMatches = variant.options?.size ? variant.options.size === size : !size;
+                const bundleMatches = variant.options?.bundleQty ? Number(variant.options.bundleQty) === Number(bundleQty) : !bundleQty;
+                return colorMatches && sizeMatches && bundleMatches;
+            });
+            if (match && typeof match.stock === 'number') {
+                const bundleStep = Math.max(1, Number(bundleQty || match.options?.bundleQty) || 1);
+                return Math.max(0, match.stock) * bundleStep;
+            }
+        }
         if (typeof item?.stockQuantity === 'number') return Math.max(0, item.stockQuantity);
         return null;
     };
@@ -412,12 +432,25 @@ export default function Cart() {
                                                         <p className="text-lg font-bold text-orange-600">{currency} {(item._cartPrice ?? item.price ?? 0).toLocaleString()}</p>
                                                     </div>
                                                     <div className="flex items-center gap-3">
-                                                        <Counter productId={item._cartKey || item._id} maxQty={maxQty} />
+                                                                {(() => {
+                                                                    const bvs = Array.isArray(item.variants) ? item.variants.filter(v => v?.options?.bundleQty !== undefined && v?.options?.bundleQty !== null) : [];
+                                                                    const sortedBvs = [...bvs].sort((a, b) => Number(a.options.bundleQty) - Number(b.options.bundleQty));
+                                                                    const lowestTier = sortedBvs[0];
+                                                                    const baseUnitPrice = lowestTier ? Number(lowestTier.price) / Math.max(1, Number(lowestTier.options.bundleQty)) : Number(item.price ?? 0);
+                                                                    return (
+                                                                        <Counter
+                                                                            productId={item._cartKey || item._id}
+                                                                            maxQty={maxQty}
+                                                                            bulkVariants={bvs}
+                                                                            baseUnitPrice={baseUnitPrice}
+                                                                        />
+                                                                    );
+                                                                })()}
                                                     </div>
                                                 </div>
 
                                                 <div className="flex items-center justify-between mt-3 md:hidden">
-                                                    <p className="text-sm font-semibold text-gray-900">Total: {currency}{((item._cartPrice ?? item.price ?? 0) * item.quantity).toLocaleString()}</p>
+                                                    <p className="text-sm font-semibold text-gray-900">Total: {currency}{computeLineTotal((item._cartPrice ?? item.price ?? 0), item.quantity, item._variantOptions?.bundleQty).toLocaleString()}</p>
                                                     <button
                                                         onClick={() => handleDeleteItemFromCart(item._cartKey || item._id)}
                                                         disabled={!!deletingKeys[item._cartKey || item._id]}
@@ -438,7 +471,7 @@ export default function Cart() {
                                                 >
                                                     <Trash2Icon size={20} />
                                                 </button>
-                                                <p className="text-lg font-bold text-gray-900">{currency}{((item._cartPrice ?? item.price ?? 0) * item.quantity).toLocaleString()}</p>
+                                                <p className="text-lg font-bold text-gray-900">{currency}{computeLineTotal((item._cartPrice ?? item.price ?? 0), item.quantity, item._variantOptions?.bundleQty).toLocaleString()}</p>
                                             </div>
                                         </div>
                                             );
@@ -475,12 +508,25 @@ export default function Cart() {
                                                                 <p className="text-lg font-bold text-orange-600">{currency} {(item._cartPrice ?? item.price ?? 0).toLocaleString()}</p>
                                                             </div>
                                                             <div className="flex items-center gap-3">
-                                                                <Counter productId={item._cartKey || item._id} maxQty={0} />
+                                                                {(() => {
+                                                                    const bvs = Array.isArray(item.variants) ? item.variants.filter(v => v?.options?.bundleQty !== undefined && v?.options?.bundleQty !== null) : [];
+                                                                    const sortedBvs = [...bvs].sort((a, b) => Number(a.options.bundleQty) - Number(b.options.bundleQty));
+                                                                    const lowestTier = sortedBvs[0];
+                                                                    const baseUnitPrice = lowestTier ? Number(lowestTier.price) / Math.max(1, Number(lowestTier.options.bundleQty)) : Number(item.price ?? 0);
+                                                                    return (
+                                                                        <Counter
+                                                                            productId={item._cartKey || item._id}
+                                                                            maxQty={0}
+                                                                            bulkVariants={bvs}
+                                                                            baseUnitPrice={baseUnitPrice}
+                                                                        />
+                                                                    );
+                                                                })()}
                                                             </div>
                                                         </div>
 
                                                         <div className="flex items-center justify-between mt-3 md:hidden">
-                                                            <p className="text-sm font-semibold text-gray-900">Total: {currency}{((item._cartPrice ?? item.price ?? 0) * item.quantity).toLocaleString()}</p>
+                                                            <p className="text-sm font-semibold text-gray-900">Total: {currency}{computeLineTotal((item._cartPrice ?? item.price ?? 0), item.quantity, item._variantOptions?.bundleQty).toLocaleString()}</p>
                                                             <button
                                                                 onClick={() => handleDeleteItemFromCart(item._cartKey || item._id)}
                                                                 disabled={!!deletingKeys[item._cartKey || item._id]}
@@ -501,7 +547,7 @@ export default function Cart() {
                                                         >
                                                             <Trash2Icon size={20} />
                                                         </button>
-                                                        <p className="text-lg font-bold text-gray-900">{currency}{((item._cartPrice ?? item.price ?? 0) * item.quantity).toLocaleString()}</p>
+                                                        <p className="text-lg font-bold text-gray-900">{currency}{computeLineTotal((item._cartPrice ?? item.price ?? 0), item.quantity, item._variantOptions?.bundleQty).toLocaleString()}</p>
                                                     </div>
                                                 </div>
                                             </div>
@@ -524,6 +570,17 @@ export default function Cart() {
                             </div>
                         </div>
                     </>
+                ) : rawCartCount > 0 ? (
+                    <div className="flex flex-col justify-center items-center py-20">
+                        <div className="bg-white shadow-lg rounded-lg p-8 text-center max-w-md">
+                            <div className="w-14 h-14 rounded-full bg-orange-50 text-orange-500 flex items-center justify-center mx-auto mb-4">
+                                <PackageIcon className="w-8 h-8" />
+                            </div>
+                            <h2 className="text-2xl font-bold text-gray-900 mb-2">Restoring your cart…</h2>
+                            <p className="text-gray-500 mb-1">Your items are being synced.</p>
+                            <p className="text-gray-400 text-sm">Please wait a moment.</p>
+                        </div>
+                    </div>
                 ) : (
                     <div className="flex flex-col justify-center items-center py-20">
                         <div className="bg-white shadow-lg rounded-lg p-8 text-center max-w-md">

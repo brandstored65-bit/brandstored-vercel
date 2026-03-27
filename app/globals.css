@@ -116,6 +116,63 @@
             opacity: 0.85;
         }
     }
+
+    @keyframes qfOrderCartSlide {
+        0% {
+            transform: translateX(-36px);
+            opacity: 0.7;
+        }
+        100% {
+            transform: translateX(0);
+            opacity: 1;
+        }
+    }
+
+    @keyframes qfOrderDotsReveal {
+        0% {
+            opacity: 0;
+            transform: translateX(-6px);
+        }
+        100% {
+            opacity: 1;
+            transform: translateX(0);
+        }
+    }
+
+    @keyframes qfOrderDotPulse {
+        0%, 80%, 100% {
+            transform: scale(0.7);
+            opacity: 0.55;
+        }
+        40% {
+            transform: scale(1);
+            opacity: 1;
+        }
+    }
+
+    .qf-order-loader {
+        min-width: 74px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 6px;
+    }
+
+    .qf-order-loader-icon {
+        animation: qfOrderCartSlide 0.38s cubic-bezier(0.22, 0.61, 0.36, 1);
+    }
+
+    .qf-order-loader-dots {
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        opacity: 0;
+        animation: qfOrderDotsReveal 0.24s ease-out 0.22s forwards;
+    }
+
+    .qf-order-dot {
+        animation: qfOrderDotPulse 0.9s ease-in-out infinite;
+    }
 }
 
 @layer base {

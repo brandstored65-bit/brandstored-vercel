@@ -1,4 +1,4 @@
-"use client";
+﻿"use client";
 
 import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
@@ -111,6 +111,17 @@ export default function CheckoutPage() {
     }
     return '';
   };
+
+  // computeLineTotal: stored price for bundles is the bundle total, so divide by bundleQty to get per-unit
+  const computeLineTotal = (price, quantity, bundleQty) => {
+    const numericPrice = Number(price) || 0;
+    const numericQty = Number(quantity) || 0;
+    const numericBundleQty = Number(bundleQty) || 0;
+    if (numericBundleQty > 1) {
+      return (numericPrice / numericBundleQty) * numericQty;
+    }
+    return numericPrice * numericQty;
+  };
   
   const handleApplyCoupon = async (e) => {
     e.preventDefault();
@@ -148,11 +159,12 @@ export default function CheckoutPage() {
       
       // Calculate total for validation
       const itemsTotal = cartItemsArray.reduce((sum, item) => {
-        const product = products.find((p) => p._id === item.productId);
+        const product = products.find((p) => String(p._id) === String(item.productId));
         if (!product) return sum;
-        const variant = product.variants?.find((v) => v._id === item.variantId);
-        const price = variant?.salePrice || variant?.price || product.salePrice || product.price || 0;
-        return sum + price * item.quantity;
+        const entry = cartItems?.[item.productId];
+        const variantOptions = typeof entry === 'object' ? entry?.variantOptions : undefined;
+        const resolvedPrice = resolveCartUnitPrice(product, entry);
+                    return sum + computeLineTotal(resolvedPrice, item.quantity, variantOptions?.bundleQty);
       }, 0);
       
       // Get current product IDs in cart
@@ -244,7 +256,7 @@ export default function CheckoutPage() {
         const items = cartEntries.map(([id, value]) => {
           const quantity = typeof value === 'number' ? value : value?.quantity || 0;
           const product = products.find((p) => p._id === id);
-          const price = product?.salePrice || product?.price || 0;
+          const price = resolveCartUnitPrice(product, value);
           return {
             productId: id,
             quantity,
@@ -256,7 +268,7 @@ export default function CheckoutPage() {
 
         if (items.length === 0) return;
 
-        const cartTotal = items.reduce((sum, it) => sum + (Number(it.price) * Number(it.quantity)), 0);
+        const cartTotal = items.reduce((sum, it) => sum + computeLineTotal(it.price, it.quantity, it.variantOptions?.bundleQty), 0);
 
         const payload = {
           items,
@@ -653,7 +665,8 @@ export default function CheckoutPage() {
       if (isPurchasableProduct(product)) {
         console.log('Found purchasable product for key:', key, product.name);
         const unitPrice = resolveCartUnitPrice(product, value);
-        cartArray.push({ ...product, quantity: qty, _cartPrice: unitPrice, _cartKey: key });
+        const variantOptions = typeof value === 'object' ? value?.variantOptions : undefined;
+        cartArray.push({ ...product, quantity: qty, _cartPrice: unitPrice, _cartKey: key, _variantOptions: variantOptions });
       }
     } else {
       console.log('No product found for key:', key);
@@ -677,17 +690,32 @@ export default function CheckoutPage() {
         return cOk && sOk && bOk;
       });
       if (match && typeof match.stock === 'number') {
-        maxQty = Math.max(0, match.stock);
+        const bundleStep = Math.max(1, Number(bundleQty || match.options?.bundleQty) || 1);
+        maxQty = Math.max(0, match.stock) * bundleStep;
       }
     }
+
+    const bulkVariants = Array.isArray(product?.variants)
+      ? product.variants.filter(v => v?.options?.bundleQty !== undefined && v?.options?.bundleQty !== null)
+      : [];
+
+    const sortedBvsForUnit = [...bulkVariants].sort((a, b) => Number(a.options.bundleQty) - Number(b.options.bundleQty));
+    const lowestTier = sortedBvsForUnit[0];
+    const baseUnitPrice = lowestTier
+      ? Number(lowestTier.price) / Math.max(1, Number(lowestTier.options.bundleQty))
+      : Number(typeof value === 'object' ? value?.price : 0) || Number(product?.price ?? 0);
 
     return {
       id: key,
       name: product?.name || 'Product',
       quantity,
       image: product?.images?.[0] || '/placeholder.png',
+      bundleStep: Math.max(1, Number(variantOptions?.bundleQty) || 1),
       maxQty,
       exists: !!product,
+      bulkVariants,
+      variantOptions,
+      baseUnitPrice,
     };
   }).filter((item) => item.quantity > 0);
 
@@ -696,15 +724,110 @@ export default function CheckoutPage() {
     await dispatch(uploadCart({ getToken }));
   };
 
+  // Helper: replace cart entry with a different bundle tier
+  const switchCheckoutBundle = (productId, targetBundle, existingEntry) => {
+    const targetQty = Number(targetBundle.options.bundleQty);
+    const targetPrice = Number(targetBundle.price);
+    const variantOptions = typeof existingEntry === 'object' ? existingEntry?.variantOptions : undefined;
+    const offerToken = typeof existingEntry === 'object' ? existingEntry?.offerToken : undefined;
+    const discountPercent = typeof existingEntry === 'object' ? existingEntry?.discountPercent : undefined;
+    dispatch(deleteItemFromCart({ productId }));
+    for (let i = 0; i < targetQty; i++) {
+      dispatch(addToCart({
+        productId,
+        price: targetPrice,
+        variantOptions: { ...variantOptions, bundleQty: targetQty },
+        ...(offerToken !== undefined ? { offerToken } : {}),
+        ...(discountPercent !== undefined ? { discountPercent } : {}),
+      }));
+    }
+  };
+
+  // Switch cart entry to non-bundle mode (qty above highest bundle tier, using per-unit price)
+  const switchCheckoutToNonBundle = (productId, newQty, bUnitPrice, existingEntry) => {
+    const variantOptions = typeof existingEntry === 'object' ? existingEntry?.variantOptions : undefined;
+    const offerToken = typeof existingEntry === 'object' ? existingEntry?.offerToken : undefined;
+    const discountPercent = typeof existingEntry === 'object' ? existingEntry?.discountPercent : undefined;
+    dispatch(deleteItemFromCart({ productId }));
+    for (let i = 0; i < newQty; i++) {
+      dispatch(addToCart({
+        productId,
+        price: bUnitPrice,
+        variantOptions: variantOptions ? { ...variantOptions, bundleQty: null } : undefined,
+        ...(offerToken !== undefined ? { offerToken } : {}),
+        ...(discountPercent !== undefined ? { discountPercent } : {}),
+      }));
+    }
+  };
+
   const handleIncreaseCartQty = async (item) => {
-    if (typeof item.maxQty === 'number' && item.maxQty > 0 && item.quantity >= item.maxQty) return;
-    dispatch(addToCart({ productId: item.id, ...(typeof item.maxQty === 'number' ? { maxQty: item.maxQty } : {}) }));
+    const existingEntry = cartItems?.[item.id];
+    const bulkVariants = item.bulkVariants || [];
+    const currentBundleQty = Number(item.variantOptions?.bundleQty) || 0;
+    const isBundleProduct = bulkVariants.length > 0;
+    const isInBundleMode = isBundleProduct && currentBundleQty > 0;
+
+    if (isInBundleMode) {
+      const sorted = [...bulkVariants].sort((a, b) => Number(a.options.bundleQty) - Number(b.options.bundleQty));
+      const idx = sorted.findIndex(v => Number(v.options.bundleQty) === currentBundleQty);
+      if (idx >= sorted.length - 1) {
+        // At highest bundle tier — switch to non-bundle mode with qty+1
+        const highestQty = Number(sorted[sorted.length - 1].options.bundleQty);
+        switchCheckoutToNonBundle(item.id, highestQty + 1, item.baseUnitPrice, existingEntry);
+      } else {
+        switchCheckoutBundle(item.id, sorted[idx + 1], existingEntry);
+      }
+    } else {
+      if (typeof item.maxQty === 'number' && item.maxQty > 0 && item.quantity >= item.maxQty) return;
+      const preservedPrice = typeof existingEntry === 'object' ? existingEntry?.price : undefined;
+      const preservedVariantOptions = typeof existingEntry === 'object' ? existingEntry?.variantOptions : undefined;
+      const preservedOfferToken = typeof existingEntry === 'object' ? existingEntry?.offerToken : undefined;
+      const preservedDiscountPercent = typeof existingEntry === 'object' ? existingEntry?.discountPercent : undefined;
+      dispatch(addToCart({
+        productId: item.id,
+        ...(typeof item.maxQty === 'number' ? { maxQty: item.maxQty } : {}),
+        ...(preservedPrice !== undefined ? { price: preservedPrice } : {}),
+        ...(preservedVariantOptions !== undefined ? { variantOptions: preservedVariantOptions } : {}),
+        ...(preservedOfferToken !== undefined ? { offerToken: preservedOfferToken } : {}),
+        ...(preservedDiscountPercent !== undefined ? { discountPercent: preservedDiscountPercent } : {}),
+      }));
+    }
     await syncCartForSignedIn();
   };
 
   const handleDecreaseCartQty = async (item) => {
-    if (item.quantity <= 1) return;
-    dispatch(removeFromCart({ productId: item.id }));
+    const existingEntry = cartItems?.[item.id];
+    const bulkVariants = item.bulkVariants || [];
+    const currentBundleQty = Number(item.variantOptions?.bundleQty) || 0;
+    const isBundleProduct = bulkVariants.length > 0;
+    const isInBundleMode = isBundleProduct && currentBundleQty > 0;
+
+    if (isInBundleMode) {
+      const sorted = [...bulkVariants].sort((a, b) => Number(a.options.bundleQty) - Number(b.options.bundleQty));
+      const idx = sorted.findIndex(v => Number(v.options.bundleQty) === currentBundleQty);
+      if (idx <= 0) {
+        dispatch(deleteItemFromCart({ productId: item.id }));
+      } else {
+        switchCheckoutBundle(item.id, sorted[idx - 1], existingEntry);
+      }
+    } else {
+      // Non-bundle mode: check if qty-1 snaps back to a bundle tier
+      const newQty = item.quantity - 1;
+      if (isBundleProduct && newQty > 0) {
+        const sorted = [...bulkVariants].sort((a, b) => Number(a.options.bundleQty) - Number(b.options.bundleQty));
+        const matchingBundle = sorted.find(b => Number(b.options.bundleQty) === newQty);
+        if (matchingBundle) {
+          switchCheckoutBundle(item.id, matchingBundle, existingEntry);
+          await syncCartForSignedIn();
+          return;
+        }
+      }
+      if (newQty <= 0) {
+        dispatch(deleteItemFromCart({ productId: item.id }));
+      } else {
+        dispatch(removeFromCart({ productId: item.id }));
+      }
+    }
     await syncCartForSignedIn();
   };
 
@@ -734,7 +857,8 @@ export default function CheckoutPage() {
       if (!match) continue;
 
       if (typeof match.stock === 'number') {
-        availableQty = match.stock;
+        const bundleStep = Math.max(1, Number(bundleQty || match.options?.bundleQty) || 1);
+        availableQty = Math.max(0, match.stock) * bundleStep;
       }
     }
 
@@ -766,7 +890,10 @@ export default function CheckoutPage() {
 
   const hasStockIssues = stockIssues.length > 0;
 
-  const subtotal = cartArray.reduce((sum, item) => sum + (item._cartPrice ?? item.price ?? 0) * item.quantity, 0);
+  const subtotal = cartArray.reduce(
+    (sum, item) => sum + computeLineTotal((item._cartPrice ?? item.price ?? 0), item.quantity, item._variantOptions?.bundleQty),
+    0
+  );
   
   // Calculate coupon discount
   const couponDiscountRaw = Number(appliedCoupon?.discountAmount || 0);
@@ -1471,7 +1598,7 @@ export default function CheckoutPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleDecreaseCartQty(item)}
-                                  disabled={item.quantity <= 1}
+                                  disabled={item.quantity <= 0}
                                   className="w-7 h-7 rounded border border-gray-300 text-gray-700 disabled:opacity-40"
                                 >
                                   -
@@ -1480,7 +1607,12 @@ export default function CheckoutPage() {
                                 <button
                                   type="button"
                                   onClick={() => handleIncreaseCartQty(item)}
-                                  disabled={typeof item.maxQty === 'number' && item.maxQty > 0 && item.quantity >= item.maxQty}
+                                  disabled={(() => {
+                                    // Bundle products can always increase
+                                    if ((item.bulkVariants || []).length > 0) return false;
+                                    return typeof item.maxQty === "number" && item.maxQty > 0 && item.quantity >= item.maxQty;
+                                  })()}
+                                  
                                   className="w-7 h-7 rounded border border-gray-300 text-gray-700 disabled:opacity-40"
                                 >
                                   +
@@ -2221,11 +2353,12 @@ export default function CheckoutPage() {
                   }));
                   
                   const itemsTotal = cartItemsArray.reduce((sum, item) => {
-                    const product = products.find((p) => p._id === item.productId);
+                    const product = products.find((p) => String(p._id) === String(item.productId));
                     if (!product) return sum;
-                    const variant = product.variants?.find((v) => v._id === item.variantId);
-                    const price = variant?.salePrice || variant?.price || product.salePrice || product.price || 0;
-                    return sum + price * item.quantity;
+                    const entry = cartItems?.[item.productId];
+                    const variantOptions = typeof entry === 'object' ? entry?.variantOptions : undefined;
+                    const resolvedPrice = resolveCartUnitPrice(product, entry);
+                    return sum + computeLineTotal(resolvedPrice, item.quantity, variantOptions?.bundleQty);
                   }, 0);
                   
                   const cartProductIds = cartItemsArray.map(item => item.productId);

@@ -1,6 +1,6 @@
 'use client'
 
-import { StarIcon, Share2Icon, HeartIcon, MinusIcon, PlusIcon, ShoppingCartIcon } from "lucide-react";
+import { StarIcon, Share2Icon, HeartIcon, MinusIcon, PlusIcon, ShoppingCartIcon, EyeIcon } from "lucide-react";
 import Image from "next/image";
 import { useState, useEffect, useRef } from "react";
 
@@ -28,6 +28,8 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
   const [wishlistMessage, setWishlistMessage] = useState('');
   const [showCartToast, setShowCartToast] = useState(false);
   const [isOrderingNow, setIsOrderingNow] = useState(false);
+  const [showViewingMessage, setShowViewingMessage] = useState(false);
+  const [viewingCount, setViewingCount] = useState(0);
   const { isSignedIn, userId } = useAuth();
   const router = useRouter();
   const dispatch = useDispatch();
@@ -195,8 +197,9 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
     fetchFbtProducts();
   }, [product._id]);
 
+  const selectedBundleQtyNumber = Math.max(1, Number(selectedBundleQty) || 1);
   const availableStock = (typeof selectedVariant?.stock === 'number')
-    ? selectedVariant.stock
+    ? (selectedBundleQtyNumber > 1 ? (selectedVariant.stock * selectedBundleQtyNumber) : selectedVariant.stock)
     : (typeof product.stockQuantity === 'number' ? product.stockQuantity : 0);
   const maxOrderQty = Math.min(20, Math.max(0, availableStock));
   const hasAnyVariantStock = variants.length > 0
@@ -210,9 +213,11 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
     ? Math.round(((effAED - effPrice) / effAED) * 100)
     : 0;
   const displayQty = Math.max(1, Number(quantity) || 1);
-  const isBundleSelectionActive = bulkVariants.length > 0 && Number(selectedBundleQty) > 0;
-  const displayPrice = isBundleSelectionActive ? effPrice : (effPrice * displayQty);
-  const displayAED = isBundleSelectionActive ? effAED : (effAED * displayQty);
+  const bundleMultiplier = bulkVariants.length > 0 && Number(selectedBundleQty) > 0
+    ? (displayQty / selectedBundleQtyNumber)
+    : displayQty;
+  const displayPrice = (effPrice * bundleMultiplier);
+  const displayAED = (effAED * bundleMultiplier);
   const displaySavings = Math.max(0, displayAED - displayPrice);
 
   const deliveredByText = String(
@@ -438,6 +443,37 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
     }
   };
 
+  useEffect(() => {
+    let hideTimer = null;
+
+    const showMessage = () => {
+      setViewingCount((prev) => {
+        let nextCount = Math.floor(Math.random() * 11) + 18;
+        if (nextCount === prev) {
+          nextCount = nextCount === 28 ? 27 : nextCount + 1;
+        }
+        return nextCount;
+      });
+      setShowViewingMessage(true);
+      if (hideTimer) {
+        clearTimeout(hideTimer);
+      }
+      hideTimer = setTimeout(() => {
+        setShowViewingMessage(false);
+      }, 5000);
+    };
+
+    showMessage();
+    const intervalId = setInterval(showMessage, 30000);
+
+    return () => {
+      clearInterval(intervalId);
+      if (hideTimer) {
+        clearTimeout(hideTimer);
+      }
+    };
+  }, []);
+
   const handleOrderNow = () => {
     if (isOrderingNow || !isSelectionInStock || maxOrderQty <= 0) return;
     setIsOrderingNow(true);
@@ -469,7 +505,6 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
       }
       // Go directly to checkout (guests can checkout there)
       router.push('/checkout');
-      setIsOrderingNow(false);
     } catch (error) {
       console.error('Order now failed:', error);
       setIsOrderingNow(false);
@@ -533,12 +568,6 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
   const handleQuantityChange = (nextQty) => {
     const clampedQty = Math.max(1, Math.min(nextQty, maxOrderQty || 1));
     setQuantity(clampedQty);
-
-    // If any bundle is selected and user increases quantity beyond
-    // selected bundle quantity, clear bundle selection so checkout uses plain quantity only.
-    if (Number(selectedBundleQty) > 0 && clampedQty > Number(selectedBundleQty)) {
-      setSelectedBundleQty(null);
-    }
   };
 
   // Toggle FBT product selection
@@ -1039,7 +1068,7 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
                         )}
                         <button
                           type="button"
-                          onClick={() => { setSelectedBundleQty(qty); setQuantity(1); }}
+                          onClick={() => { setSelectedBundleQty(qty); setQuantity(qty); }}
                           className={`w-full text-left border rounded-lg p-3 flex items-center justify-between gap-3 transition-all ${
                             isSelected 
                               ? 'border-orange-500 bg-orange-50' 
@@ -1148,13 +1177,25 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
                     : 'bg-red-500 text-white hover:bg-red-600'
                 }`}
               >
-                {!isSelectionInStock ? 'Out of Stock' : isOrderingNow ? 'Processing...' : 'Order Now'}
-                {isSelectionInStock && !isOrderingNow && (
-                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-                  </svg>
+                {!isSelectionInStock ? (
+                  'Out of Stock'
+                ) : isOrderingNow ? (
+                  <span className="qf-order-loader" aria-label="Processing order">
+                    <ShoppingCartIcon size={16} className="qf-order-loader-icon text-white" />
+                    <span className="qf-order-loader-dots">
+                      <span className="qf-order-dot w-1.5 h-1.5 rounded-full bg-white/95" />
+                      <span className="qf-order-dot w-1.5 h-1.5 rounded-full bg-white/95" style={{ animationDelay: '120ms' }} />
+                      <span className="qf-order-dot w-1.5 h-1.5 rounded-full bg-white/95" style={{ animationDelay: '240ms' }} />
+                    </span>
+                  </span>
+                ) : (
+                  <>
+                    <span>Order Now</span>
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+                    </svg>
+                  </>
                 )}
-                {isOrderingNow && <span className="w-4 h-4 border-2 border-white/70 border-t-white rounded-full animate-spin" />}
               </button>
 
               {isSelectionInStock && (
@@ -1170,6 +1211,15 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
                   )}
                 </button>
               )}
+            </div>
+            <div
+              className={`hidden md:block overflow-hidden transition-all duration-500 ease-out ${showViewingMessage ? 'max-h-12 opacity-100 translate-y-0 mt-2' : 'max-h-0 opacity-0 -translate-y-1 mt-0'}`}
+            >
+              <p className="text-center text-xs font-medium text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2 inline-flex items-center justify-center gap-1.5 w-full">
+                <EyeIcon size={14} className="text-emerald-600 animate-pulse" />
+                <span key={viewingCount} className="animate-fadeIn">{viewingCount}</span>
+                <span>customers are viewing this product now</span>
+              </p>
             </div>
 
             {/* Wishlist & Share */}
@@ -1401,6 +1451,8 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
         cartCount={cartCount}
         isOutOfStock={!isSelectionInStock}
         isOrdering={isOrderingNow}
+        showViewingMessage={showViewingMessage}
+        viewingCount={viewingCount}
       />
 
       <style jsx>{`

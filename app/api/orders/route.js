@@ -280,9 +280,11 @@ export async function POST(request) {
             let finalPrice = Number(product.price) || 0;
             if (matchedVariant) {
                 const matchedVariantPrice = Number(matchedVariant.price);
+                const matchedBundleQty = Number(matchedVariant.options?.bundleQty || item.variantOptions?.bundleQty || 0);
                 if (Number.isFinite(matchedVariantPrice) && matchedVariantPrice > 0) {
-                    // Store full bundle total; grandSubtotal += bundleTotal × numberOfBundles
-                    finalPrice = matchedVariantPrice;
+                    finalPrice = matchedBundleQty > 1
+                        ? (matchedVariantPrice / matchedBundleQty)
+                        : matchedVariantPrice;
                 }
             }
             let appliedOffer = null;
