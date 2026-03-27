@@ -35,8 +35,8 @@ function PublicLayoutContent({ children }) {
             <UtmTracker />
             <AdsAttribution />
             {/* <Banner />/ */}
-            <main className={`flex-1 ${isHomePage ? 'pb-8' : 'pb-20'} lg:pb-0`}>{children}</main>
-            {!isHomePage && !isCheckout && <MobileBottomNav />}
+            <main className={`flex-1 ${isHomePage ? 'pb-20' : 'pb-20'} lg:pb-0`}>{children}</main>
+            {!isCheckout && <MobileBottomNav />}
         </div>
     );
 }
