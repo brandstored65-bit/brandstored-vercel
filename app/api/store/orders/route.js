@@ -99,33 +99,23 @@ export async function GET(request){
         
         debugLog('orders found:', orders.length);
         
-        // Manually populate userId since it's a String-type _id
+        // Build a stable customerName on every order from the most reliable source:
+        // shippingAddress is always stored at checkout time for both guest and logged-in users.
+        // Firebase / DB lookups are skipped here intentionally - they are slow and unreliable
+        // (users may have empty name/email in DB if they registered without filling a display name).
         for (let order of orders) {
-            if (order.userId && !order.isGuest) {
-                const user = await User.findById(order.userId).lean();
-                if (user && (user.name || user.email)) {
-                    // User has data in database
-                    order.userId = user;
-                    debugLog('User populated from DB for order:', order._id, 'User:', { name: user.name, email: user.email });
-                } else {
-                    // User exists but has no data, or doesn't exist - try Firebase
-                    debugLog('User missing data in DB, fetching from Firebase for:', order.userId);
-                    try {
-                        const firebaseUser = await firebaseAuth.getUser(order.userId);
-                        const userData = {
-                            _id: order.userId,
-                            name: firebaseUser.displayName || '',
-                            email: firebaseUser.email || '',
-                            image: firebaseUser.photoURL || ''
-                        };
-                        order.userId = userData;
-                        // Update database with Firebase data
-                        await User.findByIdAndUpdate(userData._id, userData, { upsert: true });
-                        debugLog('User synced from Firebase:', userData);
-                    } catch (fbError) {
-                        debugLog('Firebase user fetch failed:', fbError.message);
-                        order.userId = user || { _id: order.userId, name: 'Unknown', email: '' };
-                    }
+            const sa = order.shippingAddress;
+            if (order.isGuest) {
+                order.customerName  = order.guestName  || sa?.name  || 'Guest';
+                order.customerEmail = order.guestEmail || sa?.email || '';
+            } else {
+                // For logged-in users the name from the shipping form is the most reliable source.
+                // Fall back to the raw userId string only as last resort.
+                order.customerName  = sa?.name  || sa?.email  || '';
+                order.customerEmail = sa?.email || '';
+                // Keep userId as an object so existing frontend selectors still work
+                if (typeof order.userId === 'string') {
+                    order.userId = { _id: order.userId, name: order.customerName, email: order.customerEmail };
                 }
             }
         }

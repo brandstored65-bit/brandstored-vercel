@@ -56,6 +56,8 @@ export async function POST(request) {
         const couponCode = rawCouponCode || couponPayload?.code;
         let userId = null;
         let isPlusMember = false;
+        let userNameFromToken = '';
+        let userEmailFromToken = '';
 
         console.log('ORDER API: Full body:', JSON.stringify(body, null, 2));
         console.log('ORDER API: isGuest value:', isGuest, 'type:', typeof isGuest);
@@ -88,6 +90,8 @@ export async function POST(request) {
                 const decodedToken = await getAuth().verifyIdToken(idToken);
                 userId = decodedToken.uid;
                 isPlusMember = decodedToken.plan === 'plus';
+                userNameFromToken = decodedToken.name || '';
+                userEmailFromToken = decodedToken.email || '';
             } catch (err) {
                 console.error('Token verification error:', err);
                 return NextResponse.json({ error: 'Token verification failed', details: err?.message || err }, { status: 401 });
@@ -380,7 +384,13 @@ export async function POST(request) {
             if (userId) {
                 await User.findOneAndUpdate(
                     { _id: userId },
-                    { $setOnInsert: { _id: userId, name: '', email: '', image: '', cart: {} } },
+                    {
+                        $setOnInsert: { _id: userId, cart: {} },
+                        $set: {
+                            ...(userNameFromToken ? { name: userNameFromToken } : {}),
+                            ...(userEmailFromToken ? { email: userEmailFromToken } : {}),
+                        }
+                    },
                     { upsert: true, new: true }
                 );
             }
