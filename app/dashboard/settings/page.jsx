@@ -223,45 +223,6 @@ export default function SettingsPage() {
           </div>
         </div>
 
-        {/* Preferences */}
-        <div className="bg-white rounded-lg shadow-md p-6 mb-6">
-          <h2 className="text-xl font-bold text-gray-900 mb-4">Preferences</h2>
-          
-          <div className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Language
-              </label>
-              <select
-                value={settings.language}
-                onChange={(e) => handleSelectChange('language', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-              >
-                <option value="en">English</option>
-                <option value="hi">Hindi</option>
-                <option value="es">Spanish</option>
-                <option value="fr">French</option>
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-sm font-medium text-gray-900 mb-2">
-                Currency
-              </label>
-              <select
-                value={settings.currency}
-                onChange={(e) => handleSelectChange('currency', e.target.value)}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-blue-500"
-              >
-                <option value="INR">Indian Rupees (AED)</option>
-                <option value="USD">US Dollars ($)</option>
-                <option value="EUR">Euro (€)</option>
-                <option value="GBP">British Pounds (£)</option>
-              </select>
-            </div>
-          </div>
-        </div>
-
         {/* Save Button */}
         <div className="flex gap-4">
           <button

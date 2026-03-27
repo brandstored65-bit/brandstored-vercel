@@ -277,7 +277,9 @@ function WishlistAuthed() {
                   const img =
                     product.images?.[0] || PLACEHOLDER_IMAGE;
                   const isSelected = selected.includes(product._pid);
-                  const discount = product.AED ? Math.round(((product.AED - product.price) / product.AED) * 100) : 0;
+                  const price = Number(product?.price || 0);
+                  const aed = Number(product?.AED || 0);
+                  const discount = aed > 0 && price > 0 ? Math.round(((aed - price) / aed) * 100) : 0;
 
                   return (
                     <div
@@ -329,11 +331,11 @@ function WishlistAuthed() {
 
                         <div className="mt-2 flex items-baseline gap-2">
                           <span className="text-xl font-bold text-gray-900">
-                            AED{product.price.toLocaleString()}
+                            AED{price.toLocaleString()}
                           </span>
-                          {product.AED && (
+                          {aed > 0 && (
                             <span className="text-sm text-gray-400 line-through">
-                              AED{product.AED.toLocaleString()}
+                              AED{aed.toLocaleString()}
                             </span>
                           )}
                           {discount > 0 && (

@@ -11,7 +11,6 @@ export default function DashboardSidebar() {
     { label: 'Orders', href: '/dashboard/orders' },
     { label: 'Wishlist', href: '/dashboard/wishlist' },
     { label: 'Browse History', href: '/browse-history' },
-    { label: 'Support Tickets', href: '/dashboard/tickets' },
     { label: 'Addresses', href: '/dashboard/profile#addresses' },
     { label: 'Account Settings', href: '/settings' },
     { label: 'Help & Support', href: '/help' },

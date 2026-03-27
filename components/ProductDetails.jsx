@@ -198,6 +198,16 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
   }, [product._id]);
 
   const selectedBundleQtyNumber = Math.max(1, Number(selectedBundleQty) || 1);
+  const minQtyForSelection = bulkVariants.length > 0 ? selectedBundleQtyNumber : 1;
+
+  useEffect(() => {
+    if (bulkVariants.length === 0) return;
+    setQuantity((prev) => {
+      const current = Number(prev) || 1;
+      return current < selectedBundleQtyNumber ? selectedBundleQtyNumber : current;
+    });
+  }, [bulkVariants.length, selectedBundleQtyNumber]);
+
   const availableStock = (typeof selectedVariant?.stock === 'number')
     ? (selectedBundleQtyNumber > 1 ? (selectedVariant.stock * selectedBundleQtyNumber) : selectedVariant.stock)
     : (typeof product.stockQuantity === 'number' ? product.stockQuantity : 0);
@@ -566,7 +576,7 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
   };
 
   const handleQuantityChange = (nextQty) => {
-    const clampedQty = Math.max(1, Math.min(nextQty, maxOrderQty || 1));
+    const clampedQty = Math.max(minQtyForSelection, Math.min(nextQty, maxOrderQty || minQtyForSelection));
     setQuantity(clampedQty);
   };
 
@@ -1143,8 +1153,8 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
                 <div className="flex items-center gap-2">
                   <button
                     onClick={() => handleQuantityChange(quantity - 1)}
-                    disabled={quantity <= 1}
-                    className={`w-9 h-9 flex items-center justify-center border rounded transition ${quantity <= 1 ? 'border-gray-200 text-gray-300 cursor-not-allowed' : 'border-gray-300 hover:bg-gray-100 text-gray-700'}`}
+                    disabled={quantity <= minQtyForSelection}
+                    className={`w-9 h-9 flex items-center justify-center border rounded transition ${quantity <= minQtyForSelection ? 'border-gray-200 text-gray-300 cursor-not-allowed' : 'border-gray-300 hover:bg-gray-100 text-gray-700'}`}
                   >
                     <MinusIcon size={16} className="text-gray-700" />
                   </button>

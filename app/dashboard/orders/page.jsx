@@ -47,8 +47,7 @@ export default function DashboardOrdersPage() {
     { value: 'CANCELLED', label: 'Cancelled', icon: '❌' }
   ]
 
-  // Helper function to compute correct payment status
-  const getPaymentStatus = (order) => {
+  const resolvePaymentPaid = (order) => {
     const paymentMethod = String(order?.paymentMethod || '').toLowerCase();
     const status = String(order?.status || '').toUpperCase();
     const paymentStatus = String(order?.paymentStatus || '').toLowerCase();
@@ -60,12 +59,15 @@ export default function DashboardOrdersPage() {
     }
 
     if (status === 'PAYMENT_FAILED') return false;
-    if (['failed', 'payment_failed', 'refunded', 'unpaid'].includes(paymentStatus)) return false;
-
-    // Razorpay/card/online orders should be considered paid unless explicitly failed
-    if (paymentMethod) return true;
+    if (['failed', 'payment_failed', 'refunded', 'unpaid', 'canceled', 'cancelled', 'expired', 'pending'].includes(paymentStatus)) return false;
+    if (['paid', 'captured', 'succeeded', 'success'].includes(paymentStatus)) return true;
 
     return !!order?.isPaid;
+  }
+
+  // Helper function to compute correct payment status
+  const getPaymentStatus = (order) => {
+    return resolvePaymentPaid(order);
   }
 
   const canCancelOrder = (order) => {
@@ -253,17 +255,7 @@ export default function DashboardOrdersPage() {
             }
           }
           
-          const paymentMethod = String(updatedOrder?.paymentMethod || '').toLowerCase();
-          const status = String(updatedOrder?.status || '').toUpperCase();
-          const paymentStatus = String(updatedOrder?.paymentStatus || '').toLowerCase();
-
-          if (paymentMethod === 'cod') {
-            if (status === 'DELIVERED' || updatedOrder?.delhivery?.payment?.is_cod_recovered) {
-              updatedOrder.isPaid = true;
-            }
-          } else if (!['failed', 'payment_failed', 'refunded', 'unpaid'].includes(paymentStatus) && status !== 'PAYMENT_FAILED') {
-            updatedOrder.isPaid = true;
-          }
+          updatedOrder.isPaid = resolvePaymentPaid(updatedOrder);
           
           return updatedOrder;
         }));
@@ -301,17 +293,7 @@ export default function DashboardOrdersPage() {
                   status: response.data.order.status || order.status,
                   trackingUrl: response.data.order.trackingUrl || order.trackingUrl
                 };
-                const paymentMethod = String(updatedOrder?.paymentMethod || '').toLowerCase();
-                const status = String(updatedOrder?.status || '').toUpperCase();
-                const paymentStatus = String(updatedOrder?.paymentStatus || '').toLowerCase();
-
-                if (paymentMethod === 'cod') {
-                  if (status === 'DELIVERED' || updatedOrder?.delhivery?.payment?.is_cod_recovered) {
-                    updatedOrder.isPaid = true;
-                  }
-                } else if (!['failed', 'payment_failed', 'refunded', 'unpaid'].includes(paymentStatus) && status !== 'PAYMENT_FAILED') {
-                  updatedOrder.isPaid = true;
-                }
+                updatedOrder.isPaid = resolvePaymentPaid(updatedOrder);
                 return updatedOrder;
               }
               return order;

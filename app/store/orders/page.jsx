@@ -29,7 +29,7 @@ import Loading from "@/components/Loading"
 
 import axios from "axios"
 import toast from "react-hot-toast"
-import { Package, Truck, X, Download, Printer, RefreshCw, MapPin } from "lucide-react"
+import { Package, Truck, X, Download, Printer, RefreshCw, MapPin, Trash2 } from "lucide-react"
 import { downloadInvoice, printInvoice } from "@/lib/generateInvoice"
 import { downloadAwbBill } from "@/lib/generateAwbBill"
 import { schedulePickup } from '@/lib/delhivery'
@@ -75,6 +75,9 @@ export default function StoreOrders() {
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
     const [exportTypeFilter, setExportTypeFilter] = useState('ALL');
+    const [selectedOrderIds, setSelectedOrderIds] = useState([]);
+    const [bulkStatus, setBulkStatus] = useState('');
+    const [bulkActionLoading, setBulkActionLoading] = useState(false);
     const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
     const [schedulingPickup, setSchedulingPickup] = useState(false);
     const [sendingToDelhivery, setSendingToDelhivery] = useState(false);
@@ -281,6 +284,98 @@ export default function StoreOrders() {
 
     const stats = getOrderStats();
     const filteredOrders = getFilteredOrders();
+    const visibleOrderIds = filteredOrders.map((order) => order._id);
+    const selectedVisibleCount = visibleOrderIds.filter((orderId) => selectedOrderIds.includes(orderId)).length;
+    const allVisibleSelected = visibleOrderIds.length > 0 && selectedVisibleCount === visibleOrderIds.length;
+    const hasSelectedOrders = selectedOrderIds.length > 0;
+
+    const toggleOrderSelection = (orderId) => {
+        setSelectedOrderIds((prev) => (
+            prev.includes(orderId)
+                ? prev.filter((id) => id !== orderId)
+                : [...prev, orderId]
+        ));
+    };
+
+    const toggleSelectAllVisible = () => {
+        if (allVisibleSelected) {
+            setSelectedOrderIds((prev) => prev.filter((id) => !visibleOrderIds.includes(id)));
+            return;
+        }
+
+        setSelectedOrderIds((prev) => Array.from(new Set([...prev, ...visibleOrderIds])));
+    };
+
+    const clearSelectedOrders = () => {
+        setSelectedOrderIds([]);
+    };
+
+    const runBulkAction = async (action, payload = {}) => {
+        if (!selectedOrderIds.length) {
+            toast.error('Select at least one order');
+            return;
+        }
+
+        setBulkActionLoading(true);
+        try {
+            const token = await getToken(true);
+            if (!token) {
+                toast.error('Authentication failed. Please sign in again.');
+                return;
+            }
+
+            const { data } = await axios.post('/api/store/orders/bulk', {
+                action,
+                orderIds: selectedOrderIds,
+                ...payload,
+            }, {
+                headers: { Authorization: `Bearer ${token}` }
+            });
+
+            if (action === 'update-status' && payload.status) {
+                setBulkStatus('');
+                if (selectedOrder && selectedOrderIds.includes(selectedOrder._id)) {
+                    setSelectedOrder((prev) => prev ? { ...prev, status: payload.status } : prev);
+                }
+            }
+
+            toast.success(data?.message || 'Bulk action completed');
+            clearSelectedOrders();
+            await fetchOrders();
+        } catch (error) {
+            console.error('Bulk action error:', error);
+            toast.error(error?.response?.data?.error || 'Bulk action failed');
+        } finally {
+            setBulkActionLoading(false);
+        }
+    };
+
+    const handleBulkStatusUpdate = async () => {
+        if (!bulkStatus) {
+            toast.error('Choose a status first');
+            return;
+        }
+
+        await runBulkAction('update-status', { status: bulkStatus });
+    };
+
+    const handleBulkDelete = async () => {
+        if (!selectedOrderIds.length) {
+            toast.error('Select at least one order');
+            return;
+        }
+
+        if (!window.confirm(`Delete ${selectedOrderIds.length} selected order(s)? This action cannot be undone.`)) {
+            return;
+        }
+
+        const deletingSelectedModalOrder = selectedOrder && selectedOrderIds.includes(selectedOrder._id);
+        await runBulkAction('delete');
+
+        if (deletingSelectedModalOrder) {
+            closeModal();
+        }
+    };
 
     // Function to update tracking details (AWB), auto-set status and notify customer
     const updateTrackingDetails = async () => {
@@ -579,6 +674,12 @@ export default function StoreOrders() {
             }
 
             setOrders(syncedOrders);
+            setSelectedOrderIds((prev) => prev.filter((orderId) => syncedOrders.some((order) => order._id === orderId)));
+            setSelectedOrder((prev) => {
+                if (!prev) return prev;
+                const refreshedOrder = syncedOrders.find((order) => order._id === prev._id);
+                return refreshedOrder || prev;
+            });
         } catch (error) {
             toast.error(error?.response?.data?.error || error.message);
         } finally {
@@ -1080,6 +1181,54 @@ export default function StoreOrders() {
                 </div>
             </div>
 
+            <div className="mb-6 bg-white border border-gray-200 rounded-lg p-4 flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                <div>
+                    <p className="text-sm font-semibold text-slate-800">Bulk actions</p>
+                    <p className="text-xs text-slate-500">
+                        {hasSelectedOrders
+                            ? `${selectedOrderIds.length} order(s) selected`
+                            : 'Select orders from the list to update status or delete in bulk'}
+                    </p>
+                </div>
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                    <select
+                        value={bulkStatus}
+                        onChange={(e) => setBulkStatus(e.target.value)}
+                        disabled={!hasSelectedOrders || bulkActionLoading}
+                        className="min-w-[220px] rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-slate-700 disabled:cursor-not-allowed disabled:bg-gray-100"
+                    >
+                        <option value="">Change selected orders to...</option>
+                        {STATUS_OPTIONS.map((status) => (
+                            <option key={status.value} value={status.value}>{status.label}</option>
+                        ))}
+                    </select>
+                    <button
+                        onClick={handleBulkStatusUpdate}
+                        disabled={!hasSelectedOrders || !bulkStatus || bulkActionLoading}
+                        className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:bg-blue-300"
+                    >
+                        {bulkActionLoading ? 'Processing...' : 'Update Status'}
+                    </button>
+                    <button
+                        onClick={handleBulkDelete}
+                        disabled={!hasSelectedOrders || bulkActionLoading}
+                        className="inline-flex items-center justify-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:bg-red-300"
+                    >
+                        <Trash2 size={16} />
+                        Delete Selected
+                    </button>
+                    {hasSelectedOrders && (
+                        <button
+                            onClick={clearSelectedOrders}
+                            disabled={bulkActionLoading}
+                            className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:bg-gray-100"
+                        >
+                            Clear
+                        </button>
+                    )}
+                </div>
+            </div>
+
             {filteredOrders.length === 0 ? (
                 <p className="text-center py-8 text-slate-500">No orders found for this status</p>
             ) : (
@@ -1087,6 +1236,15 @@ export default function StoreOrders() {
                     <table className="w-full text-sm text-left text-gray-600">
                         <thead className="bg-gray-50 text-gray-700 text-xs uppercase tracking-wider">
                             <tr>
+                                <th className="px-4 py-3">
+                                    <input
+                                        type="checkbox"
+                                        checked={allVisibleSelected}
+                                        onChange={toggleSelectAllVisible}
+                                        aria-label="Select all visible orders"
+                                        className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                    />
+                                </th>
                                 <th className="px-4 py-3">Sr. No.</th>
                                 <th className="px-4 py-3">Order No.</th>
                                 <th className="px-4 py-3">Customer</th>
@@ -1101,9 +1259,18 @@ export default function StoreOrders() {
                             {filteredOrders.map((order, index) => (
                                 <tr
                                     key={order._id}
-                                    className="hover:bg-gray-50 transition-colors duration-150 cursor-pointer"
+                                    className={`hover:bg-gray-50 transition-colors duration-150 cursor-pointer ${selectedOrderIds.includes(order._id) ? 'bg-blue-50/60' : ''}`}
                                     onClick={() => openModal(order)}
                                 >
+                                    <td className="px-4 py-3" onClick={(e) => e.stopPropagation()}>
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedOrderIds.includes(order._id)}
+                                            onChange={() => toggleOrderSelection(order._id)}
+                                            aria-label={`Select order ${order.shortOrderNumber || order._id.slice(0, 8)}`}
+                                            className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                    </td>
                                     <td className="pl-6 text-green-600 font-medium">{index + 1}</td>
                                     <td className="px-4 py-3 font-mono text-xs text-slate-700">{order.shortOrderNumber || order._id.slice(0, 8)}</td>
                                     <td className="px-4 py-3">

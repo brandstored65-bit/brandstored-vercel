@@ -465,19 +465,29 @@ export async function POST(request) {
                 orderItems: sellerItems.map(item => ({
                     productId: item.id,
                     quantity: item.quantity,
-                    price: item.price
+                    price: item.price,
+                    variantOptions: item.variantOptions || null,
                 }))
             };
 
             const normalizedPaymentMethod = String(paymentMethod || '').toUpperCase();
-            const paidOnlineMethods = new Set(['CARD', 'RAZORPAY', 'UPI', 'NETBANKING', 'ONLINE', 'PREPAID', 'WALLET']);
+            const normalizedPaymentStatus = String(paymentStatus || '').toUpperCase();
+            const explicitPaidStatuses = new Set(['PAID', 'CAPTURED', 'SUCCEEDED', 'SUCCESS']);
+
+            orderData.isPaid = false;
 
             if (normalizedPaymentMethod === 'COD') {
-                orderData.isPaid = false;
                 orderData.paymentStatus = paymentStatus || 'PENDING';
-            } else if (paidOnlineMethods.has(normalizedPaymentMethod)) {
-                orderData.isPaid = true;
-                orderData.paymentStatus = paymentStatus || 'PAID';
+            } else if (normalizedPaymentMethod === 'STRIPE') {
+                // Stripe orders are marked paid only by webhook confirmation.
+                orderData.paymentStatus = paymentStatus || 'PENDING';
+            } else {
+                if (explicitPaidStatuses.has(normalizedPaymentStatus)) {
+                    orderData.isPaid = true;
+                    orderData.paymentStatus = paymentStatus || normalizedPaymentStatus;
+                } else {
+                    orderData.paymentStatus = paymentStatus || 'PENDING';
+                }
             }
 
             if (razorpayPaymentId) orderData.razorpayPaymentId = razorpayPaymentId;
@@ -931,9 +941,15 @@ export async function GET(request) {
                     order.isPaid = true;
                 }
             } else if (paymentMethod) {
-                const failedStatuses = new Set(['FAILED', 'PAYMENT_FAILED', 'REFUNDED', 'UNPAID']);
-                if (!failedStatuses.has(paymentStatus) && status !== 'PAYMENT_FAILED') {
+                const failedStatuses = new Set(['FAILED', 'PAYMENT_FAILED', 'REFUNDED', 'UNPAID', 'CANCELED', 'CANCELLED', 'EXPIRED', 'PENDING']);
+                const paidStatuses = new Set(['PAID', 'CAPTURED', 'SUCCEEDED', 'SUCCESS']);
+
+                if (status === 'PAYMENT_FAILED' || failedStatuses.has(paymentStatus)) {
+                    order.isPaid = false;
+                } else if (paidStatuses.has(paymentStatus)) {
                     order.isPaid = true;
+                } else {
+                    order.isPaid = !!order.isPaid;
                 }
             }
 

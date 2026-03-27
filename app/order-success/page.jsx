@@ -86,7 +86,9 @@ function OrderSuccessContent() {
   const orderDate = order?.createdAt ? new Date(order.createdAt).toLocaleDateString() : new Date().toLocaleDateString();
   const currency = order?.currency || 'AED';
   const paymentMethod = String(order?.paymentMethod || 'COD').toUpperCase();
-  const isPaid = order?.isPaid === true || paymentMethod === 'WALLET' || paymentMethod === 'CARD' || paymentMethod === 'STRIPE';
+  const normalizedPaymentStatus = String(order?.paymentStatus || '').toUpperCase();
+  const explicitPaidStatuses = new Set(['PAID', 'CAPTURED', 'SUCCEEDED', 'SUCCESS']);
+  const isPaid = order?.isPaid === true || explicitPaidStatuses.has(normalizedPaymentStatus);
   const paidAmount = isPaid ? total : 0;
   const dueAmount = isPaid ? 0 : total;
 
@@ -177,6 +179,7 @@ function OrderSuccessContent() {
                 <thead>
                   <tr className='border-b'>
                     <th className='text-left py-2'>Product</th>
+                    <th className='text-center py-2'>Qty</th>
                     <th className='text-right py-2'>Total</th>
                   </tr>
                 </thead>
@@ -186,14 +189,36 @@ function OrderSuccessContent() {
                     const key = (p && p._id) || (typeof item.productId === 'string' ? item.productId : idx);
                     const name = p?.name || item.name || 'Product';
                     const image = Array.isArray(p?.images) && p.images[0] ? p.images[0] : null;
+                    const directBundleQty = Number(item?.variant?.bundleQty || item?.variantOptions?.bundleQty || 0);
+                    const inferredBundleQty = (() => {
+                      if (!p || !Array.isArray(p.variants)) return 0;
+                      const qty = Number(item.quantity || 0);
+                      const unitPrice = Number(item.price || 0);
+                      const match = p.variants.find((variant) => {
+                        const variantBundleQty = Number(variant?.options?.bundleQty || 0);
+                        const variantPrice = Number(variant?.price || 0);
+                        if (variantBundleQty <= 1 || !Number.isFinite(variantPrice)) return false;
+                        return variantBundleQty === qty && Math.abs((variantPrice / variantBundleQty) - unitPrice) < 0.01;
+                      });
+                      return Number(match?.options?.bundleQty || 0);
+                    })();
+                    const bundleQty = directBundleQty > 1 ? directBundleQty : inferredBundleQty;
                     return (
                       <tr key={key} className='border-b'>
                         <td className='py-2 flex items-center gap-3'>
                           {image && (
                             <img src={image} alt={name} className='w-12 h-12 rounded object-cover border' />
                           )}
-                          <span className='truncate max-w-[240px]'>{name} {item.quantity > 1 ? `× ${item.quantity}` : ''}</span>
+                          <div className='min-w-0'>
+                            <div className='truncate max-w-[240px]'>{name}</div>
+                            {bundleQty > 1 && (
+                              <span className='inline-block mt-1 text-[11px] font-semibold bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full'>
+                                Bundle: Buy {bundleQty}
+                              </span>
+                            )}
+                          </div>
                         </td>
+                        <td className='py-2 text-center'>{Number(item.quantity || 0)}</td>
                         <td className='py-2 text-right'>{currency} {(Number(item.price) * Number(item.quantity)).toLocaleString()}</td>
                       </tr>
                     );

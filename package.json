@@ -7,7 +7,9 @@
     "dev:turbo": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "payments:backfill:dry": "node scripts/backfillOrderPaymentFlags.js",
+    "payments:backfill:apply": "node scripts/backfillOrderPaymentFlags.js --apply"
   },
   "dependencies": {
     "@emailjs/nodejs": "^5.0.2",
