@@ -1235,14 +1235,14 @@ const Navbar = () => {
 
 
       {/* Sign In Modal (always at Navbar root) */}
-      {/* {!firebaseUser && (
+      {!firebaseUser && (
         <SignInModal
           open={signInOpen}
           onClose={() => setSignInOpen(false)}
           defaultMode={signInMode}
           bonusMessage="Register now and get 20 coins free bonus!"
         />
-      )} */}
+      )}
     </div>
   </nav>
   <NavbarMenuBar />

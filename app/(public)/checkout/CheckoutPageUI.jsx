@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { countryCodes } from "@/assets/countryCodes";
 import { indiaStatesAndDistricts } from "@/assets/indiaStatesAndDistricts";
+import { uaeLocations } from "@/assets/uaeLocations";
 import { useSelector, useDispatch } from "react-redux";
 import { fetchAddress } from "@/lib/features/address/addressSlice";
 import { clearCart, addToCart, removeFromCart, deleteItemFromCart, uploadCart } from "@/lib/features/cart/cartSlice";
@@ -54,15 +55,7 @@ export default function CheckoutPage() {
 
   // For India state/district dropdowns
   const keralaDistricts = indiaStatesAndDistricts.find(s => s.state === 'Kerala')?.districts || [];
-  const uaeEmirates = [
-    { value: 'Abu Dhabi', label: 'Abu Dhabi (أبو ظبي)' },
-    { value: 'Dubai', label: 'Dubai (دبي)' },
-    { value: 'Sharjah', label: 'Sharjah (الشارقة)' },
-    { value: 'Ajman', label: 'Ajman (عجمان)' },
-    { value: 'Umm Al Quwain', label: 'Umm Al Quwain (أم القيوين)' },
-    { value: 'Ras Al Khaimah', label: 'Ras Al Khaimah (رأس الخيمة)' },
-    { value: 'Fujairah', label: 'Fujairah (الفجيرة)' },
-  ];
+  const uaeEmirates = uaeLocations.map(e => ({ value: e.emirate, label: e.label }));
   const [districts, setDistricts] = useState(keralaDistricts);
   const [placingOrder, setPlacingOrder] = useState(false);
   const [payingNow, setPayingNow] = useState(false);
@@ -78,6 +71,9 @@ export default function CheckoutPage() {
   const [showPincodeModal, setShowPincodeModal] = useState(false);
   const [editingAddressId, setEditingAddressId] = useState(null);
   const [showAlternatePhone, setShowAlternatePhone] = useState(false);
+  const [areaSearch, setAreaSearch] = useState('');
+  const [areaDropdownOpen, setAreaDropdownOpen] = useState(false);
+  const areaDropdownRef = useRef(null);
   const [abandonSaved, setAbandonSaved] = useState(false);
 
   // Coupon logic
@@ -91,6 +87,28 @@ export default function CheckoutPage() {
   const bundleMigrationDoneRef = useRef(false);
   const [formError, setFormError] = useState("");
   const [walletSupport, setWalletSupport] = useState({ applePay: true, googlePay: true });
+
+  useEffect(() => {
+    if (!areaDropdownOpen) return;
+
+    const handleClickOutside = (event) => {
+      if (areaDropdownRef.current && !areaDropdownRef.current.contains(event.target)) {
+        setAreaDropdownOpen(false);
+      }
+    };
+
+    const handleEscape = (event) => {
+      if (event.key === 'Escape') setAreaDropdownOpen(false);
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    document.addEventListener('keydown', handleEscape);
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('keydown', handleEscape);
+    };
+  }, [areaDropdownOpen]);
 
   const pushDataLayerEvent = (event, ecommerce) => {
     if (typeof window === 'undefined') return;
@@ -1071,9 +1089,11 @@ export default function CheckoutPage() {
       const stateObj = indiaStatesAndDistricts.find(s => s.state === value);
       setDistricts(stateObj ? stateObj.districts : []);
       setForm(f => ({ ...f, state: value, district: '' }));
+      setAreaSearch(''); setAreaDropdownOpen(false);
     } else if (name === 'country') {
       setForm(f => ({ ...f, country: value, state: '', district: '', alternatePhoneCode: f.alternatePhoneCode || f.phoneCode }));
       if (value !== 'India') setDistricts([]);
+      setAreaSearch(''); setAreaDropdownOpen(false);
     } else if (name === 'payment') {
       setForm(f => ({ ...f, [name]: value }));
     } else if (name === 'pincode') {
@@ -1778,18 +1798,7 @@ export default function CheckoutPage() {
                   </div>
                 )}
                 </div>
-              ) : (addressList.length === 0 && user) ? (
-                <button 
-                  type="button"
-                  className="w-full border-2 border-dashed border-blue-400 rounded-lg p-4 text-blue-600 font-semibold hover:bg-blue-50 transition"
-                  onClick={() => {
-                    setEditingAddressId(null);
-                    setShowAddressModal(true);
-                  }}
-                >
-                  <span className="text-xl">+</span> Add Delivery Address
-                </button>
-              ) : (!user) ? (
+              ) : ((!user) || (addressList.length === 0 && user)) ? (
                 <div className="flex flex-col gap-3.5">{/* Guest form starts here */}
                   {/* ...existing code for guest/inline address form... */}
                   {/* Name */}
@@ -1896,16 +1905,6 @@ export default function CheckoutPage() {
                     value={form.email || ''}
                     onChange={handleChange}
                   />
-                  {/* City */}
-                  <input
-                    className="border border-gray-200 bg-white rounded px-4 py-3.5 focus:border-gray-400"
-                    type="text"
-                    name="city"
-                    placeholder="City"
-                    value={form.city || ''}
-                    onChange={handleChange}
-                    required
-                  />
                   {/* District dropdown (for India) */}
                   {form.country === 'India' && (
                     <select
@@ -1970,6 +1969,58 @@ export default function CheckoutPage() {
                       required
                     />
                   )}
+                  {/* UAE area/district searchable dropdown */}
+                  {form.country === 'United Arab Emirates' && form.state && (() => {
+                    const areas = uaeLocations.find(e => e.emirate === form.state)?.areas || [];
+                    const filtered = areas.filter(a => a.toLowerCase().includes(areaSearch.toLowerCase()));
+                    return areas.length > 0 ? (
+                      <div className="relative" ref={areaDropdownRef}>
+                        <div
+                          className="border border-gray-200 bg-white rounded px-4 py-3.5 cursor-pointer flex items-center justify-between"
+                          onClick={() => setAreaDropdownOpen(o => !o)}
+                        >
+                          <span className={form.district ? 'text-gray-900' : 'text-gray-400'}>
+                            {form.district || 'Select Area'}
+                          </span>
+                          <svg className={`w-4 h-4 text-gray-400 transition-transform ${areaDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                        </div>
+                        {areaDropdownOpen && (
+                          <div className="absolute z-30 w-full mt-1 bg-white border border-gray-200 rounded shadow-lg">
+                            <div className="p-2 border-b border-gray-100">
+                              <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded">
+                                <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" /></svg>
+                                <input
+                                  autoFocus
+                                  type="text"
+                                  className="bg-transparent outline-none text-sm w-full"
+                                  placeholder="Type to search for your area/district"
+                                  value={areaSearch}
+                                  onChange={e => setAreaSearch(e.target.value)}
+                                />
+                              </div>
+                            </div>
+                            <ul className="max-h-52 overflow-y-auto">
+                              {filtered.length > 0 ? filtered.map(area => (
+                                <li
+                                  key={area}
+                                  className={`px-4 py-2.5 text-sm cursor-pointer hover:bg-blue-50 ${form.district === area ? 'bg-blue-600 text-white hover:bg-blue-600' : 'text-gray-800'}`}
+                                  onClick={() => {
+                                    setForm(f => ({ ...f, district: area }));
+                                    setAreaSearch('');
+                                    setAreaDropdownOpen(false);
+                                  }}
+                                >{area}</li>
+                              )) : (
+                                <li className="px-4 py-3 text-sm text-gray-400">No areas found</li>
+                              )}
+                            </ul>
+                          </div>
+                        )}
+                        {/* hidden input for form validation */}
+                        <input type="text" name="district" value={form.district || ''} onChange={() => {}} required className="sr-only" />
+                      </div>
+                    ) : null;
+                  })()}
                   {/* Country dropdown (default India) */}
                   <select
                     className="border border-gray-200 bg-white rounded px-4 py-3.5 focus:border-gray-400"
@@ -2115,11 +2166,20 @@ export default function CheckoutPage() {
                 </div>
               )}
 
+              {!form.addressId && !isGuestAddressReady && (
+                <div className="mt-4 bg-yellow-50 border border-yellow-200 text-yellow-800 text-sm p-3 rounded-lg">
+                  ⚠️ Please fill in your delivery address to place the order.
+                </div>
+              )}
               <button
                 type="submit"
                 form="checkout-form"
-                className={`hidden md:block mt-4 w-full text-white font-bold py-3 rounded text-lg transition ${isPlaceOrderDisabled ? 'bg-gray-400 cursor-not-allowed opacity-75' : 'bg-red-600 hover:bg-red-700'}`}
-                disabled={isPlaceOrderDisabled}
+                className={`hidden md:block mt-4 w-full text-white font-bold py-3 rounded text-lg transition ${
+                  (!form.addressId && !isGuestAddressReady) || isPlaceOrderDisabled
+                    ? 'bg-gray-300 cursor-not-allowed opacity-60'
+                    : 'bg-red-600 hover:bg-red-700'
+                }`}
+                disabled={(!form.addressId && !isGuestAddressReady) || isPlaceOrderDisabled}
                 aria-busy={placingOrder}
               >
                 {placingOrder ? 'Placing order...' : 'Place order'}

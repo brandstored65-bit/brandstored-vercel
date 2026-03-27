@@ -8,13 +8,12 @@ import { toast } from "react-hot-toast"
 import { useDispatch } from "react-redux"
 
 import { useAuth } from '@/lib/useAuth';
+import { uaeLocations } from '@/assets/uaeLocations';
 
 const indianStates = [
     "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh", "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka", "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram", "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu", "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal", "Delhi", "Jammu and Kashmir", "Ladakh" 
 ];
-const uaeEmirates = [
-    "Abu Dhabi", "Dubai", "Sharjah", "Ajman", "Ras Al Khaimah", "Fujairah", "Umm Al Quwain"
-];
+const uaeEmirates = uaeLocations.map(e => ({ emirate: e.emirate, label: e.label }));
 
 const AddressModal = ({ open, setShowAddressModal, onAddressAdded, initialAddress = null, isEdit = false, onAddressUpdated, addressList = [], onSelectAddress, selectedAddressId }) => {
     const { user, getToken } = useAuth()
@@ -25,6 +24,9 @@ const AddressModal = ({ open, setShowAddressModal, onAddressAdded, initialAddres
     const [editingAddress, setEditingAddress] = useState(null) // Track which address is being edited
     const [pincodeLoading, setPincodeLoading] = useState(false)
     const [pincodeError, setPincodeError] = useState('')
+    const [areaSearch, setAreaSearch] = useState('')
+    const [areaDropdownOpen, setAreaDropdownOpen] = useState(false)
+    const areaDropdownRef = useRef(null)
     
     console.log('🔵 AddressModal Props:', { open, addressListLength: addressList.length, mode, isEdit, selectedAddressId })
 
@@ -55,6 +57,28 @@ const AddressModal = ({ open, setShowAddressModal, onAddressAdded, initialAddres
             }
         }
     }, [isEdit, addressList.length, open]);
+
+    useEffect(() => {
+        if (!areaDropdownOpen) return
+
+        const handleClickOutside = (event) => {
+            if (areaDropdownRef.current && !areaDropdownRef.current.contains(event.target)) {
+                setAreaDropdownOpen(false)
+            }
+        }
+
+        const handleEscape = (event) => {
+            if (event.key === 'Escape') setAreaDropdownOpen(false)
+        }
+
+        document.addEventListener('mousedown', handleClickOutside)
+        document.addEventListener('keydown', handleEscape)
+
+        return () => {
+            document.removeEventListener('mousedown', handleClickOutside)
+            document.removeEventListener('keydown', handleEscape)
+        }
+    }, [areaDropdownOpen])
 
     // Prefill when editing or reset when adding new
     useEffect(() => {
@@ -129,6 +153,9 @@ const AddressModal = ({ open, setShowAddressModal, onAddressAdded, initialAddres
                 alternatePhoneCode: selectedCountry?.code || '+971'
             })
             setPincodeError('')
+        } else if (name === 'state' && address.country === 'United Arab Emirates') {
+            setAddress({ ...address, state: value, district: '' })
+            setAreaSearch(''); setAreaDropdownOpen(false);
         } else {
             setAddress({
                 ...address,
@@ -432,19 +459,7 @@ const AddressModal = ({ open, setShowAddressModal, onAddressAdded, initialAddres
                         />
                     </div>
 
-                    <div className="grid grid-cols-2 gap-4">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1.5">City</label>
-                            <input 
-                                name="city" 
-                                onChange={handleAddressChange} 
-                                value={address.city} 
-                                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent outline-none transition" 
-                                type="text" 
-                                placeholder="City" 
-                                required 
-                            />
-                        </div>
+                    <div>
                         <div>
                             <label className="block text-sm font-medium text-gray-700 mb-1.5">{address.country === 'United Arab Emirates' ? 'Emirate' : 'State'}</label>
                             {(address.country === 'India' || address.country === 'United Arab Emirates') ? (
@@ -456,9 +471,14 @@ const AddressModal = ({ open, setShowAddressModal, onAddressAdded, initialAddres
                                     required
                                 >
                                     <option value="">{address.country === 'United Arab Emirates' ? 'Select Emirate' : 'Select State'}</option>
-                                    {(address.country === 'United Arab Emirates' ? uaeEmirates : indianStates).map((state) => (
-                                        <option key={state} value={state}>{state}</option>
-                                    ))}
+                                    {address.country === 'United Arab Emirates'
+                                        ? uaeEmirates.map((e) => (
+                                            <option key={e.emirate} value={e.emirate}>{e.label}</option>
+                                        ))
+                                        : indianStates.map((state) => (
+                                            <option key={state} value={state}>{state}</option>
+                                        ))
+                                    }
                                 </select>
                             ) : (
                                 <input
@@ -471,6 +491,60 @@ const AddressModal = ({ open, setShowAddressModal, onAddressAdded, initialAddres
                                     required
                                 />
                             )}
+                            {/* UAE area/district searchable dropdown */}
+                            {address.country === 'United Arab Emirates' && address.state && (() => {
+                                const areas = uaeLocations.find(e => e.emirate === address.state)?.areas || [];
+                                const filtered = areas.filter(a => a.toLowerCase().includes(areaSearch.toLowerCase()));
+                                return areas.length > 0 ? (
+                                    <div className="mt-3">
+                                        <label className="block text-sm font-medium text-gray-700 mb-1.5">Area</label>
+                                        <div className="relative" ref={areaDropdownRef}>
+                                            <div
+                                                className="w-full px-4 py-2.5 border border-gray-300 rounded-lg cursor-pointer flex items-center justify-between bg-white"
+                                                onClick={() => setAreaDropdownOpen(o => !o)}
+                                            >
+                                                <span className={address.district ? 'text-gray-900' : 'text-gray-400'}>
+                                                    {address.district || 'Select Area'}
+                                                </span>
+                                                <svg className={`w-4 h-4 text-gray-400 transition-transform ${areaDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
+                                            </div>
+                                            {areaDropdownOpen && (
+                                                <div className="absolute z-30 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg">
+                                                    <div className="p-2 border-b border-gray-100">
+                                                        <div className="flex items-center gap-2 px-3 py-2 bg-gray-50 rounded-lg">
+                                                            <svg className="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-4.35-4.35M17 11A6 6 0 1 1 5 11a6 6 0 0 1 12 0z" /></svg>
+                                                            <input
+                                                                autoFocus
+                                                                type="text"
+                                                                className="bg-transparent outline-none text-sm w-full"
+                                                                placeholder="Type to search for your area/district"
+                                                                value={areaSearch}
+                                                                onChange={e => setAreaSearch(e.target.value)}
+                                                            />
+                                                        </div>
+                                                    </div>
+                                                    <ul className="max-h-52 overflow-y-auto">
+                                                        {filtered.length > 0 ? filtered.map(area => (
+                                                            <li
+                                                                key={area}
+                                                                className={`px-4 py-2.5 text-sm cursor-pointer hover:bg-blue-50 ${address.district === area ? 'bg-blue-600 text-white hover:bg-blue-600' : 'text-gray-800'}`}
+                                                                onClick={() => {
+                                                                    setAddress(prev => ({ ...prev, district: area }));
+                                                                    setAreaSearch('');
+                                                                    setAreaDropdownOpen(false);
+                                                                }}
+                                                            >{area}</li>
+                                                        )) : (
+                                                            <li className="px-4 py-3 text-sm text-gray-400">No areas found</li>
+                                                        )}
+                                                    </ul>
+                                                </div>
+                                            )}
+                                            <input type="text" name="district" value={address.district || ''} onChange={() => {}} required className="sr-only" />
+                                        </div>
+                                    </div>
+                                ) : null;
+                            })()}
                         </div>
                     </div>
 
