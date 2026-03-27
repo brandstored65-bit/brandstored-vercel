@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import axios from "axios";
 import { countryCodes } from "@/assets/countryCodes";
 import { indiaStatesAndDistricts } from "@/assets/indiaStatesAndDistricts";
@@ -88,6 +88,7 @@ export default function CheckoutPage() {
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [couponLoading, setCouponLoading] = useState(false);
   const [storeId, setStoreId] = useState(null);
+  const bundleMigrationDoneRef = useRef(false);
   const [formError, setFormError] = useState("");
   const [walletSupport, setWalletSupport] = useState({ applePay: true, googlePay: true });
 
@@ -562,14 +563,6 @@ export default function CheckoutPage() {
   console.log('Checkout - Products:', products?.map(p => ({ id: p._id, name: p.name })));
 
   const resolveCartUnitPrice = (product, cartEntry) => {
-    // The stored price IS the full bundle total for a single bundle unit.
-    // Subtotal = storedPrice × quantity (number of bundles in cart).
-    const priceOverride = typeof cartEntry === 'number' ? undefined : cartEntry?.price;
-    const parsedOverride = Number(priceOverride);
-    if (Number.isFinite(parsedOverride) && parsedOverride > 0) {
-      return parsedOverride;
-    }
-
     const variantOptions = typeof cartEntry === 'object' ? cartEntry?.variantOptions : undefined;
     if (product && variantOptions && Array.isArray(product.variants) && product.variants.length > 0) {
       const { color, size, bundleQty } = variantOptions || {};
@@ -586,8 +579,72 @@ export default function CheckoutPage() {
       }
     }
 
+    // Fallback to stored override (for non-variant entries or older cart rows)
+    const priceOverride = typeof cartEntry === 'number' ? undefined : cartEntry?.price;
+    const parsedOverride = Number(priceOverride);
+    if (Number.isFinite(parsedOverride) && parsedOverride > 0) {
+      return parsedOverride;
+    }
+
     return Number(product?.salePrice ?? product?.price ?? 0) || 0;
   };
+
+  useEffect(() => {
+    if (bundleMigrationDoneRef.current) return;
+
+    const migrations = [];
+    for (const [key, value] of Object.entries(cartItems || {})) {
+      if (typeof value !== 'object' || value === null) continue;
+      const qty = Number(value?.quantity || 0);
+      const variantOptions = value?.variantOptions;
+      const bundleQty = Number(variantOptions?.bundleQty || 0);
+      const storedPrice = Number(value?.price);
+      if (qty <= 0 || bundleQty <= 1 || !Number.isFinite(storedPrice) || storedPrice <= 0) continue;
+
+      const product = products?.find((p) => String(p._id) === String(key));
+      if (!product || !Array.isArray(product.variants) || product.variants.length === 0) continue;
+
+      const match = product.variants.find((variant) => {
+        const colorMatches = variant.options?.color ? variant.options.color === variantOptions?.color : !variantOptions?.color;
+        const sizeMatches = variant.options?.size ? variant.options.size === variantOptions?.size : !variantOptions?.size;
+        const bundleMatches = variant.options?.bundleQty ? Number(variant.options.bundleQty) === bundleQty : false;
+        return colorMatches && sizeMatches && bundleMatches;
+      });
+
+      const variantBundlePrice = Number(match?.price);
+      if (!Number.isFinite(variantBundlePrice) || variantBundlePrice <= 0) continue;
+
+      const looksLikeLegacyPerUnit = Math.abs((storedPrice * bundleQty) - variantBundlePrice) < 0.01;
+      if (!looksLikeLegacyPerUnit) continue;
+
+      const normalizedBundleCount = Math.max(1, Math.round(qty / bundleQty));
+      migrations.push({
+        key,
+        payload: {
+          productId: key,
+          price: variantBundlePrice,
+          variantOptions,
+          ...(value?.offerToken ? { offerToken: value.offerToken } : {}),
+          ...(value?.discountPercent !== undefined ? { discountPercent: value.discountPercent } : {}),
+        },
+        count: normalizedBundleCount,
+      });
+    }
+
+    bundleMigrationDoneRef.current = true;
+    if (migrations.length === 0) return;
+
+    migrations.forEach((entry) => dispatch(deleteItemFromCart({ productId: entry.key })));
+    migrations.forEach((entry) => {
+      for (let i = 0; i < entry.count; i++) {
+        dispatch(addToCart(entry.payload));
+      }
+    });
+
+    if (user) {
+      dispatch(uploadCart({ getToken }));
+    }
+  }, [cartItems, products, dispatch, user, getToken]);
   
   for (const [key, value] of Object.entries(cartItems || {})) {
     const product = products?.find((p) => String(p._id) === String(key));

@@ -2,12 +2,12 @@
 "use client";
 
 import { useDispatch, useSelector, useStore } from "react-redux";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import axios from "axios";
 import Counter from "@/components/Counter";
 import CartSummaryBox from "@/components/CartSummaryBox";
 import ProductCard from "@/components/ProductCard";
-import { deleteItemFromCart, fetchCart, uploadCart } from "@/lib/features/cart/cartSlice";
+import { addToCart, deleteItemFromCart, fetchCart, uploadCart } from "@/lib/features/cart/cartSlice";
 import { PackageIcon, Trash2Icon } from "lucide-react";
 import Image from "next/image";
 import { useAuth } from "@/lib/useAuth";
@@ -32,16 +32,9 @@ export default function Cart() {
     const [loadingOrders, setLoadingOrders] = useState(true);
     const shippingFee = 0;
     const [deletingKeys, setDeletingKeys] = useState({});
+    const bundleMigrationDoneRef = useRef(false);
 
     const resolveCartUnitPrice = (product, cartEntry) => {
-        // The stored price IS the full bundle total for a single bundle unit.
-        // Subtotal = storedPrice × quantity (number of bundles in cart).
-        const priceOverride = typeof cartEntry === 'number' ? undefined : cartEntry?.price;
-        const parsedOverride = Number(priceOverride);
-        if (Number.isFinite(parsedOverride) && parsedOverride > 0) {
-            return parsedOverride;
-        }
-
         const variantOptions = typeof cartEntry === 'object' ? cartEntry?.variantOptions : undefined;
         if (product && variantOptions && Array.isArray(product.variants) && product.variants.length > 0) {
             const { color, size, bundleQty } = variantOptions || {};
@@ -56,6 +49,13 @@ export default function Cart() {
             if (Number.isFinite(matchedPrice) && matchedPrice > 0) {
                 return matchedPrice; // bundle total price, not divided
             }
+        }
+
+        // Fallback to stored override (for non-variant entries or older cart rows)
+        const priceOverride = typeof cartEntry === 'number' ? undefined : cartEntry?.price;
+        const parsedOverride = Number(priceOverride);
+        if (Number.isFinite(parsedOverride) && parsedOverride > 0) {
+            return parsedOverride;
         }
 
         return Number(product?.salePrice ?? product?.price ?? 0) || 0;
@@ -143,7 +143,8 @@ export default function Cart() {
             
             if (product && qty > 0) {
                 const unitPrice = resolveCartUnitPrice(product, value);
-                arr.push({ ...product, quantity: qty, _cartPrice: unitPrice, _cartKey: key });
+                const cartEntryVariantOptions = typeof value === 'object' ? value?.variantOptions : undefined;
+                arr.push({ ...product, quantity: qty, _cartPrice: unitPrice, _cartKey: key, _variantOptions: cartEntryVariantOptions });
                 const isOutOfStock = product.inStock === false || (typeof product.stockQuantity === 'number' && product.stockQuantity <= 0);
                 if (!isOutOfStock) {
                     total += unitPrice * qty;
@@ -166,6 +167,64 @@ export default function Cart() {
         setCartArray(arr);
         setTotalPrice(total);
     };
+
+    useEffect(() => {
+        if (bundleMigrationDoneRef.current) return;
+        if (!productsLoaded) return;
+
+        const migrations = [];
+        for (const [key, value] of Object.entries(cartItems || {})) {
+            if (typeof value !== 'object' || value === null) continue;
+            const qty = Number(value?.quantity || 0);
+            const variantOptions = value?.variantOptions;
+            const bundleQty = Number(variantOptions?.bundleQty || 0);
+            const storedPrice = Number(value?.price);
+            if (qty <= 0 || bundleQty <= 1 || !Number.isFinite(storedPrice) || storedPrice <= 0) continue;
+
+            const product = products.find((p) => String(p._id) === String(key));
+            if (!product || !Array.isArray(product.variants) || product.variants.length === 0) continue;
+
+            const match = product.variants.find((variant) => {
+                const colorMatches = variant.options?.color ? variant.options.color === variantOptions?.color : !variantOptions?.color;
+                const sizeMatches = variant.options?.size ? variant.options.size === variantOptions?.size : !variantOptions?.size;
+                const bundleMatches = variant.options?.bundleQty ? Number(variant.options.bundleQty) === bundleQty : false;
+                return colorMatches && sizeMatches && bundleMatches;
+            });
+
+            const variantBundlePrice = Number(match?.price);
+            if (!Number.isFinite(variantBundlePrice) || variantBundlePrice <= 0) continue;
+
+            const looksLikeLegacyPerUnit = Math.abs((storedPrice * bundleQty) - variantBundlePrice) < 0.01;
+            if (!looksLikeLegacyPerUnit) continue;
+
+            const normalizedBundleCount = Math.max(1, Math.round(qty / bundleQty));
+            migrations.push({
+                key,
+                payload: {
+                    productId: key,
+                    price: variantBundlePrice,
+                    variantOptions,
+                    ...(value?.offerToken ? { offerToken: value.offerToken } : {}),
+                    ...(value?.discountPercent !== undefined ? { discountPercent: value.discountPercent } : {}),
+                },
+                count: normalizedBundleCount,
+            });
+        }
+
+        bundleMigrationDoneRef.current = true;
+        if (migrations.length === 0) return;
+
+        migrations.forEach((entry) => dispatch(deleteItemFromCart({ productId: entry.key })));
+        migrations.forEach((entry) => {
+            for (let i = 0; i < entry.count; i++) {
+                dispatch(addToCart(entry.payload));
+            }
+        });
+
+        if (isSignedIn) {
+            dispatch(uploadCart({ getToken }));
+        }
+    }, [productsLoaded, cartItems, products, dispatch, isSignedIn, getToken]);
 
     useEffect(() => {
         if (products.length > 0) {
@@ -337,7 +396,17 @@ export default function Cart() {
 
                                             <div className="flex-1 min-w-0">
                                                 <h3 className="font-semibold text-gray-900 text-sm md:text-base line-clamp-2 mb-1">{item.name}</h3>
-                                                <p className="text-xs text-gray-500 mb-2">{item.category}</p>
+                                                <p className="text-xs text-gray-500 mb-1">{item.category}</p>
+                                                {item._variantOptions?.bundleQty > 1 && (
+                                                    <span className="inline-block text-xs font-semibold bg-orange-100 text-orange-700 px-2 py-0.5 rounded-full mb-1">
+                                                        Bundle: Buy {item._variantOptions.bundleQty}
+                                                    </span>
+                                                )}
+                                                {(item._variantOptions?.color || item._variantOptions?.size) && (
+                                                    <p className="text-xs text-gray-500 mb-1">
+                                                        {[item._variantOptions.color, item._variantOptions.size].filter(Boolean).join(' / ')}
+                                                    </p>
+                                                )}
                                                 <div className="flex items-center justify-between mt-3">
                                                     <div>
                                                         <p className="text-lg font-bold text-orange-600">{currency} {(item._cartPrice ?? item.price ?? 0).toLocaleString()}</p>

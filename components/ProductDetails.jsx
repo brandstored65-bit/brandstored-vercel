@@ -1039,7 +1039,7 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
                         )}
                         <button
                           type="button"
-                          onClick={() => { setSelectedBundleQty(qty); setQuantity(qty); }}
+                          onClick={() => { setSelectedBundleQty(qty); setQuantity(1); }}
                           className={`w-full text-left border rounded-lg p-3 flex items-center justify-between gap-3 transition-all ${
                             isSelected 
                               ? 'border-orange-500 bg-orange-50' 
