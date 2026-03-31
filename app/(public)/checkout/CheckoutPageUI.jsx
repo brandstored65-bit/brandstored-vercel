@@ -41,7 +41,7 @@ export default function CheckoutPage() {
     payment: "cod",
     phoneCode: '+971',
     country: 'United Arab Emirates',
-    state: 'Dubai',
+    state: '',
     district: '',
     street: '',
     city: '',
@@ -1088,10 +1088,14 @@ export default function CheckoutPage() {
       // Update districts when state changes
       const stateObj = indiaStatesAndDistricts.find(s => s.state === value);
       setDistricts(stateObj ? stateObj.districts : []);
-      setForm(f => ({ ...f, state: value, district: '' }));
+      if (form.country === 'United Arab Emirates') {
+        setForm(f => ({ ...f, state: value, district: '', city: value }));
+      } else {
+        setForm(f => ({ ...f, state: value, district: '' }));
+      }
       setAreaSearch(''); setAreaDropdownOpen(false);
     } else if (name === 'country') {
-      setForm(f => ({ ...f, country: value, state: '', district: '', alternatePhoneCode: f.alternatePhoneCode || f.phoneCode }));
+      setForm(f => ({ ...f, country: value, state: '', district: '', city: '', alternatePhoneCode: f.alternatePhoneCode || f.phoneCode }));
       if (value !== 'India') setDistricts([]);
       setAreaSearch(''); setAreaDropdownOpen(false);
     } else if (name === 'payment') {
@@ -1210,6 +1214,8 @@ export default function CheckoutPage() {
             return;
           }
           payload.isGuest = true;
+          // For UAE, use district as city if city is empty
+          const guestCity = form.city || form.district || '';
           payload.guestInfo = {
             name: form.name,
             email: form.email,
@@ -1218,7 +1224,7 @@ export default function CheckoutPage() {
             alternatePhone: cleanedAlternatePhone || '',
             alternatePhoneCode: form.alternatePhone ? form.alternatePhoneCode || form.phoneCode : '',
             street: form.street,
-            city: form.city || form.district,
+            city: guestCity,
             state: form.state,
             country: resolvedCountry,
             pincode: resolvedPincode || '',
@@ -2005,7 +2011,7 @@ export default function CheckoutPage() {
                                   key={area}
                                   className={`px-4 py-2.5 text-sm cursor-pointer hover:bg-blue-50 ${form.district === area ? 'bg-blue-600 text-white hover:bg-blue-600' : 'text-gray-800'}`}
                                   onClick={() => {
-                                    setForm(f => ({ ...f, district: area }));
+                                    setForm(f => ({ ...f, district: area, city: area }));
                                     setAreaSearch('');
                                     setAreaDropdownOpen(false);
                                   }}
