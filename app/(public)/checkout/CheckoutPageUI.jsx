@@ -1204,7 +1204,7 @@ export default function CheckoutPage() {
             payload.addressId = addressId;
           }
         } else {
-          if (!form.name || !form.email || !resolvedPhone || !form.street || !form.city || !form.state || !resolvedCountry) {
+          if (!form.name || !form.email || !resolvedPhone || !form.street || (!form.city && !form.district) || !form.state || !resolvedCountry) {
             setFormError("Please fill all required shipping details.");
             setPlacingOrder(false);
             return;
@@ -1218,7 +1218,7 @@ export default function CheckoutPage() {
             alternatePhone: cleanedAlternatePhone || '',
             alternatePhoneCode: form.alternatePhone ? form.alternatePhoneCode || form.phoneCode : '',
             street: form.street,
-            city: form.city,
+            city: form.city || form.district,
             state: form.state,
             country: resolvedCountry,
             pincode: resolvedPincode || '',
@@ -1513,7 +1513,7 @@ export default function CheckoutPage() {
     );
   }
 
-  const isGuestAddressReady = !!(form.name && form.phone && form.city && form.state && form.street);
+  const isGuestAddressReady = !!(form.name && form.phone && (form.city || form.district) && form.state && form.street);
 
   if (showPrepaidModal || navigatingToSuccess) {
     // If we just placed a COD order, show the prepaid upsell modal even though cart is empty
