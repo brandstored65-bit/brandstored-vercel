@@ -12,6 +12,7 @@ import { addToCart, uploadCart } from "@/lib/features/cart/cartSlice";
 import MobileProductActions from "./MobileProductActions";
 import { useAuth } from '@/lib/useAuth';
 import { trackMetaEvent } from "@/lib/metaPixelClient";
+import { setTrackingStoreId, trackCustomerBehavior } from "@/lib/customerBehaviorTracking";
 
 const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false, offerData = null }) => {
   const product = productProp || {};
@@ -30,7 +31,9 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
   const [isOrderingNow, setIsOrderingNow] = useState(false);
   const [showViewingMessage, setShowViewingMessage] = useState(false);
   const [viewingCount, setViewingCount] = useState(0);
-  const { isSignedIn, userId } = useAuth();
+  const { user } = useAuth();
+  const isSignedIn = !!user;
+  const userId = user?.uid || '';
   const router = useRouter();
   const dispatch = useDispatch();
   const cartCount = useSelector((state) => state.cart.total);
@@ -49,6 +52,10 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
   const [fbtBundleDiscount, setFbtBundleDiscount] = useState(0);
   const [selectedFbtProducts, setSelectedFbtProducts] = useState({});
   const [loadingFbt, setLoadingFbt] = useState(false);
+  const fbtViewedRef = useRef(false);
+  const productViewTrackedRef = useRef(false);
+  const productViewStartedAtRef = useRef(0);
+  const maxScrollDepthRef = useRef(0);
 
   // Review state and fetching logic
   const [fetchedReviews, setFetchedReviews] = useState([]);
@@ -157,6 +164,60 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
   }, [router]);
 
   useEffect(() => {
+    if (product?.storeId) {
+      setTrackingStoreId(String(product.storeId));
+    }
+  }, [product?.storeId]);
+
+  useEffect(() => {
+    if (!product?._id || !product?.storeId) return;
+    if (productViewTrackedRef.current) return;
+
+    productViewTrackedRef.current = true;
+    productViewStartedAtRef.current = Date.now();
+
+    const updateScrollDepth = () => {
+      const doc = document.documentElement;
+      const scrollTop = window.scrollY || doc.scrollTop || 0;
+      const maxScrollable = Math.max((doc.scrollHeight || 0) - (window.innerHeight || 0), 1);
+      const depth = Math.min(100, Math.max(0, (scrollTop / maxScrollable) * 100));
+      if (depth > maxScrollDepthRef.current) {
+        maxScrollDepthRef.current = depth;
+      }
+    };
+
+    window.addEventListener('scroll', updateScrollDepth, { passive: true });
+    updateScrollDepth();
+
+    trackCustomerBehavior({
+      eventType: 'product_view',
+      storeId: String(product.storeId),
+      productId: String(product._id),
+      productSlug: String(product.slug || ''),
+      productName: String(product.name || ''),
+      nextAction: 'viewing_product',
+    }, { user });
+
+    return () => {
+      window.removeEventListener('scroll', updateScrollDepth);
+      const durationMs = Math.max(0, Date.now() - (productViewStartedAtRef.current || Date.now()));
+      trackCustomerBehavior({
+        eventType: 'product_exit',
+        storeId: String(product.storeId),
+        productId: String(product._id),
+        productSlug: String(product.slug || ''),
+        productName: String(product.name || ''),
+        durationMs,
+        scrollDepthPercent: Math.round(maxScrollDepthRef.current || 0),
+        nextAction: 'page_leave',
+      }, { user });
+      productViewTrackedRef.current = false;
+      maxScrollDepthRef.current = 0;
+      productViewStartedAtRef.current = 0;
+    };
+  }, [product?._id, product?.storeId]);
+
+  useEffect(() => {
     const fetchReviews = async () => {
       try {
         setLoadingReviews(true);
@@ -192,9 +253,19 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
           // Initially select all FBT products
           const initialSelection = {};
           data.products.forEach(p => {
-            initialSelection[p._id] = true;
+            initialSelection[p._id] = !!p?.isAvailable;
           });
           setSelectedFbtProducts(initialSelection);
+
+          if (!fbtViewedRef.current) {
+            pushDataLayerEvent('fbt_viewed', {
+              mainProductId: String(product._id || ''),
+              addonCount: data.products.length,
+              hasFixedPrice: Number(data.bundlePrice || 0) > 0,
+              hasDiscount: Number(data.bundleDiscount || 0) > 0,
+            });
+            fbtViewedRef.current = true;
+          }
         }
       } catch (error) {
         console.error('Failed to fetch FBT products:', error);
@@ -533,6 +604,16 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
         
         dispatch(addToCart(payload));
       }
+
+      trackCustomerBehavior({
+        eventType: 'go_to_checkout',
+        storeId: String(product.storeId || ''),
+        productId: String(product._id || ''),
+        productSlug: String(product.slug || ''),
+        productName: String(product.name || ''),
+        nextAction: 'checkout_open',
+      }, { user });
+
       // Go directly to checkout (guests can checkout there)
       router.push('/checkout');
     } catch (error) {
@@ -580,6 +661,15 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
         quantity: qty,
       }],
     });
+
+    trackCustomerBehavior({
+      eventType: 'add_to_cart',
+      storeId: String(product.storeId || ''),
+      productId: String(product._id || ''),
+      productSlug: String(product.slug || ''),
+      productName: String(product.name || ''),
+      nextAction: 'cart_updated',
+    }, { user });
     
     // Upload to server if signed in
     if (isSignedIn) {
@@ -623,19 +713,34 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
   };
 
   // Toggle FBT product selection
-  const toggleFbtProduct = (productId) => {
-    setSelectedFbtProducts(prev => ({
-      ...prev,
-      [productId]: !prev[productId]
-    }));
+  const toggleFbtProduct = (fbtProduct) => {
+    if (!fbtProduct?.isAvailable) return;
+    setSelectedFbtProducts(prev => {
+      const nextSelected = !prev[fbtProduct._id];
+      pushDataLayerEvent(nextSelected ? 'fbt_item_selected' : 'fbt_item_unselected', {
+        mainProductId: String(product._id || ''),
+        relatedProductId: String(fbtProduct._id || ''),
+      });
+      return {
+        ...prev,
+        [fbtProduct._id]: nextSelected
+      };
+    });
   };
 
   // Calculate FBT bundle total
   const calculateFbtTotal = () => {
-    const mainProductPrice = effPrice;
+    const mainProductPrice = Number(effPrice || 0);
     const selectedFbtTotal = fbtProducts
-      .filter(p => selectedFbtProducts[p._id])
-      .reduce((total, p) => total + (p.price || 0), 0);
+      .filter(p => selectedFbtProducts[p._id] && p?.isAvailable)
+      .reduce((total, p) => {
+        const price = Number(p?.price || 0);
+        if (!Number.isFinite(price) || price <= 0) {
+          console.warn('FBT: skipping product with invalid price', p?._id, p?.price);
+          return total;
+        }
+        return total + price;
+      }, 0);
     
     const bundleTotal = mainProductPrice + selectedFbtTotal;
     
@@ -651,13 +756,46 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
 
   // Add all selected FBT products to cart
   const handleAddBundleToCart = async () => {
+    pushDataLayerEvent('fbt_add_bundle_clicked', {
+      mainProductId: String(product._id || ''),
+      selectedCount: selectedAddonProducts.length,
+      finalBundleValue: Number(bundleTotal || 0),
+      hasFixedPrice: Number(fbtBundlePrice || 0) > 0,
+      hasDiscount: Number(fbtBundleDiscount || 0) > 0,
+    });
+
+    const resolveVariantOptions = (item) => {
+      if (!item?.hasVariants || !Array.isArray(item?.variants)) return undefined;
+      const inStockVariant = item.variants.find(v => Number(v?.stock || 0) > 0);
+      const defaultVariant = item.variants.find(v => v?.options?.isDefault);
+      const pickedVariant = inStockVariant || defaultVariant || item.variants[0];
+      if (!pickedVariant?.options) return undefined;
+      return {
+        color: pickedVariant.options.color || null,
+        size: pickedVariant.options.size || null,
+        bundleQty: pickedVariant.options.bundleQty || null
+      };
+    };
+
     // Add main product
-    dispatch(addToCart({ productId: product._id, price: effPrice }));
+    dispatch(addToCart({
+      productId: product._id,
+      price: effPrice,
+      variantOptions: {
+        color: selectedColor || null,
+        size: selectedSize || null,
+        bundleQty: selectedBundleQty || null
+      }
+    }));
     
     // Add selected FBT products
     fbtProducts.forEach(p => {
-      if (selectedFbtProducts[p._id]) {
-        dispatch(addToCart({ productId: p._id, price: p.price }));
+      if (selectedFbtProducts[p._id] && p?.isAvailable) {
+        dispatch(addToCart({
+          productId: p._id,
+          price: p.price,
+          variantOptions: resolveVariantOptions(p)
+        }));
       }
     });
     
@@ -670,12 +808,19 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
       }
     }
     
-    // Show cart toast
-    setShowCartToast(true);
-    setTimeout(() => setShowCartToast(false), 3000);
+    // Direct checkout flow for bundle purchase
+    router.push('/checkout');
+
+    pushDataLayerEvent('fbt_add_bundle_success', {
+      mainProductId: String(product._id || ''),
+      selectedCount: selectedAddonProducts.length,
+      finalBundleValue: Number(bundleTotal || 0),
+      hasFixedPrice: Number(fbtBundlePrice || 0) > 0,
+      hasDiscount: Number(fbtBundleDiscount || 0) > 0,
+    });
   };
 
-  const selectedAddonProducts = fbtProducts.filter(p => selectedFbtProducts[p._id]);
+  const selectedAddonProducts = fbtProducts.filter(p => selectedFbtProducts[p._id] && p?.isAvailable);
   const addonTotal = selectedAddonProducts.reduce((sum, p) => sum + (p.price || 0), 0);
   const baseBundleTotal = effPrice + addonTotal;
   const bundleTotal = calculateFbtTotal();
@@ -1357,24 +1502,26 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
             <div className="flex items-center justify-between mb-6">
               <div>
                 <h2 className="text-2xl font-bold text-gray-900">Frequently bought together</h2>
-                <p className="text-sm text-gray-500">Select addons to bundle</p>
+                <p className="text-sm text-gray-500 mt-0.5">Select addons to bundle</p>
               </div>
               <span className="text-xl font-semibold text-green-700">{currency}{bundleTotal.toFixed(2)}</span>
             </div>
 
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-center">
-              {/* Products Row */}
-              <div className="lg:col-span-9">
-                <div className="flex flex-wrap items-center gap-4">
-                  {/* Main Product */}
-                  <div className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-gray-50">
-                    <input
-                      type="checkbox"
-                      checked
-                      readOnly
-                      className="w-5 h-5 text-green-600 border-gray-300 rounded"
-                    />
-                    <div className="w-20 h-20 relative border border-gray-200 rounded overflow-hidden flex-shrink-0">
+            <div className="flex flex-col lg:flex-row gap-6 items-start">
+              {/* Horizontal scrollable cards row */}
+              <div className="flex-1 overflow-x-auto pb-2">
+                <div className="flex items-center gap-3 min-w-max">
+                  {/* Main Product Card */}
+                  <div className="relative w-[160px] flex-shrink-0 rounded-xl border-2 border-purple-400 bg-white overflow-hidden cursor-default">
+                    <div className="absolute top-2 left-2 z-10">
+                      <input
+                        type="checkbox"
+                        checked
+                        readOnly
+                        className="w-5 h-5 accent-purple-600 cursor-default"
+                      />
+                    </div>
+                    <div className="w-full h-[140px] relative">
                       <Image
                         src={product.images?.[0] || 'https://ik.imagekit.io/jrstupuke/placeholder.png'}
                         alt={product.name}
@@ -1382,53 +1529,65 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
                         className="object-cover"
                       />
                     </div>
-                    <div className="min-w-[180px]">
-                      <p className="text-sm font-semibold text-gray-900 line-clamp-2">Main product</p>
-                      <p className="text-base text-green-700 font-bold">{currency}{effPrice}</p>
+                    <div className="p-2">
+                      <p className="text-xs font-semibold text-gray-900 line-clamp-2 leading-tight">Main product</p>
+                      <p className="text-sm text-green-700 font-bold mt-1">{currency}{effPrice}</p>
                     </div>
                   </div>
 
-                  <PlusIcon size={20} className="text-gray-400" />
-
-                  {/* Addon products */}
-                  {fbtProducts.map((fbtProduct, index) => (
-                    <div key={fbtProduct._id} className="flex items-center gap-3 p-3 rounded-lg border border-gray-200 bg-white">
-                      <input
-                        type="checkbox"
-                        checked={selectedFbtProducts[fbtProduct._id] || false}
-                        onChange={() => toggleFbtProduct(fbtProduct._id)}
-                        className="w-5 h-5 text-green-600 border-gray-300 rounded cursor-pointer"
-                      />
-                      <div className="w-20 h-20 relative border border-gray-200 rounded overflow-hidden flex-shrink-0">
-                        <Image
-                          src={fbtProduct.images?.[0] || 'https://ik.imagekit.io/jrstupuke/placeholder.png'}
-                          alt={fbtProduct.name}
-                          fill
-                          className="object-cover"
-                        />
+                  {/* Addon product cards with + between */}
+                  {fbtProducts.map((fbtProduct) => {
+                    const isSelected = selectedFbtProducts[fbtProduct._id] || false;
+                    const isAvailable = fbtProduct?.isAvailable !== false;
+                    return (
+                      <div key={fbtProduct._id} className="flex items-center gap-3">
+                        <span className="text-gray-400 font-bold text-lg flex-shrink-0">+</span>
+                        <div
+                          onClick={() => isAvailable && toggleFbtProduct(fbtProduct)}
+                          className={`relative w-[160px] flex-shrink-0 rounded-xl border-2 bg-white overflow-hidden transition-colors ${
+                            isAvailable ? 'cursor-pointer' : 'cursor-not-allowed opacity-60'
+                          } ${isSelected ? 'border-purple-400' : 'border-gray-200 hover:border-gray-300'}`}
+                        >
+                          <div className="absolute top-2 left-2 z-10">
+                            <input
+                              type="checkbox"
+                              checked={isSelected}
+                              onChange={() => isAvailable && toggleFbtProduct(fbtProduct)}
+                              disabled={!isAvailable}
+                              className="w-5 h-5 accent-purple-600 cursor-pointer"
+                              onClick={(e) => e.stopPropagation()}
+                            />
+                          </div>
+                          <div className="w-full h-[140px] relative">
+                            <Image
+                              src={fbtProduct.images?.[0] || 'https://ik.imagekit.io/jrstupuke/placeholder.png'}
+                              alt={fbtProduct.name}
+                              fill
+                              className="object-cover"
+                            />
+                          </div>
+                          <div className="p-2">
+                            <p className="text-xs font-semibold text-gray-900 line-clamp-2 leading-tight">{fbtProduct.name}</p>
+                            <p className="text-sm text-green-700 font-bold mt-1">{currency}{fbtProduct.price}</p>
+                            {!isAvailable && <p className="text-xs text-red-500">Unavailable</p>}
+                          </div>
+                        </div>
                       </div>
-                      <div className="min-w-[220px]">
-                        <p className="text-sm font-semibold text-gray-900 line-clamp-2">{fbtProduct.name}</p>
-                        <p className="text-base text-green-700 font-bold">{currency}{fbtProduct.price}</p>
-                      </div>
-                      {index < fbtProducts.length - 1 && (
-                        <PlusIcon size={18} className="text-gray-300" />
-                      )}
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
 
-              {/* Summary */}
-              <div className="lg:col-span-3">
-                <div className="bg-gray-50 rounded-lg p-5 border border-gray-200 space-y-3">
+              {/* Summary box */}
+              <div className="w-full lg:w-[220px] flex-shrink-0">
+                <div className="bg-white rounded-lg p-4 border border-gray-200 space-y-3">
                   <div className="flex justify-between text-sm text-gray-700">
                     <span>Items selected</span>
                     <span className="font-semibold text-gray-900">{totalBundleItems}</span>
                   </div>
-                  <div className="flex justify-between items-center">
+                  <div className="flex justify-between items-center flex-wrap gap-1">
                     <span className="text-sm text-gray-700">Bundle total</span>
-                    <span className="text-2xl font-bold text-green-700">{currency}{bundleTotal.toFixed(2)}</span>
+                    <span className="text-xl font-bold text-green-700">{currency}{bundleTotal.toFixed(2)}</span>
                   </div>
                   {bundleSavings > 0 && (
                     <div className="flex justify-between items-center text-sm">
@@ -1439,9 +1598,9 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
                   <button
                     onClick={handleAddBundleToCart}
                     disabled={selectedAddonProducts.length === 0}
-                    className="w-full bg-orange-500 hover:bg-orange-600 text-white py-3 px-4 rounded-lg font-semibold text-base transition disabled:bg-gray-300 disabled:cursor-not-allowed"
+                    className="w-full bg-orange-500 hover:bg-orange-600 text-white py-2.5 px-4 rounded-lg font-semibold text-sm transition disabled:bg-gray-300 disabled:cursor-not-allowed leading-tight"
                   >
-                    Add bundle
+                    BUY {totalBundleItems} TOGETHER FOR<br />{currency}{bundleTotal.toFixed(2)}
                   </button>
                   <p className="text-xs text-gray-500 text-center">Select addons you want to include</p>
                 </div>

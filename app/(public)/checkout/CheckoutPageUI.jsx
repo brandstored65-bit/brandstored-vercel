@@ -1,6 +1,6 @@
 ﻿"use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useMemo } from "react";
 import axios from "axios";
 import { countryCodes } from "@/assets/countryCodes";
 import { indiaStatesAndDistricts } from "@/assets/indiaStatesAndDistricts";
@@ -13,6 +13,7 @@ import FbqInitiateCheckout from "@/components/FbqInitiateCheckout";
 import { trackMetaEvent } from "@/lib/metaPixelClient";
 import { useRouter } from "next/navigation";
 import { useAuth } from "@/lib/useAuth";
+import { setTrackingStoreId, saveIdentitySnapshot, trackCustomerBehavior } from "@/lib/customerBehaviorTracking";
 import dynamic from "next/dynamic";
 import Link from "next/link";
 import Image from "next/image";
@@ -87,6 +88,10 @@ export default function CheckoutPage() {
   const bundleMigrationDoneRef = useRef(false);
   const [formError, setFormError] = useState("");
   const [walletSupport, setWalletSupport] = useState({ applePay: true, googlePay: true });
+  const checkoutVisitTrackedRef = useRef(false);
+  const identityCaptureTimerRef = useRef(null);
+  const checkoutEnteredAtRef = useRef(0);
+  const checkoutMaxScrollDepthRef = useRef(0);
 
   useEffect(() => {
     if (!areaDropdownOpen) return;
@@ -693,6 +698,12 @@ export default function CheckoutPage() {
   
   console.log('Checkout - Final Cart Array:', cartArray);
 
+  const checkoutStoreId = useMemo(() => {
+    if (!cartArray.length) return '';
+    const firstWithStore = cartArray.find((item) => item?.storeId);
+    return String(firstWithStore?.storeId || '');
+  }, [cartArray]);
+
   const cartDisplayItems = Object.entries(cartItems || {}).map(([key, value]) => {
     const product = products?.find((p) => String(p._id) === String(key));
     const quantity = typeof value === 'number' ? value : value?.quantity || 0;
@@ -989,6 +1000,101 @@ export default function CheckoutPage() {
 
     sessionStorage.setItem(eventKey, '1');
   }, [cartArray, totalAfterWallet]);
+
+  useEffect(() => {
+    if (checkoutStoreId) {
+      setTrackingStoreId(checkoutStoreId);
+    }
+  }, [checkoutStoreId]);
+
+  useEffect(() => {
+    if (!checkoutStoreId || checkoutVisitTrackedRef.current) return;
+    checkoutVisitTrackedRef.current = true;
+    checkoutEnteredAtRef.current = Date.now();
+
+    const updateScrollDepth = () => {
+      const doc = document.documentElement;
+      const scrollTop = window.scrollY || doc.scrollTop || 0;
+      const maxScrollable = Math.max((doc.scrollHeight || 0) - (window.innerHeight || 0), 1);
+      const depth = Math.min(100, Math.max(0, (scrollTop / maxScrollable) * 100));
+      if (depth > checkoutMaxScrollDepthRef.current) {
+        checkoutMaxScrollDepthRef.current = depth;
+      }
+    };
+
+    window.addEventListener('scroll', updateScrollDepth, { passive: true });
+    updateScrollDepth();
+
+    trackCustomerBehavior({
+      eventType: 'checkout_visit',
+      storeId: checkoutStoreId,
+      nextAction: 'checkout_open',
+    }, { user });
+
+    return () => {
+      window.removeEventListener('scroll', updateScrollDepth);
+      const durationMs = Math.max(0, Date.now() - (checkoutEnteredAtRef.current || Date.now()));
+
+      trackCustomerBehavior({
+        eventType: 'checkout_visit',
+        storeId: checkoutStoreId,
+        durationMs,
+        scrollDepthPercent: Math.round(checkoutMaxScrollDepthRef.current || 0),
+        nextAction: 'checkout_exit',
+      }, { user });
+    };
+  }, [checkoutStoreId, user]);
+
+  useEffect(() => {
+    if (!checkoutStoreId) return;
+    if (identityCaptureTimerRef.current) {
+      clearTimeout(identityCaptureTimerRef.current);
+    }
+
+    const selectedAddr = (form.addressId && addressList.find((a) => a._id === form.addressId)) || null;
+    const identity = {
+      userId: user?.uid || '',
+      customerName: form.name || selectedAddr?.name || user?.displayName || '',
+      customerEmail: form.email || selectedAddr?.email || user?.email || '',
+      customerPhone: form.phone || selectedAddr?.phone || user?.phoneNumber || '',
+      customerAddress: [
+        form.street || selectedAddr?.street || '',
+        form.city || form.district || selectedAddr?.city || selectedAddr?.district || '',
+        form.state || selectedAddr?.state || '',
+        form.country || selectedAddr?.country || '',
+        form.pincode || selectedAddr?.zip || '',
+      ].filter(Boolean).join(', '),
+    };
+
+    identityCaptureTimerRef.current = setTimeout(() => {
+      saveIdentitySnapshot(identity);
+      trackCustomerBehavior({
+        eventType: 'checkout_visit',
+        storeId: checkoutStoreId,
+        nextAction: 'address_updated',
+      }, { user, identity });
+    }, 5000);
+
+    return () => {
+      if (identityCaptureTimerRef.current) {
+        clearTimeout(identityCaptureTimerRef.current);
+      }
+    };
+  }, [
+    checkoutStoreId,
+    form.addressId,
+    form.name,
+    form.email,
+    form.phone,
+    form.street,
+    form.city,
+    form.district,
+    form.state,
+    form.country,
+    form.pincode,
+    addressList,
+    user,
+  ]);
 
   useEffect(() => {
     if (hasPersonalizedOfferItem && form.payment === 'cod') {
@@ -1449,6 +1555,22 @@ export default function CheckoutPage() {
         // Order created successfully - clear cart and show prepaid upsell before redirect
         const createdOrderId = data._id || data.id;
         const orderTotal = data.total || totalAfterWallet;
+
+        trackCustomerBehavior({
+          eventType: 'order_placed',
+          storeId: checkoutStoreId,
+          orderId: String(createdOrderId),
+          orderValue: Number(orderTotal || 0),
+          nextAction: 'conversion',
+        }, {
+          user,
+          identity: {
+            customerName: form.name || user?.displayName || '',
+            customerEmail: form.email || user?.email || '',
+            customerPhone: form.phone || user?.phoneNumber || '',
+          }
+        });
+
         dispatch(clearCart());
         if (totalAfterWallet <= 0) {
           router.push(`/order-success?orderId=${createdOrderId}`);
@@ -1785,7 +1907,7 @@ export default function CheckoutPage() {
                         className="border border-yellow-300 bg-white rounded px-4 py-2 flex-1 focus:border-yellow-400 focus:ring-2 focus:ring-yellow-200"
                         type="tel"
                         name="phone"
-                        placeholder="Enter phone number"
+                        placeholder="Enter phone number | ادخل رقم الهاتف"
                         value={form.phone || ''}
                         onChange={(e) => {
                           // Only allow digits
@@ -1812,7 +1934,7 @@ export default function CheckoutPage() {
                     className="border border-gray-200 bg-white rounded px-4 py-3.5 focus:border-gray-400"
                     type="text"
                     name="name"
-                    placeholder="Name"
+                    placeholder="Name | الاسم"
                     value={form.name || ''}
                     onChange={handleChange}
                     required
@@ -1835,7 +1957,7 @@ export default function CheckoutPage() {
                       className="border border-gray-200 bg-white rounded px-4 py-3.5 flex-1 focus:border-gray-400"
                       type="tel"
                       name="phone"
-                      placeholder="Phone number"
+                      placeholder="Phone number | رقم الهاتف"
                       value={form.phone || ''}
                       onChange={(e) => {
                         // Only allow digits
@@ -1885,7 +2007,7 @@ export default function CheckoutPage() {
                           className="border border-gray-200 bg-white rounded px-4 py-3.5 flex-1 focus:border-gray-400"
                           type="tel"
                           name="alternatePhone"
-                          placeholder="Alternate phone (optional)"
+                          placeholder="Alternate phone (optional) | رقم بديل (اختياري)"
                           value={form.alternatePhone || ''}
                           onChange={(e) => {
                             // Only allow digits
@@ -1907,7 +2029,7 @@ export default function CheckoutPage() {
                     className="border border-gray-200 bg-white rounded px-4 py-3.5 focus:border-gray-400"
                     type="email"
                     name="email"
-                    placeholder="Email address "
+                    placeholder="Email address | البريد الالكتروني"
                     value={form.email || ''}
                     onChange={handleChange}
                   />
@@ -1932,7 +2054,7 @@ export default function CheckoutPage() {
                     className="border border-gray-200 bg-white rounded px-4 py-3.5 focus:border-gray-400"
                     type="text"
                     name="street"
-                    placeholder="Full Address Line (Street, Building, Apartment)"
+                    placeholder="Full Address Line (Street, Building, Apartment) | العنوان الكامل (الشارع، المبنى، الشقة)"
                     value={form.street || ''}
                     onChange={handleChange}
                     required
@@ -1959,7 +2081,7 @@ export default function CheckoutPage() {
                       onChange={handleChange}
                       required
                     >
-                      <option value="">Select Emirate</option>
+                      <option value="">Select Emirate | اختر الإمارة</option>
                       {uaeEmirates.map((emirate) => (
                         <option key={emirate.value} value={emirate.value}>{emirate.label}</option>
                       ))}
@@ -1969,7 +2091,7 @@ export default function CheckoutPage() {
                       className="border border-gray-200 bg-white rounded px-4 py-2 focus:border-gray-400"
                       type="text"
                       name="state"
-                      placeholder="Emirate / State"
+                      placeholder="Emirate / State | الإمارة / الولاية"
                       value={form.state || ''}
                       onChange={handleChange}
                       required
@@ -1986,7 +2108,7 @@ export default function CheckoutPage() {
                           onClick={() => setAreaDropdownOpen(o => !o)}
                         >
                           <span className={form.district ? 'text-gray-900' : 'text-gray-400'}>
-                            {form.district || 'Select Area'}
+                            {form.district || 'Select Area | اختر المنطقة'}
                           </span>
                           <svg className={`w-4 h-4 text-gray-400 transition-transform ${areaDropdownOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" /></svg>
                         </div>
@@ -1999,7 +2121,7 @@ export default function CheckoutPage() {
                                   autoFocus
                                   type="text"
                                   className="bg-transparent outline-none text-sm w-full"
-                                  placeholder="Type to search for your area/district"
+                                  placeholder="Type to search for your area/district | اكتب للبحث عن المنطقة"
                                   value={areaSearch}
                                   onChange={e => setAreaSearch(e.target.value)}
                                 />

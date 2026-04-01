@@ -23,6 +23,7 @@ const StoreSidebar = ({storeInfo}) => {
         { name: 'Coupons', href: '/store/coupons', icon: TicketIcon },
         { name: 'Shipping', href: '/store/shipping', icon: TruckIcon },
         { name: 'Customers', href: '/store/customers', icon: UsersIcon },
+        { name: 'Customer Tracking', href: '/store/customer-tracking', icon: BarChart3 },
         { name: 'Manage Users', href: '/store/settings/users', icon: UserIcon },
         { name: 'Orders', href: '/store/orders', icon: LayoutListIcon },
         { name: 'Courier', href: '/store/courier', icon: TruckIcon },
@@ -86,6 +87,7 @@ const StoreSidebar = ({storeInfo}) => {
             name: 'Customers & Support',
             links: [
                 '/store/customers',
+                '/store/customer-tracking',
                 '/store/settings/users',
                 '/store/reviews',
                 '/store/tickets',

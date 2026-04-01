@@ -98,6 +98,21 @@ export default function FBTManagement() {
       return;
     }
 
+    if (selectedFbtProducts.length > 6) {
+      toast.error('Maximum 6 related products are allowed');
+      return;
+    }
+
+    if (fbtBundlePrice !== '' && Number(fbtBundlePrice) < 0) {
+      toast.error('Bundle price cannot be negative');
+      return;
+    }
+
+    if (fbtBundleDiscount !== '' && (Number(fbtBundleDiscount) < 0 || Number(fbtBundleDiscount) > 50)) {
+      toast.error('Bundle discount must be between 0 and 50');
+      return;
+    }
+
     try {
       setSaving(true);
       await axios.patch(`/api/products/${selectedProduct._id}/fbt`, {

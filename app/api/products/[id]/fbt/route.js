@@ -32,9 +32,27 @@ export async function GET(request, { params }) {
     }
 
     // Fetch the FBT products
-    const fbtProducts = await Product.find({
+    const fbtProductsRaw = await Product.find({
       _id: { $in: product.fbtProductIds }
     }).select('name price images slug hasVariants variants');
+
+    const fbtProducts = fbtProductsRaw.map((item) => {
+      const basePrice = Number(item?.price || 0);
+      const variantStock = Array.isArray(item?.variants)
+        ? item.variants.some((variant) => Number(variant?.stock || 0) > 0)
+        : false;
+
+      return {
+        _id: item._id,
+        name: item.name,
+        price: basePrice,
+        images: item.images,
+        slug: item.slug,
+        hasVariants: !!item.hasVariants,
+        variants: item.variants,
+        isAvailable: !!(basePrice > 0 && (item.hasVariants ? variantStock : true)),
+      };
+    });
 
     return NextResponse.json({
       enableFBT: product.enableFBT,
@@ -68,10 +86,43 @@ export async function PATCH(request, { params }) {
 
     const { enableFBT, fbtProductIds, fbtBundlePrice, fbtBundleDiscount } = body;
 
+    const normalizedEnable = !!enableFBT;
+    const normalizedIds = Array.isArray(fbtProductIds) ? [...new Set(fbtProductIds.map(String))] : [];
+    const normalizedBundlePrice = fbtBundlePrice === null || fbtBundlePrice === '' || typeof fbtBundlePrice === 'undefined'
+      ? null
+      : Number(fbtBundlePrice);
+    const normalizedBundleDiscount = fbtBundleDiscount === null || fbtBundleDiscount === '' || typeof fbtBundleDiscount === 'undefined'
+      ? null
+      : Number(fbtBundleDiscount);
+
     // Validate input
-    if (enableFBT && (!fbtProductIds || fbtProductIds.length === 0)) {
+    if (normalizedEnable && normalizedIds.length === 0) {
       return NextResponse.json({ 
         error: 'At least one product must be selected when enabling FBT' 
+      }, { status: 400 });
+    }
+
+    if (normalizedIds.includes(String(id))) {
+      return NextResponse.json({
+        error: 'fbtProductIds cannot include the main product ID'
+      }, { status: 400 });
+    }
+
+    if (normalizedIds.length > 6) {
+      return NextResponse.json({
+        error: 'Maximum 6 related products are allowed for FBT'
+      }, { status: 400 });
+    }
+
+    if (normalizedBundlePrice !== null && (!Number.isFinite(normalizedBundlePrice) || normalizedBundlePrice < 0)) {
+      return NextResponse.json({
+        error: 'Bundle price should be a non-negative number'
+      }, { status: 400 });
+    }
+
+    if (normalizedBundleDiscount !== null && (!Number.isFinite(normalizedBundleDiscount) || normalizedBundleDiscount < 0 || normalizedBundleDiscount > 50)) {
+      return NextResponse.json({
+        error: 'Bundle discount must be between 0 and 50'
       }, { status: 400 });
     }
 
@@ -79,10 +130,10 @@ export async function PATCH(request, { params }) {
     const updatedProduct = await Product.findByIdAndUpdate(
       id,
       {
-        enableFBT: enableFBT || false,
-        fbtProductIds: fbtProductIds || [],
-        fbtBundlePrice: fbtBundlePrice || null,
-        fbtBundleDiscount: fbtBundleDiscount || null
+        enableFBT: normalizedEnable,
+        fbtProductIds: normalizedIds,
+        fbtBundlePrice: normalizedBundlePrice,
+        fbtBundleDiscount: normalizedBundleDiscount
       },
       { new: true }
     ).select('enableFBT fbtProductIds fbtBundlePrice fbtBundleDiscount');

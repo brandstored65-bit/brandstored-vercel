@@ -42,6 +42,16 @@ export default function StoreManageProducts() {
     const [categoryMap, setCategoryMap] = useState({}) // Map of category ID to name
     const [searchQuery, setSearchQuery] = useState('')
     const [selectedCategory, setSelectedCategory] = useState('') // Category filter
+    const [showFbtModal, setShowFbtModal] = useState(false)
+    const [activeFbtProduct, setActiveFbtProduct] = useState(null)
+    const [fbtLoading, setFbtLoading] = useState(false)
+    const [fbtSaving, setFbtSaving] = useState(false)
+    const [fbtEnabled, setFbtEnabled] = useState(false)
+    const [fbtSelectedProducts, setFbtSelectedProducts] = useState([])
+    const [fbtBundlePrice, setFbtBundlePrice] = useState('')
+    const [fbtBundleDiscount, setFbtBundleDiscount] = useState('')
+    const [fbtSearch, setFbtSearch] = useState('')
+    const [fbtAvailableProducts, setFbtAvailableProducts] = useState([])
 
     const fetchStoreProducts = async () => {
         try {
@@ -114,6 +124,87 @@ export default function StoreManageProducts() {
             toast.success('Product deleted successfully')
         } catch (error) {
             toast.error(error?.response?.data?.error || error.message)
+        }
+    }
+
+    const openFbtModal = async (product) => {
+        try {
+            setShowFbtModal(true)
+            setActiveFbtProduct(product)
+            setFbtLoading(true)
+            setFbtSearch('')
+
+            const [configRes, productsRes] = await Promise.all([
+                axios.get(`/api/products/${product._id}/fbt`),
+                axios.get('/api/products?limit=250')
+            ])
+
+            const config = configRes?.data || {}
+            setFbtEnabled(!!config.enableFBT)
+            setFbtBundlePrice(config.bundlePrice || '')
+            setFbtBundleDiscount(config.bundleDiscount || '')
+            setFbtSelectedProducts(Array.isArray(config.products) ? config.products : [])
+            setFbtAvailableProducts(Array.isArray(productsRes?.data?.products) ? productsRes.data.products : [])
+        } catch (error) {
+            toast.error(error?.response?.data?.error || error.message || 'Failed to load FBT configuration')
+        } finally {
+            setFbtLoading(false)
+        }
+    }
+
+    const toggleFbtProduct = (product) => {
+        setFbtSelectedProducts((prev) => {
+            const exists = prev.some((p) => String(p._id) === String(product._id))
+            if (exists) {
+                return prev.filter((p) => String(p._id) !== String(product._id))
+            }
+            if (prev.length >= 6) {
+                toast.error('Maximum 6 products can be selected')
+                return prev
+            }
+            return [...prev, product]
+        })
+    }
+
+    const saveFbtConfig = async () => {
+        if (!activeFbtProduct?._id) return
+        if (fbtEnabled && fbtSelectedProducts.length === 0) {
+            toast.error('Please select at least one related product')
+            return
+        }
+
+        if (fbtBundlePrice !== '' && Number(fbtBundlePrice) < 0) {
+            toast.error('Bundle price cannot be negative')
+            return
+        }
+
+        if (fbtBundleDiscount !== '' && (Number(fbtBundleDiscount) < 0 || Number(fbtBundleDiscount) > 50)) {
+            toast.error('Discount must be between 0 and 50')
+            return
+        }
+
+        try {
+            setFbtSaving(true)
+            await axios.patch(`/api/products/${activeFbtProduct._id}/fbt`, {
+                enableFBT: fbtEnabled,
+                fbtProductIds: fbtEnabled ? fbtSelectedProducts.map((p) => p._id) : [],
+                fbtBundlePrice: fbtEnabled && fbtBundlePrice !== '' ? Number(fbtBundlePrice) : null,
+                fbtBundleDiscount: fbtEnabled && fbtBundleDiscount !== '' ? Number(fbtBundleDiscount) : null,
+            })
+
+            setProducts((prev) => prev.map((p) => (
+                String(p._id) === String(activeFbtProduct._id)
+                    ? { ...p, enableFBT: fbtEnabled }
+                    : p
+            )))
+
+            toast.success('FBT configuration saved')
+            setShowFbtModal(false)
+            setActiveFbtProduct(null)
+        } catch (error) {
+            toast.error(error?.response?.data?.error || error.message || 'Failed to save FBT')
+        } finally {
+            setFbtSaving(false)
         }
     }
 
@@ -260,6 +351,7 @@ export default function StoreManageProducts() {
                         <th className="px-4 py-3 hidden md:table-cell">AED</th>
                         <th className="px-4 py-3">Price</th>
                         <th className="px-4 py-3 hidden sm:table-cell">Fast Delivery</th>
+                        <th className="px-4 py-3 hidden sm:table-cell">Frequently</th>
                         <th className="px-4 py-3">Stock</th>
                         <th className="px-4 py-3">Actions</th>
                     </tr>
@@ -321,6 +413,13 @@ export default function StoreManageProducts() {
                                     <span className="dot absolute left-1 top-1 w-3 h-3 bg-white rounded-full transition-transform duration-200 ease-in-out peer-checked:translate-x-4"></span>
                                 </label>
                             </td>
+                            <td className="px-4 py-3 hidden sm:table-cell">
+                                {product.enableFBT ? (
+                                    <span className="inline-flex px-2 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-700 rounded-full">Enabled</span>
+                                ) : (
+                                    <span className="inline-flex px-2 py-0.5 text-xs font-semibold bg-slate-100 text-slate-600 rounded-full">Disabled</span>
+                                )}
+                            </td>
                             <td className="px-4 py-3">
                                 <label className="relative inline-flex items-center cursor-pointer">
                                     <input type="checkbox" className="sr-only peer" onChange={() => toast.promise(toggleStock(product._id), { loading: "Updating..." })} checked={product.inStock} />
@@ -342,6 +441,12 @@ export default function StoreManageProducts() {
                                     >
                                         Delete
                                     </button>
+                                    <button
+                                        onClick={() => openFbtModal(product)}
+                                        className="px-3 py-1 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700 transition"
+                                    >
+                                        FBT
+                                    </button>
                                 </div>
                             </td>
                         </tr>
@@ -358,6 +463,143 @@ export default function StoreManageProducts() {
                     }}
                     onSubmitSuccess={handleUpdateSuccess}
                 />
+            )}
+
+            {showFbtModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden bg-white rounded-2xl shadow-2xl border border-slate-200">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+                            <div>
+                                <h3 className="text-xl font-bold text-slate-800">Frequently Bought Together</h3>
+                                <p className="text-sm text-slate-500">Base product: {activeFbtProduct?.name}</p>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setShowFbtModal(false)
+                                    setActiveFbtProduct(null)
+                                }}
+                                className="text-slate-500 hover:text-slate-700 text-sm"
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        <div className="p-5 space-y-4 overflow-y-auto max-h-[calc(90vh-140px)]">
+                            {fbtLoading ? (
+                                <div className="py-10 text-center text-slate-500">Loading FBT config...</div>
+                            ) : (
+                                <>
+                                    <div className="rounded-lg border border-slate-200 p-3 flex items-center justify-between">
+                                        <span className="text-sm font-medium text-slate-700">Enable frequently bought together</span>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={fbtEnabled}
+                                                onChange={(e) => setFbtEnabled(e.target.checked)}
+                                            />
+                                            <div className="w-10 h-6 bg-slate-300 rounded-full peer peer-checked:bg-emerald-600 transition-colors duration-200"></div>
+                                            <span className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ease-in-out peer-checked:translate-x-4"></span>
+                                        </label>
+                                    </div>
+
+                                    <input
+                                        type="text"
+                                        value={fbtSearch}
+                                        onChange={(e) => setFbtSearch(e.target.value)}
+                                        className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                                        placeholder="Search products by name, SKU or tags..."
+                                    />
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-600 mb-1">FBT Fixed Price</label>
+                                            <input
+                                                type="number"
+                                                step="0.01"
+                                                value={fbtBundlePrice}
+                                                onChange={(e) => setFbtBundlePrice(e.target.value)}
+                                                className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                                                placeholder="Leave empty for dynamic total"
+                                            />
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-600 mb-1">FBT Discount (%)</label>
+                                            <input
+                                                type="number"
+                                                step="0.1"
+                                                value={fbtBundleDiscount}
+                                                onChange={(e) => setFbtBundleDiscount(e.target.value)}
+                                                className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                                                placeholder="0"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    <div className="text-xs text-slate-500">Selected: {fbtSelectedProducts.length}</div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[360px] overflow-y-auto pr-1">
+                                        {fbtAvailableProducts
+                                            .filter((p) => String(p._id) !== String(activeFbtProduct?._id))
+                                            .filter((p) => {
+                                                if (!fbtSearch.trim()) return true
+                                                const q = fbtSearch.trim().toLowerCase()
+                                                return (
+                                                    String(p.name || '').toLowerCase().includes(q) ||
+                                                    String(p.sku || '').toLowerCase().includes(q) ||
+                                                    (Array.isArray(p.tags) && p.tags.some((tag) => String(tag).toLowerCase().includes(q)))
+                                                )
+                                            })
+                                            .map((p) => {
+                                                const selected = fbtSelectedProducts.some((sp) => String(sp._id) === String(p._id))
+                                                return (
+                                                    <button
+                                                        type="button"
+                                                        key={p._id}
+                                                        onClick={() => toggleFbtProduct(p)}
+                                                        className={`text-left border rounded-lg p-2 flex gap-2 items-center transition ${selected ? 'border-emerald-500 bg-emerald-50' : 'border-slate-200 hover:bg-slate-50'}`}
+                                                    >
+                                                        <Image
+                                                            src={p.images?.[0] || assets.upload_area}
+                                                            width={42}
+                                                            height={42}
+                                                            alt={p.name || 'Product'}
+                                                            className="rounded border"
+                                                        />
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-medium text-slate-800 line-clamp-1">{p.name}</p>
+                                                            <p className="text-xs text-slate-500">{currency} {formatAmount(p.price)}</p>
+                                                        </div>
+                                                    </button>
+                                                )
+                                            })}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        <div className="px-5 py-4 border-t border-slate-200 flex justify-end gap-2 bg-white">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowFbtModal(false)
+                                    setActiveFbtProduct(null)
+                                }}
+                                className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={saveFbtConfig}
+                                disabled={fbtSaving || fbtLoading}
+                                className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-60"
+                            >
+                                {fbtSaving ? 'Saving...' : 'Save FBT'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
             )}
         </>
     )
