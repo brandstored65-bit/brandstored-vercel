@@ -5,8 +5,9 @@ import Order from '@/models/Order';
 import Product from '@/models/Product';
 import User from '@/models/User';
 import Address from '@/models/Address';
-import { fetchNormalizedDelhiveryTracking } from '@/lib/delhivery';
 import { getAuth } from '@/lib/firebase-admin';
+import { fetchNormalizedTracking } from '@/lib/trackingServer';
+import { isDelhiveryTracking, isTawseelTracking, mapTrackingStatusToOrderStatus } from '@/lib/trackingShared';
 
 // Debug log helper
 function debugLog(...args) {
@@ -134,28 +135,38 @@ export async function GET(request){
         if (includeDelhivery) {
             const shouldFetchDelhivery = (order) => {
                 const trackingId = order.trackingId || order.awb || order.airwayBillNo;
-                const courier = (order.courier || '').toLowerCase();
                 // Only stop fetching once an order is fully delivered or returned.
                 const isTerminal = ['DELIVERED', 'RETURNED'].includes(order.status);
-                return Boolean(trackingId) && (courier.includes('delhivery') || !order.trackingUrl) && !isTerminal;
+                return Boolean(trackingId)
+                    && !isTerminal
+                    && (
+                        isDelhiveryTracking(order.courier, order.trackingUrl)
+                        || isTawseelTracking(order.courier, order.trackingUrl)
+                    );
             };
 
             enrichedOrders = await Promise.all(orders.map(async (order) => {
                 if (!shouldFetchDelhivery(order)) return order;
                 const trackingId = order.trackingId || order.awb || order.airwayBillNo;
                 try {
-                    const normalized = await fetchNormalizedDelhiveryTracking(trackingId);
+                    const normalized = await fetchNormalizedTracking({
+                        trackingId,
+                        courier: order.courier,
+                        trackingUrl: order.trackingUrl,
+                    });
                     if (normalized) {
+                        const mappedStatus = mapTrackingStatusToOrderStatus(normalized.delhivery, order.status);
                         return {
                             ...order,
                             courier: normalized.courier || order.courier,
                             trackingId: normalized.trackingId || order.trackingId,
                             trackingUrl: normalized.trackingUrl || order.trackingUrl,
-                            delhivery: normalized.delhivery
+                            delhivery: normalized.delhivery,
+                            status: mappedStatus || order.status,
                         };
                     }
                 } catch (dlErr) {
-                    debugLog('Delhivery enrichment failed for order', order._id, dlErr?.message || dlErr);
+                    debugLog('Courier enrichment failed for order', order._id, dlErr?.message || dlErr);
                 }
                 return order;
             }));

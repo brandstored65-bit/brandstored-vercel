@@ -17,6 +17,7 @@ const StoreLayout = ({ children }) => {
     const [isSeller, setIsSeller] = useState(false);
     const [sellerLoading, setSellerLoading] = useState(true);
     const [storeInfo, setStoreInfo] = useState(null);
+    const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
     const fetchIsSeller = async () => {
         if (!user) return;
@@ -44,6 +45,10 @@ const StoreLayout = ({ children }) => {
         }
     }, [loading, user]);
 
+    useEffect(() => {
+        setIsSidebarOpen(false);
+    }, [children]);
+
     return (loading || sellerLoading) ? (
         <Loading />
     ) : !user ? (
@@ -58,11 +63,19 @@ const StoreLayout = ({ children }) => {
             </Link>
         </div>
     ) : isSeller ? (
-        <div className="flex flex-col h-screen">
-            <SellerNavbar storeInfo={storeInfo} />
-            <div className="flex flex-1 items-start h-full overflow-y-scroll no-scrollbar">
-                <SellerSidebar storeInfo={storeInfo} />
-                <div className="flex-1 h-full p-5 lg:pl-12 lg:pt-12 overflow-y-scroll">
+        <div className="flex h-dvh min-h-0 flex-col overflow-hidden bg-slate-50">
+            <SellerNavbar
+                storeInfo={storeInfo}
+                isSidebarOpen={isSidebarOpen}
+                onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
+            />
+            <div className="flex min-h-0 flex-1 md:flex-row md:items-stretch">
+                <SellerSidebar
+                    storeInfo={storeInfo}
+                    isMobileOpen={isSidebarOpen}
+                    onCloseMobile={() => setIsSidebarOpen(false)}
+                />
+                <div className="min-h-0 min-w-0 flex-1 overflow-y-auto p-4 sm:p-5 lg:pl-12 lg:pt-12">
                     {children}
                 </div>
             </div>

@@ -14,7 +14,7 @@ const SignInModal = ({ open, onClose, defaultMode = 'login', bonusMessage = '' }
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [countryCode, setCountryCode] = useState('+91');
+  const [countryCode, setCountryCode] = useState('+971');
   const [phoneNumber, setPhoneNumber] = useState('');
   const [error, setError] = useState('');
   const [fieldErrors, setFieldErrors] = useState({
@@ -90,8 +90,8 @@ const SignInModal = ({ open, onClose, defaultMode = 'login', bonusMessage = '' }
 
   const validatePhoneNumber = (phone, countryCode) => {
     const cleaned = phone.replace(/\D/g, '');
-    // For India (+91), require exactly 10 digits
-    if (countryCode === '+91') {
+    // For India (+971), require exactly 10 digits
+    if (countryCode === '+971') {
       return cleaned.length === 10;
     }
     // For other countries, allow 7-15 digits
@@ -195,7 +195,7 @@ const SignInModal = ({ open, onClose, defaultMode = 'login', bonusMessage = '' }
         return;
       }
       if (!validatePhoneNumber(phoneNumber, countryCode)) {
-        if (countryCode === '+91') {
+        if (countryCode === '+971') {
           setError('Indian phone number must be exactly 10 digits.');
         } else {
           setError('Please enter a valid phone number (7-15 digits).');
@@ -492,18 +492,18 @@ const SignInModal = ({ open, onClose, defaultMode = 'login', bonusMessage = '' }
                     value={phoneNumber}
                     onChange={e => {
                       // Limit based on country code
-                      const maxLength = countryCode === '+91' ? 10 : 15;
+                      const maxLength = countryCode === '+971' ? 10 : 15;
                       const value = e.target.value.replace(/\D/g, '').slice(0, maxLength);
                       setPhoneNumber(value);
                       
                       // Real-time validation
                       if (!value) {
                         setFieldErrors(prev => ({ ...prev, phone: 'Phone number is required' }));
-                      } else if (countryCode === '+91' && value.length !== 10) {
+                      } else if (countryCode === '+971' && value.length !== 10) {
                         setFieldErrors(prev => ({ ...prev, phone: 'Indian phone number must be 10 digits' }));
-                      } else if (countryCode !== '+91' && value.length < 7) {
+                      } else if (countryCode !== '+971' && value.length < 7) {
                         setFieldErrors(prev => ({ ...prev, phone: 'Phone number must be at least 7 digits' }));
-                      } else if (countryCode !== '+91' && value.length > 15) {
+                      } else if (countryCode !== '+971' && value.length > 15) {
                         setFieldErrors(prev => ({ ...prev, phone: 'Phone number too long' }));
                       } else {
                         setFieldErrors(prev => ({ ...prev, phone: '' }));
@@ -512,11 +512,11 @@ const SignInModal = ({ open, onClose, defaultMode = 'login', bonusMessage = '' }
                     onBlur={() => {
                       if (!phoneNumber) {
                         setFieldErrors(prev => ({ ...prev, phone: 'Phone number is required' }));
-                      } else if (countryCode === '+91' && phoneNumber.length !== 10) {
+                      } else if (countryCode === '+971' && phoneNumber.length !== 10) {
                         setFieldErrors(prev => ({ ...prev, phone: 'Indian phone number must be 10 digits' }));
                       }
                     }}
-                    maxLength={countryCode === '+91' ? 10 : 15}
+                    maxLength={countryCode === '+971' ? 10 : 15}
                     required
                   />
                 </div>
@@ -524,7 +524,7 @@ const SignInModal = ({ open, onClose, defaultMode = 'login', bonusMessage = '' }
                   <div className="text-red-600 text-xs mt-1">{fieldErrors.phone}</div>
                 ) : (
                   <div className="text-gray-500 text-xs mt-1">
-                    {countryCode === '+91' ? '10 digits required' : '7-15 digits required'}
+                    {countryCode === '+971' ? '10 digits required' : '7-15 digits required'}
                   </div>
                 )}
               </div>

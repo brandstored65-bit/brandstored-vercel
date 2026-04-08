@@ -33,6 +33,23 @@ import { Package, Truck, X, Download, Printer, RefreshCw, MapPin, Trash2 } from 
 import { downloadInvoice, printInvoice } from "@/lib/generateInvoice"
 import { downloadAwbBill } from "@/lib/generateAwbBill"
 import { schedulePickup } from '@/lib/delhivery'
+import { getDefaultTrackingUrl, mapTrackingStatusToOrderStatus } from '@/lib/trackingShared'
+
+function getPreferredTrackingUrl(courier, trackingId, trackingUrl) {
+    const courierName = String(courier || '').trim().toLowerCase();
+    const currentUrl = String(trackingUrl || '').trim();
+    const generatedUrl = getDefaultTrackingUrl(courier, trackingId);
+
+    // Backward compatibility for old GeoHaul links that pointed to raw API endpoints.
+    if (courierName.includes('geoh') || courierName.includes('geohaul')) {
+        const isGeoHaulApiUrl = /\/api\/v2\/consignment\/track/i.test(currentUrl);
+        if (!currentUrl || isGeoHaulApiUrl) {
+            return generatedUrl || currentUrl;
+        }
+    }
+
+    return currentUrl || generatedUrl;
+}
 
 // Add updateTrackingDetails function
 // (must be inside the component, not top-level)
@@ -61,6 +78,7 @@ const updateTrackingDetails = async (orderId, trackingId, trackingUrl, courier, 
 
 export default function StoreOrders() {
     const currency = process.env.NEXT_PUBLIC_CURRENCY_SYMBOL || 'AED';
+    const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];
     const [orders, setOrders] = useState([]);
     const [loading, setLoading] = useState(true);
     const [selectedOrder, setSelectedOrder] = useState(null);
@@ -74,6 +92,8 @@ export default function StoreOrders() {
     const [datePreset, setDatePreset] = useState('ALL');
     const [fromDate, setFromDate] = useState('');
     const [toDate, setToDate] = useState('');
+    const [currentPage, setCurrentPage] = useState(1);
+    const [pageSize, setPageSize] = useState(10);
     const [exportTypeFilter, setExportTypeFilter] = useState('ALL');
     const [selectedOrderIds, setSelectedOrderIds] = useState([]);
     const [bulkStatus, setBulkStatus] = useState('');
@@ -81,6 +101,8 @@ export default function StoreOrders() {
     const [autoRefreshEnabled, setAutoRefreshEnabled] = useState(false);
     const [schedulingPickup, setSchedulingPickup] = useState(false);
     const [sendingToDelhivery, setSendingToDelhivery] = useState(false);
+    const [syncingGeoHaul, setSyncingGeoHaul] = useState(false);
+    const [refreshingLiveTracking, setRefreshingLiveTracking] = useState(false);
     const [refreshInterval, setRefreshInterval] = useState(30); // seconds
     const [showRejectModal, setShowRejectModal] = useState(false);
     const [rejectReason, setRejectReason] = useState('');
@@ -153,57 +175,6 @@ export default function StoreOrders() {
         { value: 'RETURN_APPROVED', label: 'Return Approved', color: 'bg-pink-100 text-pink-700' },
     ];
 
-    // Map Delhivery live status (current_status + latest event) to internal order status
-    const mapDelhiveryStatusToOrderStatus = (delhivery, currentStatus) => {
-        if (!delhivery) return null;
-
-        const texts = [];
-        if (delhivery.current_status) {
-            texts.push(delhivery.current_status.toLowerCase());
-        }
-
-        if (Array.isArray(delhivery.events) && delhivery.events.length > 0) {
-            const latestEvent = delhivery.events[delhivery.events.length - 1];
-            if (latestEvent?.status) {
-                texts.push(latestEvent.status.toLowerCase());
-            }
-        }
-
-        if (texts.length === 0) return null;
-        const combined = texts.join(' | ');
-
-        if (combined.includes('delivered')) return 'DELIVERED';
-        if (combined.includes('out for delivery')) return 'OUT_FOR_DELIVERY';
-        if (combined.includes('picked up') || combined.includes('picked-up')) return 'PICKED_UP';
-        if (combined.includes('pickup requested')) return 'PICKUP_REQUESTED';
-        if (combined.includes('waiting for pickup')) return 'WAITING_FOR_PICKUP';
-        if (combined.includes('warehouse') || combined.includes('hub')) return 'WAREHOUSE_RECEIVED';
-
-        // Treat generic "pending" as order is being processed
-        if (combined.includes('pending')) {
-            if (currentStatus === 'ORDER_PLACED') return 'PROCESSING';
-            return currentStatus;
-        }
-
-        if (
-            combined.includes('in transit') ||
-            combined.includes('dispatched') ||
-            combined.includes('shipped') ||
-            combined.includes('forwarded')
-        ) {
-            if (
-                currentStatus === 'ORDER_PLACED' ||
-                currentStatus === 'PROCESSING' ||
-                currentStatus === 'WAITING_FOR_PICKUP' ||
-                currentStatus === 'PICKUP_REQUESTED'
-            ) {
-                return 'SHIPPED';
-            }
-        }
-
-        return null;
-    };
-
     // Get status color
     const getStatusColor = (status) => {
         const statusOption = STATUS_OPTIONS.find(s => s.value === status);
@@ -215,23 +186,26 @@ export default function StoreOrders() {
         const paymentMethod = String(order?.paymentMethod || '').trim().toLowerCase();
         const orderStatus = String(order?.status || '').trim().toUpperCase();
         const paymentStatus = String(order?.paymentStatus || '').trim().toLowerCase();
+        const hasPaidFlag = !!order?.isPaid;
 
         // COD is paid only when delivered/collected
         if (paymentMethod === 'cod') {
             if (orderStatus === 'DELIVERED') return true;
             if (order?.delhivery?.payment?.is_cod_recovered) return true;
-            return !!order?.isPaid;
+            return hasPaidFlag;
         }
 
         // Non-COD (card/online/prepaid) should appear paid unless explicitly failed/unpaid
         if (paymentMethod) {
-            const explicitUnpaidStatuses = new Set(['failed', 'payment_failed', 'refunded', 'unpaid', 'pending']);
-            if (explicitUnpaidStatuses.has(paymentStatus)) return false;
+            const explicitFailedStatuses = new Set(['failed', 'payment_failed', 'refunded', 'unpaid']);
+            if (hasPaidFlag) return true;
+            if (explicitFailedStatuses.has(paymentStatus)) return false;
             if (orderStatus === 'PAYMENT_FAILED') return false;
-            return true;
+            if (paymentStatus === 'pending') return false;
+            return false;
         }
 
-        return !!order?.isPaid;
+        return hasPaidFlag;
     };
 
     // Calculate order statistics
@@ -253,10 +227,51 @@ export default function StoreOrders() {
         };
         return stats;
     };
+
+    const formatOrderDate = (value) => {
+        if (!value) return 'N/A';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return 'N/A';
+        return date.toLocaleDateString();
+    };
+
+    const formatOrderDateTime = (value) => {
+        if (!value) return 'N/A';
+        const date = new Date(value);
+        if (Number.isNaN(date.getTime())) return 'N/A';
+        return date.toLocaleString([], {
+            year: 'numeric',
+            month: 'short',
+            day: 'numeric',
+            hour: 'numeric',
+            minute: '2-digit',
+            hour12: true,
+        });
+    };
+
+    const formatDateTimeInputValue = (value, endOfMinute = false) => {
+        const date = value ? new Date(value) : new Date();
+        if (Number.isNaN(date.getTime())) return '';
+
+        if (endOfMinute) {
+            date.setSeconds(59, 999);
+        } else {
+            date.setSeconds(0, 0);
+        }
+
+        const year = date.getFullYear();
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        const day = String(date.getDate()).padStart(2, '0');
+        const hours = String(date.getHours()).padStart(2, '0');
+        const minutes = String(date.getMinutes()).padStart(2, '0');
+
+        return `${year}-${month}-${day}T${hours}:${minutes}`;
+    };
+
     const getDateRange = () => {
         if (!fromDate && !toDate) return { start: null, end: null };
-        const start = fromDate ? new Date(`${fromDate}T00:00:00`) : null;
-        const end = toDate ? new Date(`${toDate}T23:59:59`) : null;
+        const start = fromDate ? new Date(fromDate) : null;
+        const end = toDate ? new Date(toDate) : null;
         return { start, end };
     };
 
@@ -284,10 +299,23 @@ export default function StoreOrders() {
 
     const stats = getOrderStats();
     const filteredOrders = getFilteredOrders();
-    const visibleOrderIds = filteredOrders.map((order) => order._id);
+    const totalPages = Math.max(1, Math.ceil(filteredOrders.length / pageSize));
+    const pageStartIndex = (currentPage - 1) * pageSize;
+    const paginatedOrders = filteredOrders.slice(pageStartIndex, pageStartIndex + pageSize);
+    const visibleOrderIds = paginatedOrders.map((order) => order._id);
     const selectedVisibleCount = visibleOrderIds.filter((orderId) => selectedOrderIds.includes(orderId)).length;
     const allVisibleSelected = visibleOrderIds.length > 0 && selectedVisibleCount === visibleOrderIds.length;
     const hasSelectedOrders = selectedOrderIds.length > 0;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [filterStatus, datePreset, fromDate, toDate, pageSize]);
+
+    useEffect(() => {
+        if (currentPage > totalPages) {
+            setCurrentPage(totalPages);
+        }
+    }, [currentPage, totalPages]);
 
     const toggleOrderSelection = (orderId) => {
         setSelectedOrderIds((prev) => (
@@ -390,15 +418,12 @@ export default function StoreOrders() {
             return;
         }
 
-        // If courier is not set, assume Delhivery (for AWB-based tracking)
+        // If courier is not set, default to Tawseel so the tracking URL is always generated.
         if (!courierName) {
-            courierName = 'Delhivery';
+            courierName = 'Tawseel';
         }
 
-        // For Delhivery, if no tracking URL entered, auto-generate using AWB
-        if (!trackingUrl && courierName.toLowerCase() === 'delhivery') {
-            trackingUrl = `https://www.delhivery.com/track-v2/package/${encodeURIComponent(awb)}`;
-        }
+        trackingUrl = getPreferredTrackingUrl(courierName, awb, trackingUrl);
 
         // Auto-move status forward when tracking is added
         // If the order is still ORDER_PLACED or PROCESSING, treat it as SHIPPED
@@ -431,8 +456,8 @@ export default function StoreOrders() {
                 trackingUrl
             } : prev);
 
-            // Trigger an immediate Delhivery refresh (if Delhivery courier)
-            if (courierName.toLowerCase() === 'delhivery') {
+            // Trigger an immediate live refresh for supported couriers
+            if (trackingUrl) {
                 try {
                     await refreshTrackingData();
                 } catch {
@@ -471,7 +496,7 @@ export default function StoreOrders() {
             }
 
             const currentStatus = data.order.status || order.status;
-            const mappedStatus = mapDelhiveryStatusToOrderStatus(data.order.delhivery, currentStatus);
+            const mappedStatus = mapTrackingStatusToOrderStatus(data.order.delhivery, currentStatus);
 
             if (!mappedStatus || mappedStatus === currentStatus) {
                 toast.error('Status is already up to date with tracking.');
@@ -513,11 +538,15 @@ export default function StoreOrders() {
         }
         console.log('[MODAL DEBUG] Order addressId:', order.addressId);
         console.log('[MODAL DEBUG] Order isGuest:', order.isGuest);
-        setSelectedOrder(order);
+        const preferredTrackingUrl = getPreferredTrackingUrl(order.courier, order.trackingId, order.trackingUrl);
+        setSelectedOrder({
+            ...order,
+            trackingUrl: preferredTrackingUrl || order.trackingUrl || ''
+        });
         // Pre-fill tracking data if it exists
         setTrackingData({
             trackingId: order.trackingId || '',
-            trackingUrl: order.trackingUrl || '',
+            trackingUrl: preferredTrackingUrl || '',
             courier: order.courier || ''
         });
         // Pre-fill AWB manifest data from order
@@ -531,6 +560,10 @@ export default function StoreOrders() {
             dropoff_location: order.shippingAddress || {}
         });
         setIsModalOpen(true);
+
+        if (order?.trackingId) {
+            refreshTrackingData(order);
+        }
     };
 
     // Check Razorpay payment settlement status
@@ -646,7 +679,7 @@ export default function StoreOrders() {
             // and persist the change back to the backend so customer views stay in sync.
             const updatesToPersist = [];
             syncedOrders = syncedOrders.map(order => {
-                const mapped = mapDelhiveryStatusToOrderStatus(order.delhivery, order.status);
+                const mapped = mapTrackingStatusToOrderStatus(order.delhivery, order.status);
                 if (mapped && mapped !== order.status) {
                     updatesToPersist.push({ orderId: order._id, status: mapped });
                     return { ...order, status: mapped };
@@ -714,24 +747,21 @@ export default function StoreOrders() {
 
     useEffect(() => {
         const today = new Date();
-        const yyyy = today.getFullYear();
-        const mm = String(today.getMonth() + 1).padStart(2, '0');
-        const dd = String(today.getDate()).padStart(2, '0');
-        const todayStr = `${yyyy}-${mm}-${dd}`;
+        const todayStart = new Date(today);
+        todayStart.setHours(0, 0, 0, 0);
+        const todayEnd = new Date(today);
+        todayEnd.setHours(23, 59, 59, 999);
 
         if (datePreset === 'TODAY') {
-            setFromDate(todayStr);
-            setToDate(todayStr);
+            setFromDate(formatDateTimeInputValue(todayStart));
+            setToDate(formatDateTimeInputValue(todayEnd, true));
             return;
         }
         if (datePreset === 'LAST_7_DAYS') {
-            const lastWeek = new Date(today);
-            lastWeek.setDate(today.getDate() - 6);
-            const wyyyy = lastWeek.getFullYear();
-            const wmm = String(lastWeek.getMonth() + 1).padStart(2, '0');
-            const wdd = String(lastWeek.getDate()).padStart(2, '0');
-            setFromDate(`${wyyyy}-${wmm}-${wdd}`);
-            setToDate(todayStr);
+            const lastWeek = new Date(todayStart);
+            lastWeek.setDate(todayStart.getDate() - 6);
+            setFromDate(formatDateTimeInputValue(lastWeek));
+            setToDate(formatDateTimeInputValue(todayEnd, true));
             return;
         }
         if (datePreset === 'ALL') {
@@ -740,25 +770,28 @@ export default function StoreOrders() {
         }
     }, [datePreset]);
 
-    const refreshTrackingData = async () => {
-        if (!selectedOrder || !selectedOrder.trackingId) return;
+    const refreshTrackingData = async (targetOrder) => {
+        const orderToRefresh = targetOrder || selectedOrder;
+        if (!orderToRefresh || !orderToRefresh.trackingId) return;
+
+        setRefreshingLiveTracking(true);
         try {
             const token = await getToken();
-            const { data } = await axios.get(`/api/track-order?awb=${selectedOrder.trackingId}`, {
+            const { data } = await axios.get(`/api/track-order?awb=${orderToRefresh.trackingId}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             if (data.order) {
-                // Optionally sync internal order.status with Delhivery live status
-                const mappedStatus = mapDelhiveryStatusToOrderStatus(
+                // Optionally sync internal order.status with live courier status
+                const mappedStatus = mapTrackingStatusToOrderStatus(
                     data.order.delhivery,
-                    selectedOrder.status || data.order.status
+                    orderToRefresh.status || data.order.status
                 );
 
-                if (mappedStatus && mappedStatus !== (selectedOrder.status || data.order.status)) {
+                if (mappedStatus && mappedStatus !== (orderToRefresh.status || data.order.status)) {
                     try {
                         // Persist new status silently (no toast spam during auto-refresh)
                         await axios.post('/api/store/orders/update-status', {
-                            orderId: selectedOrder._id,
+                            orderId: orderToRefresh._id,
                             status: mappedStatus
                         }, {
                             headers: { Authorization: `Bearer ${token}` }
@@ -766,7 +799,7 @@ export default function StoreOrders() {
 
                         data.order.status = mappedStatus;
                     } catch (statusError) {
-                        console.error('Failed to sync status from Delhivery:', statusError);
+                        console.error('Failed to sync status from live tracking:', statusError);
                     }
                 }
 
@@ -777,10 +810,12 @@ export default function StoreOrders() {
                     delhivery: data.order.delhivery || prev.delhivery
                 }));
                 // Also update in orders list
-                setOrders(prev => prev.map(o => o._id === selectedOrder._id ? {...o, ...data.order} : o));
+                setOrders(prev => prev.map(o => o._id === orderToRefresh._id ? {...o, ...data.order} : o));
             }
         } catch (error) {
             console.error('Failed to refresh tracking:', error);
+        } finally {
+            setRefreshingLiveTracking(false);
         }
     };
 
@@ -809,14 +844,50 @@ export default function StoreOrders() {
     const getProductShortDescription = (orderItems) => {
         if (!Array.isArray(orderItems) || orderItems.length === 0) return '';
         const first = orderItems[0] || {};
-        const name = first?.product?.name || first?.name || first?.productName || '';
-        return name ? String(name) : '';
+        const name =
+            first?.productId?.name ||
+            first?.productId?.title ||
+            first?.product?.name ||
+            first?.product?.title ||
+            first?.name ||
+            first?.productName ||
+            first?.title ||
+            '';
+        if (!name) return '';
+
+        const normalizedName = String(name)
+            .replace(/\[[^\]]*\]|\([^)]*\)|\{[^}]*\}/g, ' ')
+            .replace(/[_]+/g, ' ')
+            .replace(/\s+/g, ' ')
+            .trim();
+
+        const primarySegment = normalizedName
+            .split(/\s[|/,:;-]\s|\|/)
+            .map((segment) => segment.trim())
+            .find(Boolean) || normalizedName;
+
+        const shortName = primarySegment
+            .split(/\s+/)
+            .slice(0, 4)
+            .join(' ')
+            .trim();
+
+        return shortName || normalizedName;
     };
 
     const getProductsNote = (orderItems) => {
         if (!Array.isArray(orderItems) || orderItems.length === 0) return '';
         return orderItems
-            .map((item) => item?.product?.name || item?.name || item?.productName || '')
+            .map((item) => (
+                item?.productId?.name ||
+                item?.productId?.title ||
+                item?.product?.name ||
+                item?.product?.title ||
+                item?.name ||
+                item?.productName ||
+                item?.title ||
+                ''
+            ))
             .filter(Boolean)
             .join(', ');
     };
@@ -834,6 +905,112 @@ export default function StoreOrders() {
             shipping?.street ||
             ''
         );
+    };
+
+    const formatDestinationCityForExport = (value) => {
+        const normalizedValue = String(value || '').trim();
+        if (!normalizedValue) return '';
+
+        const normalizedKey = normalizedValue.toLowerCase().replace(/[^a-z]/g, '');
+        const cityMap = {
+            dubai: 'Dubai',
+            abudhabi: 'AbuDhabi',
+            abudabi: 'AbuDhabi',
+            alain: 'Al Ain',
+            ajman: 'Ajman',
+            fujairah: 'Fujairah',
+            rasalkhaimah: 'RAK',
+            rak: 'RAK',
+            sharjah: 'Sharjah',
+            ummalquwain: 'Umm Al Quwain',
+            ummalqaiwain: 'Umm Al Quwain',
+            uaq: 'Umm Al Quwain',
+        };
+
+        return cityMap[normalizedKey] || normalizedValue;
+    };
+
+    const ORDER_EXPORT_COLUMNS = [
+        { header: 'Customer', key: 'customer', width: 14, highlight: true },
+        { header: 'Payment Type', key: 'paymentType', width: 14 },
+        { header: 'Service Type', key: 'serviceType', width: 14 },
+        { header: 'Courier Type', key: 'courierType', width: 14 },
+        { header: 'Currency', key: 'currency', width: 12 },
+        { header: 'Cod', key: 'cod', width: 12, highlight: true, alignment: 'right' },
+        { header: 'Description', key: 'description', width: 24, highlight: true },
+        { header: 'Shipper Name', key: 'shipperName', width: 18 },
+        { header: 'Shipper Phone Number', key: 'shipperPhoneNumber', width: 18 },
+        { header: 'Origin Country', key: 'originCountry', width: 18 },
+        { header: 'Origin City', key: 'originCity', width: 14 },
+        { header: 'Origin Address', key: 'originAddress', width: 18 },
+        { header: 'Origin Flat Or Villa Number', key: 'originFlatOrVillaNumber', width: 18 },
+        { header: 'Receiver Name', key: 'receiverName', width: 22, highlight: true },
+        { header: 'Receiver Phone Number', key: 'receiverPhoneNumber', width: 20, highlight: true },
+        { header: 'Destination Country', key: 'destinationCountry', width: 18 },
+        { header: 'Destination City', key: 'destinationCity', width: 16, highlight: true },
+        { header: 'Destination Address', key: 'destinationAddress', width: 26, highlight: true },
+        { header: 'Destination Flat Or Villa Number', key: 'destinationFlatOrVillaNumber', width: 22, highlight: true },
+        { header: 'Number Of Pieces', key: 'numberOfPieces', width: 14, alignment: 'center' },
+        { header: 'Length', key: 'length', width: 10, alignment: 'center' },
+        { header: 'Width', key: 'width', width: 10, alignment: 'center' },
+        { header: 'Height', key: 'height', width: 10, alignment: 'center' },
+        { header: 'Dimension', key: 'dimension', width: 12, alignment: 'center' },
+        { header: 'Weight', key: 'weight', width: 10, alignment: 'center' },
+        { header: 'Weight Unit', key: 'weightUnit', width: 12, alignment: 'center' },
+        { header: 'Value', key: 'value', width: 12, highlight: true, alignment: 'right' },
+        { header: 'Note', key: 'note', width: 24, highlight: true },
+        { header: '', key: 'blank', width: 8 },
+    ];
+
+    const getExportCustomerReference = (order) => {
+        if (order?.shortOrderNumber) return toExcelSafeValue(order.shortOrderNumber);
+        if (order?.customerId) return toExcelSafeValue(order.customerId);
+        if (order?._id) return toExcelSafeValue(String(order._id).slice(0, 8).toUpperCase());
+        return '';
+    };
+
+    const getOrderExportRow = (order) => {
+        const shipping = order?.shippingAddress || {};
+        const orderItems = Array.isArray(order?.orderItems) ? order.orderItems : [];
+        const paymentMethod = String(order?.paymentMethod || order?.payment_method || '').toUpperCase();
+        const receiverPhone = normalizeUaeMobile(shipping?.phoneCode, shipping?.phone, order?.guestPhone);
+        const orderedAmount = Number(order?.total || 0);
+        const productTitle = getProductShortDescription(orderItems);
+        const codAmount = paymentMethod === 'STRIPE' ? 0 : orderedAmount;
+
+        return {
+            customer: getExportCustomerReference(order),
+            paymentType: paymentMethod || '',
+            serviceType: 'UAE DOM',
+            courierType: 'DOCUMENTS',
+            currency: getCurrencyCode(),
+            cod: codAmount,
+            description: toExcelSafeValue(productTitle),
+            shipperName: 'BRANDSTORED',
+            shipperPhoneNumber: '505730119',
+            originCountry: 'United Arab Emirates',
+            originCity: 'Dubai',
+            originAddress: 'Firj Murar',
+            originFlatOrVillaNumber: 'DEIRA',
+            receiverName: toExcelSafeValue(shipping?.name || order?.guestName || order?.customerName || order?.userId?.name || ''),
+            receiverPhoneNumber: toExcelSafeValue(receiverPhone || order?.guestPhone || ''),
+            destinationCountry: 'United Arab Emirates',
+            destinationCity: toExcelSafeValue(
+                formatDestinationCityForExport(shipping?.state || shipping?.city || '')
+            ),
+            destinationAddress: toExcelSafeValue(shipping?.street || ''),
+            destinationFlatOrVillaNumber: toExcelSafeValue(getDestinationFlatValue(shipping)),
+            numberOfPieces: 1,
+            length: 10,
+            width: 5,
+            height: 3,
+            dimension: 'CM',
+            weight: 2.5,
+            weightUnit: 'KG',
+            value: orderedAmount,
+            note: toExcelSafeValue(productTitle),
+            blank: '',
+        };
     };
 
     const getExportFilteredOrders = () => {
@@ -861,99 +1038,86 @@ export default function StoreOrders() {
             return;
         }
 
-        const headers = [
-            'Customer',
-            'Payment Type',
-            'Service Type',
-            'Courier Type',
-            'Currency',
-            'Cod',
-            'Description',
-            'Shipper Name',
-            'Shipper Phone',
-            'Origin Country',
-            'Origin City',
-            'Origin Address',
-            'Origin Flat Or Villa Number',
-            'Reciever Name',
-            'Reciever Phone Number',
-            'Destination Country',
-            'Destination City',
-            'Destination Address',
-            'Destination Flat Or Villa Number',
-            'Number Of Pieces',
-            'Length',
-            'Width',
-            'Height',
-            'Dimension',
-            'Weight',
-            'Weight Unit',
-            'Value',
-            'Note'
-        ];
-
-        const rows = exportOrders.map((order) => {
-            const shipping = order?.shippingAddress || {};
-            const orderItems = Array.isArray(order?.orderItems) ? order.orderItems : [];
-            const paymentMethod = String(order?.paymentMethod || order?.payment_method || '').toLowerCase();
-            const isCod = paymentMethod === 'cod';
-            const receiverPhone = normalizeUaeMobile(shipping?.phoneCode, shipping?.phone, order?.guestPhone);
-            const productName = getProductsNote(orderItems);
-            const description = productName || '';
-            const note = productName || '';
-
-            return [
-                order?.isGuest
-                    ? (order?.guestName || '')
-                    : (order?.userId?.name || order?.userId?.email || ''),
-                order?.paymentMethod || order?.payment_method || '',
-                'UAE DOM',
-                'DOCUMENTS',
-                getCurrencyCode(),
-                isCod ? (order?.total ?? '') : '',
-                description,
-                'Brandstored.com',
-                process.env.NEXT_PUBLIC_INVOICE_CONTACT || '',
-                'United Arab Emirates',
-                'Dubai',
-                'Firj Murar',
-                'Nil',
-                shipping?.name || order?.guestName || '',
-                receiverPhone || order?.guestPhone || '',
-                'United Arab Emirates',
-                shipping?.city || '',
-                shipping?.street || '',
-                getDestinationFlatValue(shipping),
-                1,
-                10,
-                5,
-                3,
-                'CM',
-                2.5,
-                'Kg',
-                isCod ? (order?.total ?? '') : '',
-                note
-            ].map(toExcelSafeValue);
-        });
-
         try {
-            const XLSX = await import('xlsx');
-            const worksheetData = [headers, ...rows];
-            const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
-
-            worksheet['!cols'] = headers.map((header) => {
-                const maxCellLength = Math.max(
-                    header.length,
-                    ...rows.map((row) => (row[headers.indexOf(header)] || '').length)
-                );
-                return { wch: Math.min(Math.max(maxCellLength + 2, 12), 40) };
+            const ExcelJS = await import('exceljs');
+            const workbook = new ExcelJS.Workbook();
+            const worksheet = workbook.addWorksheet('Orders', {
+                views: [{ state: 'frozen', ySplit: 1 }],
             });
 
-            const workbook = XLSX.utils.book_new();
-            XLSX.utils.book_append_sheet(workbook, worksheet, 'Orders');
+            const headerFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: '111111' } };
+            const highlightHeaderFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF200' } };
+            const bodyFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFF' } };
+            const highlightBodyFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF8B3' } };
+            const border = {
+                top: { style: 'thin', color: { argb: 'D0D0D0' } },
+                left: { style: 'thin', color: { argb: 'D0D0D0' } },
+                bottom: { style: 'thin', color: { argb: 'D0D0D0' } },
+                right: { style: 'thin', color: { argb: 'D0D0D0' } },
+            };
+
+            worksheet.columns = ORDER_EXPORT_COLUMNS.map((column) => ({
+                header: column.header,
+                key: column.key,
+                width: column.width,
+            }));
+
+            const headerRow = worksheet.getRow(1);
+            headerRow.height = 22;
+
+            ORDER_EXPORT_COLUMNS.forEach((column, index) => {
+                const cell = headerRow.getCell(index + 1);
+                cell.fill = column.highlight ? highlightHeaderFill : headerFill;
+                cell.font = {
+                    bold: true,
+                    color: { argb: column.highlight ? '000000' : 'FFFFFF' },
+                    size: 11,
+                };
+                cell.alignment = {
+                    vertical: 'middle',
+                    horizontal: column.alignment || 'left',
+                };
+                cell.border = border;
+            });
+
+            exportOrders.forEach((order) => {
+                const row = worksheet.addRow(getOrderExportRow(order));
+                row.height = 20;
+
+                ORDER_EXPORT_COLUMNS.forEach((column, index) => {
+                    const cell = row.getCell(index + 1);
+                    cell.fill = column.highlight ? highlightBodyFill : bodyFill;
+                    cell.border = border;
+                    cell.alignment = {
+                        vertical: 'middle',
+                        horizontal: column.alignment || 'left',
+                    };
+                    if (['cod', 'value'].includes(column.key) && typeof cell.value === 'number') {
+                        cell.numFmt = '0.000';
+                    }
+                    if (column.key === 'weight' && typeof cell.value === 'number') {
+                        cell.numFmt = '0.0';
+                    }
+                });
+            });
+
+            const buffer = await workbook.xlsx.writeBuffer();
+            const blob = new Blob([
+                buffer instanceof ArrayBuffer ? buffer : buffer.buffer,
+            ], {
+                type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+            });
+
+            const downloadUrl = URL.createObjectURL(blob);
+            const downloadLink = document.createElement('a');
+            downloadLink.href = downloadUrl;
 
             const dateLabel = new Date().toISOString().slice(0, 10);
-            XLSX.writeFile(workbook, `store-orders-${dateLabel}.xlsx`);
+            downloadLink.download = `store-orders-${dateLabel}.xlsx`;
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            downloadLink.remove();
+            URL.revokeObjectURL(downloadUrl);
 
             toast.success(`Exported ${exportOrders.length} order(s)`);
         } catch (error) {
@@ -1036,6 +1200,104 @@ export default function StoreOrders() {
         }
     };
 
+    const syncOrderWithGeoHaul = async (action) => {
+        if (!selectedOrder) return;
+
+        if (!selectedOrder.shippingAddress?.street || !selectedOrder.shippingAddress?.city || !selectedOrder.shippingAddress?.country) {
+            toast.error('Complete shipping address is required for GeoHaul sync');
+            return;
+        }
+
+        const normalizedAction = String(action || 'create').toLowerCase();
+        const currentOrderStatus = String(selectedOrder?.status || '').toUpperCase();
+        const nonEditableUpdateStatuses = new Set([
+            'PICKED_UP',
+            'WAREHOUSE_RECEIVED',
+            'SHIPPED',
+            'OUT_FOR_DELIVERY',
+            'DELIVERED',
+            'CANCELLED',
+            'RETURNED'
+        ]);
+
+        if (normalizedAction === 'update' && nonEditableUpdateStatuses.has(currentOrderStatus)) {
+            toast.error(`GeoHaul update is disabled when order status is ${currentOrderStatus.replace(/_/g, ' ')}.`);
+            return;
+        }
+
+        if ((normalizedAction === 'update' || normalizedAction === 'cancel') && !(selectedOrder.trackingId || trackingData.trackingId)) {
+            toast.error('AWB / Tracking ID is required for GeoHaul update/cancel');
+            return;
+        }
+
+        const resolvedAwb = (selectedOrder.trackingId || trackingData.trackingId || '').trim();
+
+        setSyncingGeoHaul(true);
+        try {
+            const token = await getToken();
+            const response = await axios.post('/api/store/geoh-consignment', {
+                orderId: selectedOrder._id,
+                action: normalizedAction,
+                awb: resolvedAwb || undefined,
+            }, {
+                headers: { Authorization: `Bearer ${token}` },
+                validateStatus: () => true,
+            });
+            const { data, status } = response;
+
+            if (status >= 400) {
+                const providerError = String(data?.error || '').trim();
+                const detailMessage = String(
+                    data?.details?.response?.message ||
+                    data?.details?.message ||
+                    data?.details?.raw ||
+                    ''
+                ).trim();
+                const resolvedMessage = detailMessage || providerError || 'Failed to sync with GeoHaul';
+
+                if (providerError.includes('already cancelled')) {
+                    toast.error(providerError);
+                } else if (resolvedMessage.includes('result.toObject is not a function')) {
+                    if (normalizedAction === 'update') {
+                        toast.error('GeoHaul update rejected this AWB state. Try creating a new consignment AWB for this order.');
+                    } else if (normalizedAction === 'cancel') {
+                        toast.error('GeoHaul cancel rejected this AWB state. Please verify AWB status on courier portal.');
+                    } else {
+                        toast.error('GeoHaul rejected this request for the current AWB state.');
+                    }
+                } else {
+                    toast.error(resolvedMessage);
+                }
+                return;
+            }
+
+            if (!data?.success) {
+                toast.error(data?.error || 'GeoHaul sync failed');
+                return;
+            }
+
+            const actionLabel = normalizedAction.charAt(0).toUpperCase() + normalizedAction.slice(1);
+            toast.success(`${actionLabel} synced with GeoHaul`);
+
+            if (data?.order) {
+                setSelectedOrder(data.order);
+                setTrackingData((prev) => ({
+                    ...prev,
+                    trackingId: data.order.trackingId || prev.trackingId,
+                    trackingUrl: data.order.trackingUrl || prev.trackingUrl,
+                    courier: data.order.courier || prev.courier,
+                }));
+            }
+
+            fetchOrders();
+        } catch (error) {
+            console.error('GeoHaul sync error:', error);
+            toast.error('Failed to sync with GeoHaul');
+        } finally {
+            setSyncingGeoHaul(false);
+        }
+    };
+
 
     if (authLoading || loading) return <Loading />;
 
@@ -1044,38 +1306,38 @@ export default function StoreOrders() {
             <h1 className="text-2xl text-slate-500 mb-6">Store <span className="text-slate-800 font-medium">Orders</span></h1>
             
             {/* Order Statistics Cards */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
+            <div className="mb-6 grid grid-cols-2 gap-3 md:grid-cols-2 lg:grid-cols-5 lg:gap-4">
                 <div 
                     onClick={() => setFilterStatus('ALL')}
-                    className={`p-4 rounded-lg cursor-pointer transition-all ${filterStatus === 'ALL' ? 'bg-blue-600 text-white shadow-lg' : 'bg-white border border-gray-200 text-slate-700'}`}
+                    className={`cursor-pointer rounded-lg p-4 transition-all ${filterStatus === 'ALL' ? 'bg-blue-600 text-white shadow-lg' : 'bg-white border border-gray-200 text-slate-700'}`}
                 >
                     <p className="text-xs opacity-75">Total Orders</p>
                     <p className="text-2xl font-bold">{stats.TOTAL}</p>
                 </div>
                 <div 
                     onClick={() => setFilterStatus('PENDING_PAYMENT')}
-                    className={`p-4 rounded-lg cursor-pointer transition-all ${filterStatus === 'PENDING_PAYMENT' ? 'bg-orange-600 text-white shadow-lg' : 'bg-white border border-gray-200 text-slate-700'}`}
+                    className={`cursor-pointer rounded-lg p-4 transition-all ${filterStatus === 'PENDING_PAYMENT' ? 'bg-orange-600 text-white shadow-lg' : 'bg-white border border-gray-200 text-slate-700'}`}
                 >
                     <p className="text-xs opacity-75">Pending Payment</p>
                     <p className="text-2xl font-bold">{stats.PENDING_PAYMENT}</p>
                 </div>
                 <div 
                     onClick={() => setFilterStatus('PROCESSING')}
-                    className={`p-4 rounded-lg cursor-pointer transition-all ${filterStatus === 'PROCESSING' ? 'bg-yellow-600 text-white shadow-lg' : 'bg-white border border-gray-200 text-slate-700'}`}
+                    className={`cursor-pointer rounded-lg p-4 transition-all ${filterStatus === 'PROCESSING' ? 'bg-yellow-600 text-white shadow-lg' : 'bg-white border border-gray-200 text-slate-700'}`}
                 >
                     <p className="text-xs opacity-75">Processing</p>
                     <p className="text-2xl font-bold">{stats.PROCESSING}</p>
                 </div>
                 <div 
                     onClick={() => setFilterStatus('SHIPPED')}
-                    className={`p-4 rounded-lg cursor-pointer transition-all ${filterStatus === 'SHIPPED' ? 'bg-purple-600 text-white shadow-lg' : 'bg-white border border-gray-200 text-slate-700'}`}
+                    className={`cursor-pointer rounded-lg p-4 transition-all ${filterStatus === 'SHIPPED' ? 'bg-purple-600 text-white shadow-lg' : 'bg-white border border-gray-200 text-slate-700'}`}
                 >
                     <p className="text-xs opacity-75">Shipped</p>
                     <p className="text-2xl font-bold">{stats.SHIPPED}</p>
                 </div>
                 <div 
                     onClick={() => setFilterStatus('DELIVERED')}
-                    className={`p-4 rounded-lg cursor-pointer transition-all ${filterStatus === 'DELIVERED' ? 'bg-green-600 text-white shadow-lg' : 'bg-white border border-gray-200 text-slate-700'}`}
+                    className={`col-span-2 cursor-pointer rounded-lg p-4 transition-all md:col-span-1 ${filterStatus === 'DELIVERED' ? 'bg-green-600 text-white shadow-lg' : 'bg-white border border-gray-200 text-slate-700'}`}
                 >
                     <p className="text-xs opacity-75">Delivered</p>
                     <p className="text-2xl font-bold">{stats.DELIVERED}</p>
@@ -1132,7 +1394,7 @@ export default function StoreOrders() {
                     <div>
                         <label className="text-xs text-slate-500">From</label>
                         <input
-                            type="date"
+                            type="datetime-local"
                             value={fromDate}
                             onChange={(e) => {
                                 setFromDate(e.target.value);
@@ -1144,7 +1406,7 @@ export default function StoreOrders() {
                     <div>
                         <label className="text-xs text-slate-500">To</label>
                         <input
-                            type="date"
+                            type="datetime-local"
                             value={toDate}
                             onChange={(e) => {
                                 setToDate(e.target.value);
@@ -1232,7 +1494,104 @@ export default function StoreOrders() {
             {filteredOrders.length === 0 ? (
                 <p className="text-center py-8 text-slate-500">No orders found for this status</p>
             ) : (
-                <div className="overflow-x-auto w-full rounded-md shadow border border-gray-200">
+                <>
+                <div className="grid gap-4 md:hidden">
+                    {paginatedOrders.map((order, index) => (
+                        <div
+                            key={order._id}
+                            className={`rounded-xl border p-4 shadow-sm transition-colors ${selectedOrderIds.includes(order._id) ? 'border-blue-200 bg-blue-50/60' : 'border-gray-200 bg-white'}`}
+                            onClick={() => openModal(order)}
+                        >
+                            <div className="flex items-start justify-between gap-3">
+                                <div className="min-w-0">
+                                    <p className="text-xs font-semibold uppercase tracking-wide text-slate-400">Order</p>
+                                    <p className="font-mono text-sm font-semibold text-slate-800">{order.shortOrderNumber || order._id.slice(0, 8)}</p>
+                                </div>
+                                <input
+                                    type="checkbox"
+                                    checked={selectedOrderIds.includes(order._id)}
+                                    onClick={(e) => e.stopPropagation()}
+                                    onChange={() => toggleOrderSelection(order._id)}
+                                    aria-label={`Select order ${order.shortOrderNumber || order._id.slice(0, 8)}`}
+                                    className="mt-1 h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                />
+                            </div>
+
+                            <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
+                                <div className="col-span-2">
+                                    <p className="text-xs text-slate-500">Customer</p>
+                                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                                        <span className="font-medium text-slate-800">
+                                            {order.isGuest 
+                                                ? (order.guestName || order.customerName || 'Guest User')
+                                                : (order.customerName || order.shippingAddress?.name || order.userId?.name || order.userId?.email || 'Unknown')}
+                                        </span>
+                                        {order.isGuest && (
+                                            <span className="w-fit rounded-full bg-orange-100 px-2 py-0.5 text-xs font-semibold text-orange-700">
+                                                Guest
+                                            </span>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div>
+                                    <p className="text-xs text-slate-500">Total</p>
+                                    <p className="mt-1 font-semibold text-slate-900">{currency}{order.total}</p>
+                                </div>
+
+                                <div>
+                                    <p className="text-xs text-slate-500">Payment</p>
+                                    <span className={`mt-1 inline-flex rounded-full px-2 py-1 text-xs font-medium ${getPaymentStatus(order) ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                        {getPaymentStatus(order) ? 'Paid' : 'Pending'}
+                                    </span>
+                                </div>
+
+                                <div className="col-span-2">
+                                    <p className="text-xs text-slate-500">Order Time</p>
+                                    <p className="mt-1 text-sm font-medium text-slate-800">{formatOrderDateTime(order.createdAt)}</p>
+                                </div>
+
+                                <div className="col-span-2" onClick={(e) => e.stopPropagation()}>
+                                    <p className="text-xs text-slate-500">Status</p>
+                                    <div className="mt-1 flex items-center gap-2">
+                                        <select
+                                            value={order.status}
+                                            onChange={e => updateOrderStatus(order._id, e.target.value, getToken, fetchOrders)}
+                                            className={`min-w-0 flex-1 rounded-md border-gray-300 px-2 py-2 text-sm font-medium focus:ring focus:ring-blue-200 ${getStatusColor(order.status)}`}
+                                        >
+                                            {STATUS_OPTIONS.map(status => (
+                                                <option key={status.value} value={status.value}>{status.label}</option>
+                                            ))}
+                                        </select>
+                                        {order.trackingId && (
+                                            <button
+                                                type="button"
+                                                onClick={() => autoSyncStatusFromTracking(order)}
+                                                className="rounded border border-slate-300 px-2 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100"
+                                                title="Auto-set status from latest tracking"
+                                            >
+                                                Auto
+                                            </button>
+                                        )}
+                                    </div>
+                                </div>
+
+                                <div className="col-span-2">
+                                    <p className="text-xs text-slate-500">Tracking</p>
+                                    {order.trackingId ? (
+                                        <span className="mt-1 inline-flex rounded-full bg-blue-100 px-2 py-1 text-xs font-medium text-blue-700">
+                                            {order.trackingId.substring(0, 8)}...
+                                        </span>
+                                    ) : (
+                                        <span className="mt-1 inline-flex text-xs text-slate-400">Not shipped</span>
+                                    )}
+                                </div>
+                            </div>
+                        </div>
+                    ))}
+                </div>
+
+                <div className="hidden w-full overflow-x-auto rounded-md border border-gray-200 shadow md:block">
                     <table className="w-full text-sm text-left text-gray-600">
                         <thead className="bg-gray-50 text-gray-700 text-xs uppercase tracking-wider">
                             <tr>
@@ -1256,7 +1615,7 @@ export default function StoreOrders() {
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
-                            {filteredOrders.map((order, index) => (
+                            {paginatedOrders.map((order, index) => (
                                 <tr
                                     key={order._id}
                                     className={`hover:bg-gray-50 transition-colors duration-150 cursor-pointer ${selectedOrderIds.includes(order._id) ? 'bg-blue-50/60' : ''}`}
@@ -1271,7 +1630,7 @@ export default function StoreOrders() {
                                             className="h-4 w-4 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                         />
                                     </td>
-                                    <td className="pl-6 text-green-600 font-medium">{index + 1}</td>
+                                    <td className="pl-6 text-green-600 font-medium">{pageStartIndex + index + 1}</td>
                                     <td className="px-4 py-3 font-mono text-xs text-slate-700">{order.shortOrderNumber || order._id.slice(0, 8)}</td>
                                     <td className="px-4 py-3">
                                         <div className="flex flex-col gap-1">
@@ -1325,12 +1684,61 @@ export default function StoreOrders() {
                                             <span className="text-slate-400 text-xs">Not shipped</span>
                                         )}
                                     </td>
-                                    <td className="px-4 py-3 text-gray-500 text-xs">{new Date(order.createdAt).toLocaleDateString()}</td>
+                                    <td className="px-4 py-3 text-gray-500 text-xs">{formatOrderDateTime(order.createdAt)}</td>
                                 </tr>
                             ))}
                         </tbody>
                     </table>
                 </div>
+
+                <div className="mt-4 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+                    <div className="text-sm text-slate-600">
+                        Showing <span className="font-semibold text-slate-900">{filteredOrders.length === 0 ? 0 : pageStartIndex + 1}</span>
+                        {' '}-{' '}
+                        <span className="font-semibold text-slate-900">{Math.min(pageStartIndex + paginatedOrders.length, filteredOrders.length)}</span>
+                        {' '}of{' '}
+                        <span className="font-semibold text-slate-900">{filteredOrders.length}</span>
+                        {' '}orders
+                    </div>
+
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+                        <label className="flex items-center gap-2 text-sm text-slate-600">
+                            <span>Per page</span>
+                            <select
+                                value={pageSize}
+                                onChange={(event) => setPageSize(Number(event.target.value))}
+                                className="rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm text-slate-700"
+                            >
+                                {PAGE_SIZE_OPTIONS.map((option) => (
+                                    <option key={option} value={option}>{option}</option>
+                                ))}
+                            </select>
+                        </label>
+
+                        <div className="flex items-center gap-2 self-start sm:self-auto">
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+                                disabled={currentPage === 1}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Previous
+                            </button>
+                            <span className="text-sm text-slate-600">
+                                Page <span className="font-semibold text-slate-900">{currentPage}</span> of <span className="font-semibold text-slate-900">{totalPages}</span>
+                            </span>
+                            <button
+                                type="button"
+                                onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+                                disabled={currentPage === totalPages}
+                                className="rounded-lg border border-gray-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-gray-50 disabled:cursor-not-allowed disabled:opacity-50"
+                            >
+                                Next
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                </>
             )}
             {isModalOpen && selectedOrder && (
                 <div onClick={closeModal} className="fixed inset-0 flex items-center justify-center bg-black/60 backdrop-blur-sm text-slate-700 text-sm z-50 p-4" >
@@ -1389,13 +1797,21 @@ export default function StoreOrders() {
                                             </div>
                                             <div>
                                                 <p className="text-xs text-slate-500 mb-1">Track Order</p>
-                                                {selectedOrder.trackingUrl ? (
-                                                    <a href={selectedOrder.trackingUrl} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
+                                                {getPreferredTrackingUrl(selectedOrder.courier, selectedOrder.trackingId, selectedOrder.trackingUrl) ? (
+                                                    <a href={getPreferredTrackingUrl(selectedOrder.courier, selectedOrder.trackingId, selectedOrder.trackingUrl)} target="_blank" rel="noopener noreferrer" className="text-blue-600 hover:underline font-medium">
                                                         View Tracking
                                                     </a>
                                                 ) : (
                                                     <p className="text-slate-400">No URL</p>
                                                 )}
+                                                <button
+                                                    type="button"
+                                                    onClick={() => refreshTrackingData()}
+                                                    disabled={refreshingLiveTracking || !selectedOrder?.trackingId}
+                                                    className="mt-2 inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-slate-200 disabled:cursor-not-allowed disabled:opacity-60"
+                                                >
+                                                    {refreshingLiveTracking ? 'Refreshing...' : 'Refresh Live Tracking'}
+                                                </button>
                                             </div>
                                         </div>
 
@@ -1506,14 +1922,6 @@ export default function StoreOrders() {
                                     Update Tracking & Notify Customer
                                 </button>
 
-                                {/* Manual trigger to auto-sync status from courier tracking */}
-                                <button
-                                    onClick={autoSyncStatusFromTracking}
-                                    className="mt-2 w-full bg-slate-800 hover:bg-slate-900 text-white font-medium py-2.5 rounded-lg transition-colors text-sm"
-                                >
-                                    Auto Status from Tracking
-                                </button>
-
                                 {/* Delhivery Pickup & Auto-Refresh Controls */}
                                 {selectedOrder?.courier?.toLowerCase() === 'delhivery' && (
                                     <div className="mt-4 space-y-2">
@@ -1548,6 +1956,55 @@ export default function StoreOrders() {
                                         </button>
                                     </div>
                                 )}
+
+                                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-2">
+                                    {(() => {
+                                        const currentOrderStatus = String(selectedOrder?.status || '').toUpperCase();
+                                        const isGeoHaulUpdateDisabledByStatus = [
+                                            'PICKED_UP',
+                                            'WAREHOUSE_RECEIVED',
+                                            'SHIPPED',
+                                            'OUT_FOR_DELIVERY',
+                                            'DELIVERED',
+                                            'CANCELLED',
+                                            'RETURNED'
+                                        ].includes(currentOrderStatus);
+
+                                        return (
+                                            <>
+                                    <button
+                                        onClick={() => syncOrderWithGeoHaul('create')}
+                                        disabled={syncingGeoHaul}
+                                        className="w-full bg-emerald-600 hover:bg-emerald-700 disabled:bg-slate-300 text-white font-medium py-2.5 rounded-lg transition-colors"
+                                    >
+                                        {syncingGeoHaul ? 'Syncing...' : 'Create GeoHaul Consignment'}
+                                    </button>
+                                    <button
+                                        onClick={() => syncOrderWithGeoHaul('update')}
+                                        disabled={
+                                            syncingGeoHaul ||
+                                            !(selectedOrder?.trackingId || trackingData.trackingId) ||
+                                            isGeoHaulUpdateDisabledByStatus
+                                        }
+                                        className="w-full bg-sky-600 hover:bg-sky-700 disabled:bg-slate-300 text-white font-medium py-2.5 rounded-lg transition-colors"
+                                    >
+                                        Update GeoHaul
+                                    </button>
+                                    <button
+                                        onClick={() => syncOrderWithGeoHaul('cancel')}
+                                        disabled={
+                                            syncingGeoHaul ||
+                                            !(selectedOrder?.trackingId || trackingData.trackingId) ||
+                                            ['CANCELLED', 'DELIVERED'].includes(String(selectedOrder?.status || '').toUpperCase())
+                                        }
+                                        className="w-full bg-rose-600 hover:bg-rose-700 disabled:bg-slate-300 text-white font-medium py-2.5 rounded-lg transition-colors"
+                                    >
+                                        Cancel GeoHaul
+                                    </button>
+                                            </>
+                                        );
+                                    })()}
+                                </div>
 
                             </div>
 
@@ -1708,8 +2165,8 @@ export default function StoreOrders() {
                                             <p className="text-slate-500">Alternate Phone</p>
                                             <p className="font-medium text-slate-900">
                                                 {selectedOrder.isGuest
-                                                    ? [selectedOrder.alternatePhoneCode || selectedOrder.shippingAddress?.phoneCode || '+91', selectedOrder.alternatePhone || selectedOrder.shippingAddress?.alternatePhone].filter(Boolean).join(' ')
-                                                    : [selectedOrder.shippingAddress?.alternatePhoneCode || selectedOrder.shippingAddress?.phoneCode || '+91', selectedOrder.shippingAddress?.alternatePhone || selectedOrder.alternatePhone].filter(Boolean).join(' ')}
+                                                    ? [selectedOrder.alternatePhoneCode || selectedOrder.shippingAddress?.phoneCode || '+971', selectedOrder.alternatePhone || selectedOrder.shippingAddress?.alternatePhone].filter(Boolean).join(' ')
+                                                    : [selectedOrder.shippingAddress?.alternatePhoneCode || selectedOrder.shippingAddress?.phoneCode || '+971', selectedOrder.shippingAddress?.alternatePhone || selectedOrder.alternatePhone].filter(Boolean).join(' ')}
                                             </p>
                                         </div>
                                     )}
@@ -1838,7 +2295,7 @@ export default function StoreOrders() {
                                     )}
                                     <div>
                                         <p className="text-slate-500">Order Date</p>
-                                        <p className="font-medium text-slate-900">{new Date(selectedOrder.createdAt).toLocaleDateString()}</p>
+                                        <p className="font-medium text-slate-900">{formatOrderDateTime(selectedOrder.createdAt)}</p>
                                     </div>
                                 </div>
 

@@ -243,7 +243,7 @@ export default function SettingsPage() {
                             
                             <label className="flex flex-col gap-1.5">
                                 <span className="font-medium text-slate-700">Phone Number</span>
-                                <input type="tel" value={storePhone} onChange={e => setStorePhone(e.target.value)} className="border border-slate-300 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="+91 XXXXX XXXXX" />
+                                <input type="tel" value={storePhone} onChange={e => setStorePhone(e.target.value)} className="border border-slate-300 p-2.5 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent" placeholder="+971 XXXXX XXXXX" />
                             </label>
                             
                             <label className="flex flex-col gap-1.5">

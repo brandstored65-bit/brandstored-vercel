@@ -11,9 +11,14 @@ export default function NavbarMenuBar() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const fetchMenu = async () => {
       try {
-        const response = await fetch('/api/store/navbar-menu', { cache: 'no-store' });
+        const response = await fetch('/api/store/navbar-menu', {
+          cache: 'no-store',
+          signal: controller.signal,
+        });
         if (!response.ok) {
           setItems([]);
           setLoading(false);
@@ -23,14 +28,20 @@ export default function NavbarMenuBar() {
         const nextItems = Array.isArray(data.items) ? data.items.slice(0, MAX_ITEMS) : [];
         setItems(nextItems);
       } catch (error) {
-        console.error('Navbar menu fetch error:', error);
+        if (error?.name === 'AbortError') return;
         setItems([]);
       } finally {
-        setLoading(false);
+        if (!controller.signal.aborted) {
+          setLoading(false);
+        }
       }
     };
 
     fetchMenu();
+
+    return () => {
+      controller.abort();
+    };
   }, []);
 
   if (!loading && items.length === 0) return null;

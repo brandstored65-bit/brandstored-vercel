@@ -251,10 +251,10 @@ function OrderSuccessContent() {
                   <div>{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zip}</div>
                   <div>{order.shippingAddress.country}</div>
                   {order.shippingAddress.phone && (
-                    <div>Phone: {(order.shippingAddress.phoneCode || '+91')} {order.shippingAddress.phone}</div>
+                    <div>Phone: {(order.shippingAddress.phoneCode || '+971')} {order.shippingAddress.phone}</div>
                   )}
                   {order.shippingAddress.alternatePhone && (
-                    <div className='text-gray-600'>Alternate: {(order.shippingAddress.alternatePhoneCode || order.shippingAddress.phoneCode || '+91')} {order.shippingAddress.alternatePhone}</div>
+                    <div className='text-gray-600'>Alternate: {(order.shippingAddress.alternatePhoneCode || order.shippingAddress.phoneCode || '+971')} {order.shippingAddress.alternatePhone}</div>
                   )}
                 </div>
               </div>

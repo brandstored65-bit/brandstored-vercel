@@ -1,7 +1,7 @@
 
 'use client'
 import React from 'react'
-import { Home, Search, ShoppingCart, User, LayoutGrid } from 'lucide-react'
+import { Home, Search, ShoppingBag, ShoppingCart, User } from 'lucide-react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import { useSelector } from 'react-redux'
@@ -22,7 +22,7 @@ export default function MobileBottomNav() {
 
   const navItems = [
     { href: '/', icon: Home, label: 'Home' },
-    { href: '/categories', icon: LayoutGrid, label: 'Categories' },
+    { href: '/shop', icon: ShoppingBag, label: 'Shop' },
     { href: '/cart', icon: ShoppingCart, label: 'Cart', badge: cartCount },
     { href: isSignedIn ? '/orders' : '/sign-in', icon: User, label: isSignedIn ? 'My Account' : 'Account' },
   ]

@@ -1,7 +1,8 @@
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Order from '@/models/Order'
-import { fetchNormalizedDelhiveryTracking } from '@/lib/delhivery'
+import { fetchNormalizedTracking } from '@/lib/trackingServer'
+import { mapTrackingStatusToOrderStatus } from '@/lib/trackingShared'
 
 const asOrderShape = (normalized, awb = '') => {
   if (!normalized) return null;
@@ -37,7 +38,7 @@ export async function GET(req) {
     // If explicitly requested, try Delhivery directly first
     if (carrier === 'delhivery' && awb) {
       try {
-        const normalized = await fetchNormalizedDelhiveryTracking(awb.trim())
+        const normalized = await fetchNormalizedTracking({ trackingId: awb.trim(), courier: 'Delhivery' })
         const synthetic = asOrderShape(normalized, awb.trim())
         if (synthetic) {
           return NextResponse.json({ success: true, order: synthetic })
@@ -82,7 +83,7 @@ export async function GET(req) {
       // Fallback: try to fetch directly from Delhivery using provided AWB
       if (awb) {
         try {
-          const normalized = await fetchNormalizedDelhiveryTracking(awb.trim());
+          const normalized = await fetchNormalizedTracking({ trackingId: awb.trim(), courier: 'Delhivery' });
           const synthetic = asOrderShape(normalized, awb.trim());
           if (synthetic) {
             return NextResponse.json({ success: true, order: synthetic });
@@ -107,23 +108,27 @@ export async function GET(req) {
     try {
       const courier = (order.courier || '').toLowerCase();
       const trackingId = order.trackingId || order.awb || order.airwayBillNo;
-      if (trackingId && (courier.includes('delhivery') || !order.trackingUrl)) {
-        const normalized = await fetchNormalizedDelhiveryTracking(trackingId);
+      if (trackingId) {
+        const normalized = await fetchNormalizedTracking({
+          trackingId,
+          courier: order.courier,
+          trackingUrl: order.trackingUrl,
+        });
         if (normalized) {
           order.delhivery = normalized.delhivery;
-          order.trackingUrl = order.trackingUrl || normalized.trackingUrl;
-          order.courier = order.courier || normalized.courier;
-          order.trackingId = order.trackingId || normalized.trackingId;
+          order.trackingUrl = normalized.trackingUrl || order.trackingUrl;
+          order.courier = normalized.courier || order.courier;
+          order.trackingId = normalized.trackingId || order.trackingId;
           
-          // IMPORTANT: Update order.status to match delhivery tracking status if available
-          if (normalized.delhivery?.current_status) {
-            order.status = normalized.delhivery.current_status;
+          const mappedStatus = mapTrackingStatusToOrderStatus(normalized.delhivery, order.status);
+          if (mappedStatus) {
+            order.status = mappedStatus;
           }
         }
       }
     } catch (e) {
-      // Don't fail the API if Delhivery call fails; just log
-      console.error('Delhivery tracking fetch failed:', e?.message || e);
+      // Don't fail the API if courier call fails; just log
+      console.error('Courier tracking fetch failed:', e?.message || e);
     }
 
     return NextResponse.json({ success: true, order });

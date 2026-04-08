@@ -74,6 +74,8 @@ export async function POST(request) {
             currency: currency || null,
             lastSeenAt: now,
             source: 'checkout',
+            recoveredAt: null,
+            recoveredOrderId: null,
           },
         },
         { upsert: true }

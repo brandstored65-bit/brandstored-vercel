@@ -281,7 +281,7 @@ export default function TermsOfSalePage() {
               <p className="text-gray-700 mb-1"><strong>Business Name:</strong> Nilaas</p>
               <p className="text-gray-700 mb-1"><strong>Website:</strong> https://www.brandstored.com</p>
               <p className="text-gray-700 mb-1"><strong>Email:</strong> support@brandstored.com</p>
-              <p className="text-gray-700"><strong>Phone:</strong> +91 7592875212</p>
+              <p className="text-gray-700"><strong>Phone:</strong> +971 50 573 0119</p>
             </div>
             <p className="text-xs text-gray-500 mt-4">
               <strong>Last Updated:</strong> February 2026

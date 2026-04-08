@@ -118,12 +118,14 @@ export async function GET(request, { params }) {
         // Get abandoned cart for this customer (if exists)
         const abandonedCart = isGuest 
             ? await AbandonedCart.findOne({
-                guestEmail: customer.email,
-                storeId: storeId
+                email: customer.email,
+                storeId: storeId,
+                recoveredAt: null,
             }).lean()
             : await AbandonedCart.findOne({
                 userId: customerId,
-                storeId: storeId
+                storeId: storeId,
+                recoveredAt: null,
             }).lean();
 
         // Calculate statistics

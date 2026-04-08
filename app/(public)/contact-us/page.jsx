@@ -123,10 +123,10 @@ export default function ContactUs() {
         <p className="mb-1">
           <strong>Customer Support:</strong>{' '}
           <a
-            href="tel:+919526367551"
+            href="tel:+971505730119"
             className="text-orange-600 hover:underline"
           >
-            +91 7592875212
+            +971 50 573 0119
           </a>
         </p>
       </div>

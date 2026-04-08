@@ -12,7 +12,8 @@ import Coupon from '@/models/Coupon';
 import GuestUser from '@/models/GuestUser';
 import Wallet from '@/models/Wallet';
 import PersonalizedOffer from '@/models/PersonalizedOffer';
-import { sendOrderConfirmationEmail, sendGuestAccountCreationEmail } from '@/lib/email';
+import AbandonedCart from '@/models/AbandonedCart';
+import { sendAdminNewOrderNotificationEmail, sendOrderConfirmationEmail, sendGuestAccountCreationEmail } from '@/lib/email';
 import { fetchNormalizedDelhiveryTracking } from '@/lib/delhivery';
 
 const PaymentMethod = {
@@ -21,6 +22,38 @@ const PaymentMethod = {
     CARD: 'CARD',
     RAZORPAY: 'RAZORPAY',
     WALLET: 'WALLET'
+};
+
+const normalizeCheckoutPhone = (phoneCode, phone) => {
+    const combined = [phoneCode, phone].filter(Boolean).join(' ').trim();
+    return combined.replace(/\D/g, '');
+};
+
+const markRecoveredAbandonedCheckout = async ({ storeId, userId, email, phone, orderId }) => {
+    const normalizedEmail = String(email || '').trim().toLowerCase();
+    const normalizedPhone = String(phone || '').replace(/\D/g, '');
+
+    const matchers = [
+        ...(userId ? [{ userId }] : []),
+        ...(normalizedEmail ? [{ email: normalizedEmail }] : []),
+        ...(normalizedPhone ? [{ phone: normalizedPhone }, { phone: phone }] : []),
+    ];
+
+    if (!storeId || !matchers.length) return;
+
+    await AbandonedCart.updateMany(
+        {
+            storeId,
+            recoveredAt: null,
+            $or: matchers,
+        },
+        {
+            $set: {
+                recoveredAt: new Date(),
+                recoveredOrderId: String(orderId),
+            }
+        }
+    );
 };
 
 
@@ -520,9 +553,9 @@ export async function POST(request) {
                         name: guestInfo.name,
                         email: guestInfo.email,
                         phone: guestInfo.phone,
-                        phoneCode: guestInfo.phoneCode || '+91',
+                        phoneCode: guestInfo.phoneCode || '+971',
                         alternatePhone: guestInfo.alternatePhone || '',
-                        alternatePhoneCode: guestInfo.alternatePhoneCode || guestInfo.phoneCode || '+91',
+                        alternatePhoneCode: guestInfo.alternatePhoneCode || guestInfo.phoneCode || '+971',
                         street: guestInfo.address || guestInfo.street,
                         city: guestInfo.city || 'Guest',
                         state: guestInfo.state || 'Guest',
@@ -534,9 +567,9 @@ export async function POST(request) {
                         name: guestInfo.name,
                         email: guestInfo.email,
                         phone: guestInfo.phone,
-                        phoneCode: guestInfo.phoneCode || '+91',
+                        phoneCode: guestInfo.phoneCode || '+971',
                         alternatePhone: guestInfo.alternatePhone || '',
-                        alternatePhoneCode: guestInfo.alternatePhoneCode || guestInfo.phoneCode || '+91',
+                        alternatePhoneCode: guestInfo.alternatePhoneCode || guestInfo.phoneCode || '+971',
                         street: guestInfo.address || guestInfo.street,
                         city: guestInfo.city || 'Guest',
                         state: guestInfo.state || 'Guest',
@@ -579,9 +612,9 @@ export async function POST(request) {
                             name: address.name,
                             email: address.email,
                             phone: address.phone,
-                            phoneCode: address.phoneCode || '+91',
+                            phoneCode: address.phoneCode || '+971',
                             alternatePhone: address.alternatePhone || '',
-                            alternatePhoneCode: address.alternatePhoneCode || address.phoneCode || '+91',
+                            alternatePhoneCode: address.alternatePhoneCode || address.phoneCode || '+971',
                             street: address.street,
                             city: address.city,
                             state: address.state,
@@ -600,9 +633,9 @@ export async function POST(request) {
                         name: addressData.name,
                         email: addressData.email,
                         phone: addressData.phone,
-                        phoneCode: addressData.phoneCode || '+91',
+                        phoneCode: addressData.phoneCode || '+971',
                         alternatePhone: addressData.alternatePhone || '',
-                        alternatePhoneCode: addressData.alternatePhoneCode || addressData.phoneCode || '+91',
+                        alternatePhoneCode: addressData.alternatePhoneCode || addressData.phoneCode || '+971',
                         street: addressData.street,
                         city: addressData.city,
                         state: addressData.state,
@@ -615,9 +648,9 @@ export async function POST(request) {
                         name: addressData.name,
                         email: addressData.email,
                         phone: addressData.phone,
-                        phoneCode: addressData.phoneCode || '+91',
+                        phoneCode: addressData.phoneCode || '+971',
                         alternatePhone: addressData.alternatePhone || '',
-                        alternatePhoneCode: addressData.alternatePhoneCode || addressData.phoneCode || '+91',
+                        alternatePhoneCode: addressData.alternatePhoneCode || addressData.phoneCode || '+971',
                         street: addressData.street,
                         city: addressData.city,
                         state: addressData.state,
@@ -680,6 +713,22 @@ export async function POST(request) {
                     path: 'orderItems.productId',
                     model: 'Product'
                 });
+
+            const orderEmail = isGuest
+                ? guestInfo?.email
+                : orderData.shippingAddress?.email || userEmailFromToken;
+            const orderPhone = isGuest
+                ? normalizeCheckoutPhone(guestInfo?.phoneCode, guestInfo?.phone)
+                : normalizeCheckoutPhone(orderData.shippingAddress?.phoneCode, orderData.shippingAddress?.phone);
+
+            await markRecoveredAbandonedCheckout({
+                storeId,
+                userId: isGuest ? null : userId,
+                email: orderEmail,
+                phone: orderPhone,
+                orderId: order._id,
+            });
+
             orderIds.push(order._id.toString());
 
             // Email notification using sendOrderConfirmationEmail
@@ -694,6 +743,26 @@ export async function POST(request) {
                     const user = await User.findById(userId).lean();
                     customerEmail = user?.email || '';
                     customerName = user?.name || '';
+                }
+
+                try {
+                    await sendAdminNewOrderNotificationEmail({
+                        orderId: order._id,
+                        shortOrderNumber: order.shortOrderNumber,
+                        total: order.total,
+                        orderItems: populatedOrder?.orderItems || order.orderItems,
+                        shippingAddress: order.shippingAddress,
+                        createdAt: order.createdAt,
+                        paymentMethod: order.paymentMethod || paymentMethod,
+                        customerName: customerName || order.shippingAddress?.name || guestInfo?.name || '',
+                        customerEmail: customerEmail || order.shippingAddress?.email || guestInfo?.email || '',
+                        customerPhone: order.shippingAddress?.phone
+                            ? `${order.shippingAddress?.phoneCode || ''} ${order.shippingAddress.phone}`.trim()
+                            : (guestInfo?.phone || ''),
+                    });
+                    console.log('Admin order notification sent');
+                } catch (adminEmailError) {
+                    console.error('Error sending admin order notification email:', adminEmailError);
                 }
 
                 if (customerEmail) {
@@ -951,10 +1020,12 @@ export async function GET(request) {
                     order.isPaid = true;
                 }
             } else if (paymentMethod) {
-                const failedStatuses = new Set(['FAILED', 'PAYMENT_FAILED', 'REFUNDED', 'UNPAID', 'CANCELED', 'CANCELLED', 'EXPIRED', 'PENDING']);
+                const failedStatuses = new Set(['FAILED', 'PAYMENT_FAILED', 'REFUNDED', 'UNPAID', 'CANCELED', 'CANCELLED', 'EXPIRED']);
                 const paidStatuses = new Set(['PAID', 'CAPTURED', 'SUCCEEDED', 'SUCCESS']);
 
-                if (status === 'PAYMENT_FAILED' || failedStatuses.has(paymentStatus)) {
+                if (order.isPaid) {
+                    order.isPaid = true;
+                } else if (status === 'PAYMENT_FAILED' || failedStatuses.has(paymentStatus)) {
                     order.isPaid = false;
                 } else if (paidStatuses.has(paymentStatus)) {
                     order.isPaid = true;

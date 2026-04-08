@@ -3,7 +3,7 @@ import { usePathname } from "next/navigation"
 import { HomeIcon, LayoutListIcon, SquarePenIcon, SquarePlusIcon, StarIcon, FolderIcon, TicketIcon, TruckIcon, RefreshCw, User as UserIcon, Users as UsersIcon, MessageSquare, Sparkles, BellIcon, MailIcon, Image as ImageIcon, ShoppingCart, Wallet, BarChart3, Target, Gift } from "lucide-react"
 import Link from "next/link"
 
-const StoreSidebar = ({storeInfo}) => {
+const StoreSidebar = ({ isMobileOpen = false, onCloseMobile }) => {
     const pathname = usePathname()
 
     const sidebarLinks = [
@@ -210,15 +210,21 @@ const StoreSidebar = ({storeInfo}) => {
     }
 
     return (
-        <div className="flex h-screen">
-            {/* Sidebar */}
-            <div className="w-72 bg-gradient-to-br from-slate-50 via-white to-slate-50 border-r border-slate-200 flex flex-col overflow-hidden shadow-lg">
-                
-           
-          
-           
-                {/* Navigation Links */}
-                <div className="flex-1 overflow-y-auto scrollbar-hide px-3 py-4">
+        <>
+            {isMobileOpen && (
+                <button
+                    type="button"
+                    aria-label="Close seller sidebar"
+                    onClick={onCloseMobile}
+                    className="fixed inset-0 z-40 bg-slate-950/35 backdrop-blur-[1px] md:hidden"
+                />
+            )}
+
+            <aside
+                id="store-sidebar"
+                className={`fixed inset-y-0 left-0 z-50 flex w-[min(20rem,88vw)] flex-col border-r border-slate-200 bg-gradient-to-br from-slate-50 via-white to-slate-50 shadow-xl transition-transform duration-300 md:static md:z-auto md:w-72 md:min-w-72 md:translate-x-0 md:shadow-lg ${isMobileOpen ? 'translate-x-0' : '-translate-x-full md:flex'}`}
+            >
+                <div className="flex-1 overflow-y-auto px-3 py-4 scrollbar-hide overscroll-contain pt-20 md:pt-4">
                     {/* Sectioned Navigation */}
                     {sidebarSections.map((section) => {
                         const SectionIcon = getSectionIcon(section.name)
@@ -244,6 +250,7 @@ const StoreSidebar = ({storeInfo}) => {
                                                 <Link
                                                     key={`${section.name}-${link.href}`}
                                                     href={link.href}
+                                                    onClick={onCloseMobile}
                                                     className={`group flex items-center gap-3 px-4 py-3 text-sm rounded-xl transition-all duration-200 ${
                                                         isActive
                                                             ? `${theme.activeLink} scale-[1.01]`
@@ -271,9 +278,10 @@ const StoreSidebar = ({storeInfo}) => {
                 </div>
 
                 {/* Settings Button */}
-                <div className="border-t border-slate-200 px-3 py-4 bg-slate-50/50">
+                <div className="border-t border-slate-200 bg-slate-50/50 px-3 py-4">
                     <Link
                         href="/store/settings"
+                        onClick={onCloseMobile}
                         className="group flex items-center justify-center gap-2 w-full px-4 py-3 bg-gradient-to-r from-slate-700 to-slate-600 text-white rounded-xl hover:from-slate-600 hover:to-slate-500 shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-[1.02] font-medium"
                     >
                         <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 group-hover:rotate-90 transition-transform duration-300" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -283,8 +291,8 @@ const StoreSidebar = ({storeInfo}) => {
                         <span>Settings</span>
                     </Link>
                 </div>
-            </div>
-        </div>
+            </aside>
+        </>
     )
 }
 

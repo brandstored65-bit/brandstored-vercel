@@ -76,7 +76,9 @@ export async function POST(request){
                 // mark order as paid
                 await Promise.all(orderIdsArray.map(async (orderId) => {
                     await Order.findByIdAndUpdate(orderId, {
-                        isPaid: true
+                        isPaid: true,
+                        paymentStatus: 'PAID',
+                        paymentMethod: 'STRIPE',
                     });
                 }));
                 // delete cart from user

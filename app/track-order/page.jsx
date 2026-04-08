@@ -3,6 +3,42 @@ import { useState, useEffect, Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import axios from "axios";
 import { toast } from "react-hot-toast";
+import { getDefaultTrackingUrl } from "@/lib/trackingShared";
+
+function getResolvedTrackingUrl(order) {
+  const trackingId = String(order?.trackingId || "").trim();
+  const courier = String(order?.courier || "").trim();
+  const normalizedCourier = courier.toLowerCase();
+  const currentUrl = String(order?.trackingUrl || "").trim();
+  const generatedUrl = trackingId ? getDefaultTrackingUrl(courier, trackingId) : "";
+
+  // For GeoHaul shipments on this page, always route customers to Tawseel tracking.
+  if (trackingId && (normalizedCourier.includes("geoh") || normalizedCourier.includes("geohaul"))) {
+    return `https://courier.tawseel.com/track.php?trackno=${encodeURIComponent(trackingId)}`;
+  }
+
+  if (!currentUrl) {
+    return generatedUrl;
+  }
+
+  if (!trackingId) return currentUrl;
+
+  // Legacy records may still store internal API URL instead of public courier URL.
+  if (/\/api\/v2\/consignment\/track/i.test(currentUrl)) {
+    return generatedUrl || currentUrl;
+  }
+
+  if (currentUrl.includes("{awb}")) {
+    return currentUrl.replace("{awb}", encodeURIComponent(trackingId));
+  }
+
+  // Some records store the Tawseel base URL only: ...track.php?trackno=
+  if (/[?&](trackno|awb)=$/i.test(currentUrl)) {
+    return `${currentUrl}${encodeURIComponent(trackingId)}`;
+  }
+
+  return currentUrl;
+}
 
 function TrackOrderPageInner() {
   const [phoneNumber, setPhoneNumber] = useState('')
@@ -12,13 +48,55 @@ function TrackOrderPageInner() {
   const [order, setOrder] = useState(null)
   const [notFound, setNotFound] = useState(false)
   const [forceDelhivery, setForceDelhivery] = useState(false)
+  const [shouldAutoTrack, setShouldAutoTrack] = useState(false)
+  const resolvedTrackingUrl = getResolvedTrackingUrl(order)
 
   useEffect(() => {
-    const orderId = searchParams.get("orderId");
-    if (orderId) {
-      setAwbNumber(orderId);
+    const queryAwb = searchParams.get("orderId") || searchParams.get("awb");
+    if (queryAwb) {
+      setAwbNumber(queryAwb);
+      setShouldAutoTrack(true);
     }
   }, [searchParams]);
+
+  useEffect(() => {
+    if (!shouldAutoTrack || !awbNumber.trim() || loading) return;
+
+    const runAutoTrack = async () => {
+      setLoading(true)
+      setNotFound(false)
+      setOrder(null)
+
+      try {
+        const res = await axios.get(`/api/track-order?awb=${encodeURIComponent(awbNumber.trim())}`)
+        if (res.data.success && res.data.order) {
+          setOrder(res.data.order)
+        } else {
+          setNotFound(true)
+        }
+      } catch (error) {
+        const status = error?.response?.status
+        if (!forceDelhivery && status === 404) {
+          try {
+            const retry = await axios.get(`/api/track-order?carrier=delhivery&awb=${encodeURIComponent(awbNumber.trim())}`)
+            if (retry.data?.success && retry.data?.order) {
+              setOrder(retry.data.order)
+              setNotFound(false)
+              return
+            }
+          } catch {
+            // keep notFound as true below
+          }
+        }
+        setNotFound(true)
+      } finally {
+        setLoading(false)
+        setShouldAutoTrack(false)
+      }
+    }
+
+    runAutoTrack()
+  }, [shouldAutoTrack, awbNumber, forceDelhivery, loading])
 
   const handleTrack = async (e) => {
     e.preventDefault()
@@ -273,11 +351,11 @@ function TrackOrderPageInner() {
                           <span className="text-slate-800">{new Date(order.delhivery.expected_delivery_date).toLocaleString()}</span>
                         </div>
                       )}
-                      {order.trackingUrl && (
+                      {resolvedTrackingUrl && (
                         <div className="flex items-center gap-3">
                           <span className="text-slate-600 font-medium min-w-[120px]">Track Shipment:</span>
                           <a 
-                            href={order.trackingUrl} 
+                            href={resolvedTrackingUrl} 
                             target="_blank" 
                             rel="noopener noreferrer"
                             className="text-blue-600 hover:underline flex items-center gap-1 font-medium"
@@ -367,10 +445,10 @@ function TrackOrderPageInner() {
                     <p>{order.shippingAddress.city}, {order.shippingAddress.state} {order.shippingAddress.zip}</p>
                     <p>{order.shippingAddress.country}</p>
                     {order.shippingAddress.phone && (
-                      <p className="mt-2">Phone: {(order.shippingAddress.phoneCode || '+91')} {order.shippingAddress.phone}</p>
+                      <p className="mt-2">Phone: {(order.shippingAddress.phoneCode || '+971')} {order.shippingAddress.phone}</p>
                     )}
                     {order.shippingAddress.alternatePhone && (
-                      <p className="text-slate-600">Alternate: {(order.shippingAddress.alternatePhoneCode || order.shippingAddress.phoneCode || '+91')} {order.shippingAddress.alternatePhone}</p>
+                      <p className="text-slate-600">Alternate: {(order.shippingAddress.alternatePhoneCode || order.shippingAddress.phoneCode || '+971')} {order.shippingAddress.alternatePhone}</p>
                     )}
                   </div>
                 </div>

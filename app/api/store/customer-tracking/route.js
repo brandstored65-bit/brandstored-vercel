@@ -310,7 +310,7 @@ export async function GET(request) {
             userId: { $last: "$userId" },
           },
         },
-        { $sort: { eventCount: -1, lastEventAt: -1 } },
+        { $sort: { lastEventAt: -1, eventCount: -1 } },
         { $limit: 200 },
         {
           $project: {

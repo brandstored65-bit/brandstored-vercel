@@ -3,6 +3,7 @@ import { NextResponse } from "next/server";
 import connectDB from '@/lib/mongodb';
 import Order from '@/models/Order';
 import User from '@/models/User';
+import { getDefaultTrackingUrl, isTawseelTracking } from '@/lib/trackingShared';
 
 // Update order status and tracking details
 export async function PUT(request, { params }) {
@@ -56,8 +57,18 @@ export async function PUT(request, { params }) {
         const updateData = {};
         if (status !== undefined) updateData.status = status;
         if (trackingId !== undefined) updateData.trackingId = trackingId;
-        if (trackingUrl !== undefined) updateData.trackingUrl = trackingUrl;
         if (courier !== undefined) updateData.courier = courier;
+        if (trackingUrl !== undefined) {
+            updateData.trackingUrl = trackingUrl;
+        }
+
+        const resolvedCourier = courier !== undefined ? courier : existingOrder.courier;
+        const resolvedTrackingId = trackingId !== undefined ? trackingId : existingOrder.trackingId;
+        const resolvedTrackingUrl = trackingUrl !== undefined ? trackingUrl : existingOrder.trackingUrl;
+
+        if (!resolvedTrackingUrl && resolvedTrackingId && (isTawseelTracking(resolvedCourier) || !String(resolvedCourier || '').trim())) {
+            updateData.trackingUrl = getDefaultTrackingUrl(resolvedCourier || 'Tawseel', resolvedTrackingId);
+        }
 
         // Update the order
         const updatedOrder = await Order.findByIdAndUpdate(

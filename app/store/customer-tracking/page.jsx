@@ -21,7 +21,23 @@ function formatDuration(ms) {
   return `${seconds}s`;
 }
 
+function formatDateTime(value) {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+
+  return date.toLocaleString([], {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+    hour: "numeric",
+    minute: "2-digit",
+    hour12: true,
+  });
+}
+
 export default function StoreCustomerTrackingPage() {
+  const PAGE_SIZE_OPTIONS = [25, 50, 75];
   const { user, loading: authLoading, getToken } = useAuth();
   const [days, setDays] = useState(7);
   const [loading, setLoading] = useState(true);
@@ -29,6 +45,8 @@ export default function StoreCustomerTrackingPage() {
   const [error, setError] = useState("");
   const [activeCustomerKey, setActiveCustomerKey] = useState("");
   const [modalLoading, setModalLoading] = useState(false);
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
 
   const loadData = async (opts = {}) => {
     if (!user) return;
@@ -80,6 +98,21 @@ export default function StoreCustomerTrackingPage() {
       { title: "Conversions", value: overview.conversions || 0, icon: Trophy },
     ];
   }, [data]);
+
+  const customers = data?.customers || [];
+  const totalPages = Math.max(1, Math.ceil(customers.length / pageSize));
+  const pageStartIndex = (currentPage - 1) * pageSize;
+  const paginatedCustomers = customers.slice(pageStartIndex, pageStartIndex + pageSize);
+
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [days, data?.customers?.length, pageSize]);
+
+  useEffect(() => {
+    if (currentPage > totalPages) {
+      setCurrentPage(totalPages);
+    }
+  }, [currentPage, totalPages]);
 
   const openCustomer = async (key) => {
     setActiveCustomerKey(key);
@@ -174,7 +207,7 @@ export default function StoreCustomerTrackingPage() {
 
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-200 font-semibold">Customers</div>
-        <div className="overflow-x-auto">
+        <div className="max-h-[70vh] overflow-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-600">
               <tr>
@@ -187,7 +220,7 @@ export default function StoreCustomerTrackingPage() {
               </tr>
             </thead>
             <tbody>
-              {(data?.customers || []).map((row) => (
+              {paginatedCustomers.map((row) => (
                 <tr
                   key={row.customerKey}
                   onClick={() => openCustomer(row.customerKey)}
@@ -208,11 +241,54 @@ export default function StoreCustomerTrackingPage() {
                     </span>
                   </td>
                   <td className="px-4 py-2">{row.eventCount}</td>
-                  <td className="px-4 py-2">{row.lastEventAt ? new Date(row.lastEventAt).toLocaleString() : "-"}</td>
+                  <td className="px-4 py-2">{formatDateTime(row.lastEventAt)}</td>
                 </tr>
               ))}
             </tbody>
           </table>
+        </div>
+
+        <div className="flex flex-col gap-3 border-t border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-slate-600">
+            Showing <span className="font-semibold text-slate-900">{customers.length === 0 ? 0 : pageStartIndex + 1}</span>
+            {' '}-{' '}
+            <span className="font-semibold text-slate-900">{Math.min(pageStartIndex + paginatedCustomers.length, customers.length)}</span>
+            {' '}of <span className="font-semibold text-slate-900">{customers.length}</span> customers
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <label className="flex items-center gap-2 text-sm text-slate-600">
+              <span>Per page</span>
+              <select
+                value={pageSize}
+                onChange={(event) => setPageSize(Number(event.target.value))}
+                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-700"
+              >
+                {PAGE_SIZE_OPTIONS.map((option) => (
+                  <option key={option} value={option}>{option}</option>
+                ))}
+              </select>
+            </label>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
+              disabled={currentPage === 1}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Previous
+            </button>
+            <span className="text-sm text-slate-600">
+              Page <span className="font-semibold text-slate-900">{currentPage}</span> of <span className="font-semibold text-slate-900">{totalPages}</span>
+            </span>
+            <button
+              type="button"
+              onClick={() => setCurrentPage((page) => Math.min(totalPages, page + 1))}
+              disabled={currentPage === totalPages}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              Next
+            </button>
+          </div>
         </div>
       </div>
 
@@ -309,7 +385,7 @@ export default function StoreCustomerTrackingPage() {
                         <tbody>
                           {(data?.customerDetail?.timeline || []).map((event, idx) => (
                             <tr key={`${event.eventAt}-${idx}`} className="border-t border-slate-100">
-                              <td className="px-3 py-2">{new Date(event.eventAt).toLocaleString()}</td>
+                              <td className="px-3 py-2">{formatDateTime(event.eventAt)}</td>
                               <td className="px-3 py-2">{event.eventType}</td>
                               <td className="px-3 py-2">{event.pagePath || "-"}</td>
                               <td className="px-3 py-2">{event.productName || "-"}</td>

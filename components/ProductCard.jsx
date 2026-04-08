@@ -160,12 +160,12 @@ const ProductCard = ({ product }) => {
                 {/* Product Image */}
                 <div className={`relative w-full bg-gray-50 overflow-hidden ${getAspectRatioClass(product.aspectRatio)}`}>
                     {hasFastDelivery && (
-                        <span className="absolute top-3 left-3 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm z-20 pointer-events-none" style={{ backgroundColor: '#006644' }}>
+                        <span className="absolute left-2 top-2 z-20 pointer-events-none rounded-full px-2 py-1 text-[10px] font-bold text-white shadow-sm sm:left-3 sm:top-3 sm:px-2.5 sm:text-xs" style={{ backgroundColor: '#006644' }}>
                             Fast
                         </span>
                     )}
                     {product.freeShippingEligible && (
-                        <span className="absolute top-3 right-3 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-sm z-20 pointer-events-none" style={{ backgroundColor: '#0f766e' }}>
+                        <span className="absolute right-2 top-2 z-20 pointer-events-none rounded-full px-2 py-1 text-[10px] font-bold text-white shadow-sm sm:right-3 sm:top-3 sm:px-2.5 sm:text-xs" style={{ backgroundColor: '#0f766e' }}>
                             Free Ship
                         </span>
                     )}
@@ -183,13 +183,13 @@ const ProductCard = ({ product }) => {
                 </div>
 
                 {/* Product Details */}
-                <div className="flex flex-col p-2 sm:p-2.5 flex-1">
-                    <h3 className="font-semibold text-gray-900 text-xs sm:text-sm leading-tight line-clamp-1 mb-0.5">
+                <div className="flex flex-1 flex-col p-2.5 sm:p-3">
+                    <h3 className="mb-1 min-h-[2.25rem] text-sm font-semibold leading-tight text-gray-900 line-clamp-2 sm:min-h-[2.5rem] sm:text-sm">
                         {displayName}
                     </h3>
 
-                    <div className="flex items-center justify-between mb-0.5">
-                        <div className="flex items-center gap-0.5">
+                    <div className="mb-2 flex items-center justify-between gap-2">
+                        <div className="min-w-0 flex items-center gap-0.5">
                             {ratingCount > 0 ? (
                                 <>
                                     <div className="flex items-center">
@@ -204,17 +204,17 @@ const ProductCard = ({ product }) => {
                                             />
                                         ))}
                                     </div>
-                                    <span className="text-[10px] sm:text-[11px] text-gray-400">({ratingCount})</span>
+                                    <span className="text-[10px] text-gray-400 sm:text-[11px]">({ratingCount})</span>
                                 </>
                             ) : (
-                                <span className="text-[10px] sm:text-[11px] text-red-400">No reviews</span>
+                                <span className="truncate text-[10px] text-red-400 sm:text-[11px]">No reviews</span>
                             )}
                         </div>
 
                         <button
                             onClick={handleAddToCart}
                             disabled={isOutOfStock}
-                            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full flex items-center justify-center shadow-md hover:shadow-lg transition-all duration-200 relative flex-shrink-0"
+                            className="relative flex h-9 w-9 flex-shrink-0 items-center justify-center rounded-full shadow-md transition-all duration-200 hover:shadow-lg sm:h-10 sm:w-10"
                             style={{ backgroundColor: isOutOfStock ? '#9CA3AF' : (itemQuantity > 0 ? '#262626' : '#DC013C') }}
                             onMouseEnter={(e) => {
                                 if (isOutOfStock) return
@@ -227,7 +227,7 @@ const ProductCard = ({ product }) => {
                         >
                             <ShoppingCartIcon className="text-white" size={15} strokeWidth={2} />
                             {itemQuantity > 0 && (
-                                <span className="absolute -top-1 -right-1 text-white text-[9px] sm:text-[10px] font-bold min-w-[15px] h-[15px] sm:min-w-[16px] sm:h-[16px] rounded-full flex items-center justify-center shadow-md border-2 border-white px-0.5" style={{ backgroundColor: '#DC013C' }}>
+                                <span className="absolute -right-1 -top-1 flex h-[15px] min-w-[15px] items-center justify-center rounded-full border-2 border-white px-0.5 text-[9px] font-bold text-white shadow-md sm:h-[16px] sm:min-w-[16px] sm:text-[10px]" style={{ backgroundColor: '#DC013C' }}>
                                     {itemQuantity > 99 ? '99+' : itemQuantity}
                                 </span>
                             )}
@@ -235,15 +235,15 @@ const ProductCard = ({ product }) => {
                     </div>
 
                     {showPrice && (
-                        <div className="flex items-center gap-1.5">
+                        <div className="mt-auto flex flex-col gap-1">
                             {priceNum > 0 && (
-                                <p className="text-sm sm:text-base font-bold text-gray-900">{currency} {priceNum.toFixed(2)}</p>
+                                <p className="whitespace-nowrap text-lg font-bold leading-none text-gray-900 sm:text-xl">{currency} {priceNum.toFixed(2)}</p>
                             )}
                             {AEDNum > 0 && AEDNum > priceNum && priceNum > 0 && (
-                                <div className="flex items-center gap-1.5">
-                                    <p className="text-[10px] sm:text-xs text-gray-400 line-through">{currency} {AEDNum.toFixed(2)}</p>
+                                <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                                    <p className="whitespace-nowrap text-[11px] text-gray-400 line-through sm:text-xs">{currency} {AEDNum.toFixed(2)}</p>
                                     {discount > 0 && (
-                                        <span className="text-[10px] sm:text-xs font-semibold text-green-600">
+                                        <span className="whitespace-nowrap text-[11px] font-semibold text-green-600 sm:text-xs">
                                             {discount}% off
                                         </span>
                                     )}

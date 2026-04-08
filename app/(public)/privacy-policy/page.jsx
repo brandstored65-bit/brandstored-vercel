@@ -173,7 +173,7 @@ export default function PrivacyPolicyPage() {
               <strong>Email:</strong> support@brandstored.com
             </p>
             <p className="text-gray-700">
-              <strong>Customer Support:</strong> +91 7592875212
+              <strong>Customer Support:</strong> +971 50 573 0119
             </p>
           </section>
 
