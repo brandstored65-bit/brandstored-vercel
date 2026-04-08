@@ -112,12 +112,28 @@ export async function DELETE(request) {
 
     const body = await request.json();
     const cartId = String(body?.cartId || '').trim();
+    const cartIds = Array.isArray(body?.cartIds)
+      ? body.cartIds.map((value) => String(value || '').trim()).filter(Boolean)
+      : [];
 
-    if (!cartId) {
-      return NextResponse.json({ error: 'cartId is required' }, { status: 400 });
+    if (!cartId && cartIds.length === 0) {
+      return NextResponse.json({ error: 'cartId or cartIds is required' }, { status: 400 });
     }
 
     await dbConnect();
+
+    if (cartIds.length > 0) {
+      const result = await AbandonedCart.deleteMany({
+        _id: { $in: cartIds },
+        storeId,
+      });
+
+      return NextResponse.json({
+        success: true,
+        deletedCount: result.deletedCount || 0,
+        message: `${result.deletedCount || 0} abandoned checkout entr${result.deletedCount === 1 ? 'y' : 'ies'} deleted`,
+      });
+    }
 
     const deleted = await AbandonedCart.findOneAndDelete({
       _id: cartId,

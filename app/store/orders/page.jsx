@@ -114,7 +114,6 @@ export default function StoreOrders() {
         expected_package_count: 1
     });
     const [ltlLabelSize, setLtlLabelSize] = useState('std');
-    const [ltlLoading, setLtlLoading] = useState(false);
     const [awbManifestData, setAwbManifestData] = useState({
         pickup_location_name: '',
         payment_mode: 'cod',
@@ -128,34 +127,6 @@ export default function StoreOrders() {
     const router = useRouter();
 
     const { user, getToken, loading: authLoading } = useAuth();
-
-    const callCourierProxy = async (action, params, data) => {
-        setLtlLoading(true);
-        try {
-            const token = await getToken(true);
-            if (!token) {
-                toast.error('Authentication failed. Please sign in again.');
-                return;
-            }
-            const response = await axios.post('/api/store/courior/proxy', {
-                action,
-                params,
-                data
-            }, {
-                headers: { Authorization: `Bearer ${token}` },
-                timeout: 15000
-            });
-
-            toast.success('Courier action completed');
-            return response.data?.data;
-        } catch (error) {
-            console.error('[Courier action] error:', error);
-            toast.error(error?.response?.data?.error || 'Courier action failed');
-            return null;
-        } finally {
-            setLtlLoading(false);
-        }
-    };
 
     // Status options available (aligned with customer dashboard and courier states)
     const STATUS_OPTIONS = [

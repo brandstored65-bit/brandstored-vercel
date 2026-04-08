@@ -47,6 +47,8 @@ export default function StoreCustomerTrackingPage() {
   const [modalLoading, setModalLoading] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(25);
+  const [selectedCustomerKeys, setSelectedCustomerKeys] = useState([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
 
   const loadData = async (opts = {}) => {
     if (!user) return;
@@ -103,6 +105,7 @@ export default function StoreCustomerTrackingPage() {
   const totalPages = Math.max(1, Math.ceil(customers.length / pageSize));
   const pageStartIndex = (currentPage - 1) * pageSize;
   const paginatedCustomers = customers.slice(pageStartIndex, pageStartIndex + pageSize);
+  const allVisibleSelected = paginatedCustomers.length > 0 && paginatedCustomers.every((row) => selectedCustomerKeys.includes(row.customerKey));
 
   useEffect(() => {
     setCurrentPage(1);
@@ -113,6 +116,55 @@ export default function StoreCustomerTrackingPage() {
       setCurrentPage(totalPages);
     }
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setSelectedCustomerKeys((prev) => prev.filter((key) => customers.some((row) => row.customerKey === key)));
+  }, [customers]);
+
+  const toggleCustomerSelection = (customerKey) => {
+    setSelectedCustomerKeys((prev) => (
+      prev.includes(customerKey)
+        ? prev.filter((key) => key !== customerKey)
+        : [...prev, customerKey]
+    ));
+  };
+
+  const toggleVisibleSelection = () => {
+    const visibleKeys = paginatedCustomers.map((row) => row.customerKey);
+    setSelectedCustomerKeys((prev) => {
+      if (allVisibleSelected) {
+        return prev.filter((key) => !visibleKeys.includes(key));
+      }
+
+      return Array.from(new Set([...prev, ...visibleKeys]));
+    });
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedCustomerKeys.length === 0) return;
+
+    if (!window.confirm(`Delete tracking data for ${selectedCustomerKeys.length} selected customer${selectedCustomerKeys.length === 1 ? '' : 's'}?`)) {
+      return;
+    }
+
+    setBulkDeleting(true);
+    setError("");
+    try {
+      const token = await getToken();
+      await axios.delete('/api/store/customer-tracking', {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { customerKeys: selectedCustomerKeys },
+      });
+
+      setSelectedCustomerKeys([]);
+      setActiveCustomerKey("");
+      await loadData({ daysValue: days });
+    } catch (e) {
+      setError(e?.response?.data?.error || 'Failed to delete selected customer tracking data');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
 
   const openCustomer = async (key) => {
     setActiveCustomerKey(key);
@@ -207,10 +259,41 @@ export default function StoreCustomerTrackingPage() {
 
       <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
         <div className="px-4 py-3 border-b border-slate-200 font-semibold">Customers</div>
+        <div className="flex flex-col gap-3 border-b border-slate-200 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-slate-600">
+            Selected <span className="font-semibold text-slate-900">{selectedCustomerKeys.length}</span> of <span className="font-semibold text-slate-900">{customers.length}</span> customers
+          </div>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={toggleVisibleSelection}
+              className="rounded-lg border border-slate-300 px-3 py-2 text-sm font-medium text-slate-700 transition hover:bg-slate-50"
+            >
+              {allVisibleSelected ? 'Unselect Visible' : 'Select Visible'}
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={selectedCustomerKeys.length === 0 || bulkDeleting}
+              className="rounded-lg bg-red-600 px-3 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {bulkDeleting ? 'Deleting...' : `Delete Selected${selectedCustomerKeys.length ? ` (${selectedCustomerKeys.length})` : ''}`}
+            </button>
+          </div>
+        </div>
         <div className="max-h-[70vh] overflow-auto">
           <table className="w-full text-sm">
             <thead className="bg-slate-50 text-slate-600">
               <tr>
+                <th className="text-left px-4 py-2">
+                  <input
+                    type="checkbox"
+                    checked={allVisibleSelected}
+                    onChange={toggleVisibleSelection}
+                    aria-label="Select visible customers"
+                    className="h-4 w-4 rounded border-slate-300"
+                  />
+                </th>
                 <th className="text-left px-4 py-2">Customer</th>
                 <th className="text-left px-4 py-2">Type</th>
                 <th className="text-left px-4 py-2">Identifier</th>
@@ -226,6 +309,15 @@ export default function StoreCustomerTrackingPage() {
                   onClick={() => openCustomer(row.customerKey)}
                   className="border-t border-slate-100 hover:bg-slate-50 cursor-pointer"
                 >
+                  <td className="px-4 py-2" onClick={(event) => event.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      checked={selectedCustomerKeys.includes(row.customerKey)}
+                      onChange={() => toggleCustomerSelection(row.customerKey)}
+                      aria-label={`Select ${row.customerName || row.customerEmail || row.customerPhone || row.customerKey}`}
+                      className="h-4 w-4 rounded border-slate-300"
+                    />
+                  </td>
                   <td className="px-4 py-2">{row.customerName || "Unknown"}</td>
                   <td className="px-4 py-2">{row.customerType || "anonymous"}</td>
                   <td className="px-4 py-2">{row.customerEmail || row.customerPhone || row.userId || row.customerKey}</td>

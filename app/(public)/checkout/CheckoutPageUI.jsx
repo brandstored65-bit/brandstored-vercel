@@ -2352,11 +2352,11 @@ export default function CheckoutPage() {
               (!form.addressId && !isGuestAddressReady) || isPlaceOrderDisabled 
                 ? 'bg-gray-400 cursor-not-allowed opacity-75' 
                 : form.payment === 'cod' 
-                  ? 'bg-green-600 hover:bg-green-700' 
+                  ? 'bg-red-600 hover:bg-red-700' 
                   : isStripePaymentOption(form.payment)
                     ? 'bg-blue-600 hover:bg-blue-700'
                     : form.payment === 'wallet'
-                      ? 'bg-green-600 hover:bg-green-700'
+                      ? 'bg-red-600 hover:bg-red-700'
                     : 'bg-red-600 hover:bg-red-700'
             } ${placingOrder ? 'animate-bounce' : ''}`}
             disabled={(!form.addressId && !isGuestAddressReady) || isPlaceOrderDisabled}

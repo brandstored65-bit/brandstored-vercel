@@ -22,7 +22,13 @@ function buildAuthHeader() {
   }
 
   const token = Buffer.from(`${apiKey}:${apiSecret}`).toString('base64');
-  return `Basic ${token}`;
+  return {
+    Authorization: `Basic ${token}`,
+    'x-api-key': apiKey,
+    'x-api-secret': apiSecret,
+    'api-key': apiKey,
+    'api-secret': apiSecret,
+  };
 }
 
 export async function GET(request, context) {
@@ -37,7 +43,7 @@ export async function GET(request, context) {
       method: 'GET',
       headers: {
         Accept: 'application/json',
-        Authorization: buildAuthHeader(),
+        ...buildAuthHeader(),
       },
       cache: 'no-store',
     });

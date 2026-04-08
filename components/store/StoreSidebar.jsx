@@ -1,6 +1,6 @@
 "use client"
 import { usePathname } from "next/navigation"
-import { HomeIcon, LayoutListIcon, SquarePenIcon, SquarePlusIcon, StarIcon, FolderIcon, TicketIcon, TruckIcon, RefreshCw, User as UserIcon, Users as UsersIcon, MessageSquare, Sparkles, BellIcon, MailIcon, Image as ImageIcon, ShoppingCart, Wallet, BarChart3, Target, Gift } from "lucide-react"
+import { HomeIcon, LayoutListIcon, SquarePenIcon, SquarePlusIcon, StarIcon, FolderIcon, TicketIcon, TruckIcon, RefreshCw, User as UserIcon, Users as UsersIcon, Sparkles, MailIcon, Image as ImageIcon, ShoppingCart, BarChart3, Gift } from "lucide-react"
 import Link from "next/link"
 
 const StoreSidebar = ({ isMobileOpen = false, onCloseMobile }) => {
@@ -26,17 +26,10 @@ const StoreSidebar = ({ isMobileOpen = false, onCloseMobile }) => {
         { name: 'Customer Tracking', href: '/store/customer-tracking', icon: BarChart3 },
         { name: 'Manage Users', href: '/store/settings/users', icon: UserIcon },
         { name: 'Orders', href: '/store/orders', icon: LayoutListIcon },
-        { name: 'Courier', href: '/store/courier', icon: TruckIcon },
-        { name: 'Balance', href: '/store/balance', icon: Wallet },
-        { name: 'Sales Report', href: '/store/sales-report', icon: BarChart3 },
-        { name: 'Marketing Expenses', href: '/store/marketing-expenses', icon: Target },
         { name: 'Return Requests', href: '/store/return-requests', icon: RefreshCw },
         { name: 'Reviews', href: '/store/reviews', icon: StarIcon },
-        { name: 'Support Tickets', href: '/store/tickets', icon: MessageSquare },
         { name: 'Contact Us Messages', href: '/store#contact-messages', icon: StarIcon },
-        { name: 'Product Notifications', href: '/store/product-notifications', icon: BellIcon },
         { name: 'Promotional Emails', href: '/store/promotional-emails', icon: MailIcon },
-        { name: 'Ad Tracking', href: '/store/ads-tracking', icon: BarChart3 },
     ]
 
     const sidebarSections = [
@@ -67,8 +60,6 @@ const StoreSidebar = ({ isMobileOpen = false, onCloseMobile }) => {
                 '/store/personalized-offers',
                 '/store/coupons',
                 '/store/promotional-emails',
-                '/store/ads-tracking',
-                '/store/marketing-expenses',
             ]
         },
         {
@@ -77,10 +68,7 @@ const StoreSidebar = ({ isMobileOpen = false, onCloseMobile }) => {
                 '/store/orders',
                 '/store/abandoned-checkout',
                 '/store/shipping',
-                '/store/courier',
                 '/store/return-requests',
-                '/store/balance',
-                '/store/sales-report',
             ]
         },
         {
@@ -90,8 +78,6 @@ const StoreSidebar = ({ isMobileOpen = false, onCloseMobile }) => {
                 '/store/customer-tracking',
                 '/store/settings/users',
                 '/store/reviews',
-                '/store/tickets',
-                '/store/product-notifications',
                 '/store#contact-messages',
             ]
         },

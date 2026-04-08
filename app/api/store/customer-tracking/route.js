@@ -393,3 +393,50 @@ export async function GET(request) {
     return NextResponse.json({ error: error.message || "Failed to load customer tracking" }, { status: 500 });
   }
 }
+
+export async function DELETE(request) {
+  try {
+    await connectDB();
+
+    const authHeader = request.headers.get("authorization");
+    if (!authHeader || !authHeader.startsWith("Bearer ")) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const idToken = authHeader.split("Bearer ")[1];
+    let decoded;
+    try {
+      decoded = await getAuth().verifyIdToken(idToken);
+    } catch {
+      return NextResponse.json({ error: "Invalid token" }, { status: 401 });
+    }
+
+    const storeId = await authSeller(decoded.uid);
+    if (!storeId) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    }
+
+    const body = await request.json();
+    const customerKeys = Array.isArray(body?.customerKeys)
+      ? body.customerKeys.map((value) => String(value || "").trim()).filter(Boolean)
+      : [];
+
+    if (customerKeys.length === 0) {
+      return NextResponse.json({ error: "customerKeys is required" }, { status: 400 });
+    }
+
+    const result = await CustomerBehaviorEvent.deleteMany({
+      storeId,
+      $or: customerKeys.map((customerKey) => buildCustomerFilter(customerKey)),
+    });
+
+    return NextResponse.json({
+      success: true,
+      deletedCount: result.deletedCount || 0,
+      message: `${result.deletedCount || 0} tracking event${result.deletedCount === 1 ? '' : 's'} deleted`,
+    });
+  } catch (error) {
+    console.error("Store customer tracking delete API error:", error);
+    return NextResponse.json({ error: error.message || "Failed to delete customer tracking" }, { status: 500 });
+  }
+}

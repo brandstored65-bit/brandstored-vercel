@@ -14,6 +14,8 @@ export default function AbandonedCheckoutPage() {
   const [filter, setFilter] = useState("all"); // all, cart, guest-cart, checkout
   const [sendingEmail, setSendingEmail] = useState({}); // { [cartId]: true/false }
   const [deletingCart, setDeletingCart] = useState({}); // { [cartId]: true/false }
+  const [selectedCartIds, setSelectedCartIds] = useState([]);
+  const [bulkDeleting, setBulkDeleting] = useState(false);
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
 
@@ -71,11 +73,35 @@ export default function AbandonedCheckoutPage() {
     }
   };
 
+  const handleBulkDelete = async () => {
+    if (selectedCartIds.length === 0) {
+      return;
+    }
+
+    if (!window.confirm(`Delete ${selectedCartIds.length} selected abandoned checkout entr${selectedCartIds.length === 1 ? 'y' : 'ies'}?`)) {
+      return;
+    }
+
+    setBulkDeleting(true);
+    try {
+      const token = await getToken();
+      await axios.delete('/api/store/abandoned-checkout', {
+        headers: { Authorization: `Bearer ${token}` },
+        data: { cartIds: selectedCartIds },
+      });
+
+      setCarts((prev) => prev.filter((cart) => !selectedCartIds.includes(cart._id)));
+      setSelectedCartIds([]);
+    } catch (err) {
+      alert(err?.response?.data?.error || 'Failed to delete selected entries');
+    } finally {
+      setBulkDeleting(false);
+    }
+  };
+
   useEffect(() => {
     fetchCarts();
   }, []);
-
-  if (loading) return <Loading />;
 
   const sourceLabels = {
     "cart": "🛒 Added to Cart",
@@ -87,6 +113,7 @@ export default function AbandonedCheckoutPage() {
   const totalPages = Math.max(1, Math.ceil(filteredCarts.length / pageSize));
   const pageStartIndex = (currentPage - 1) * pageSize;
   const paginatedCarts = filteredCarts.slice(pageStartIndex, pageStartIndex + pageSize);
+  const allVisibleSelected = paginatedCarts.length > 0 && paginatedCarts.every((cart) => selectedCartIds.includes(cart._id));
 
   useEffect(() => {
     setCurrentPage(1);
@@ -97,6 +124,33 @@ export default function AbandonedCheckoutPage() {
       setCurrentPage(totalPages);
     }
   }, [currentPage, totalPages]);
+
+  useEffect(() => {
+    setSelectedCartIds((prev) => prev.filter((cartId) => carts.some((cart) => cart._id === cartId)));
+  }, [carts]);
+
+  const toggleCartSelection = (cartId) => {
+    setSelectedCartIds((prev) => (
+      prev.includes(cartId)
+        ? prev.filter((id) => id !== cartId)
+        : [...prev, cartId]
+    ));
+  };
+
+  const toggleVisibleSelection = () => {
+    const visibleIds = paginatedCarts.map((cart) => cart._id);
+
+    setSelectedCartIds((prev) => {
+      if (allVisibleSelected) {
+        return prev.filter((id) => !visibleIds.includes(id));
+      }
+
+      const merged = new Set([...prev, ...visibleIds]);
+      return Array.from(merged);
+    });
+  };
+
+  if (loading) return <Loading />;
 
   return (
     <div className="w-full">
@@ -147,6 +201,31 @@ export default function AbandonedCheckoutPage() {
         </button>
       </div>
 
+      {filteredCarts.length > 0 && (
+        <div className="mb-4 flex flex-col gap-3 rounded-xl border border-gray-200 bg-white p-4 shadow-sm sm:flex-row sm:items-center sm:justify-between">
+          <div className="text-sm text-slate-600">
+            Selected <span className="font-semibold text-slate-900">{selectedCartIds.length}</span> of <span className="font-semibold text-slate-900">{filteredCarts.length}</span>
+          </div>
+          <div className="flex gap-2">
+            <button
+              type="button"
+              onClick={toggleVisibleSelection}
+              className="rounded-lg border border-gray-300 px-4 py-2 text-sm font-medium text-slate-700 transition hover:bg-gray-50"
+            >
+              {allVisibleSelected ? 'Unselect Visible' : 'Select Visible'}
+            </button>
+            <button
+              type="button"
+              onClick={handleBulkDelete}
+              disabled={selectedCartIds.length === 0 || bulkDeleting}
+              className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-700 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {bulkDeleting ? 'Deleting...' : `Delete Selected${selectedCartIds.length > 0 ? ` (${selectedCartIds.length})` : ''}`}
+            </button>
+          </div>
+        </div>
+      )}
+
       {filteredCarts.length === 0 ? (
         <div className="text-center py-10 text-slate-500 border rounded">
           {filter === "all" 
@@ -160,6 +239,15 @@ export default function AbandonedCheckoutPage() {
             <table className="min-w-full text-sm">
               <thead className="bg-slate-50">
                 <tr>
+                  <th className="p-3 text-left">
+                    <input
+                      type="checkbox"
+                      checked={allVisibleSelected}
+                      onChange={toggleVisibleSelection}
+                      aria-label="Select visible abandoned checkouts"
+                      className="h-4 w-4 rounded border-gray-300"
+                    />
+                  </th>
                   <th className="text-left p-3">Source</th>
                   <th className="text-left p-3">Customer</th>
                   <th className="text-left p-3">Contact</th>
@@ -174,6 +262,15 @@ export default function AbandonedCheckoutPage() {
               <tbody>
                 {paginatedCarts.map((c) => (
                   <tr key={c._id} className="border-t">
+                    <td className="p-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedCartIds.includes(c._id)}
+                        onChange={() => toggleCartSelection(c._id)}
+                        aria-label={`Select ${c.email || c.name || c._id}`}
+                        className="h-4 w-4 rounded border-gray-300"
+                      />
+                    </td>
                     <td className="p-3">
                       <span className="text-xs font-medium px-2 py-1 rounded-full bg-slate-100">
                         {sourceLabels[c.source] || c.source}

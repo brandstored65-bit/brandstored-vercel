@@ -3,7 +3,6 @@
 import MobileBottomNav from "@/components/MobileBottomNav";
 import GuestOrderLinker from "@/components/GuestOrderLinker";
 import UtmTracker from "@/components/UtmTracker";
-import AdsAttribution from "@/components/AdsAttribution";
 import PageTracker from "@/components/PageTracker";
 import { useDispatch, useSelector } from "react-redux";
 import { useEffect, Suspense } from "react";
@@ -34,7 +33,6 @@ function PublicLayoutContent({ children }) {
         <div className={`flex flex-col ${isCartPage ? '' : 'min-h-screen'}`}>
             <GuestOrderLinker />
             <UtmTracker />
-            <AdsAttribution />
             <PageTracker />
             {/* <Banner />/ */}
             <main className={`flex-1 ${isHomePage ? 'pb-20' : 'pb-20'} lg:pb-0`}>{children}</main>
