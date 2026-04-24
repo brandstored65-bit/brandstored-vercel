@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { checkPincodeServiceability } from "@/lib/delhivery";
 
 export async function GET(request) {

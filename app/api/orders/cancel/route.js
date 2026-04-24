@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextResponse } from 'next/server';
 import { getAuth } from '@/lib/firebase-admin';
 import connectDB from '@/lib/mongodb';

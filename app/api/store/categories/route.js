@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextResponse } from "next/server";
 import authAdmin from "@/middlewares/authAdmin";
 import authSeller from "@/middlewares/authSeller";

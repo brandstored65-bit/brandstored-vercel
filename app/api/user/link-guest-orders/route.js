@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import connectDB from '@/lib/mongodb';
 import GuestUser from '@/models/GuestUser';
 import Order from '@/models/Order';

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import authSeller from "@/middlewares/authSeller";
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";

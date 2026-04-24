@@ -1,6 +1,8 @@
 
 
 
+export const dynamic = 'force-dynamic'
+
 import dbConnect from "@/lib/mongodb";
 import HomeSection from "@/models/HomeSection";
 import { NextResponse } from "next/server";

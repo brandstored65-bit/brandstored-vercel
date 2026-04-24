@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import dbConnect from '@/lib/mongodb'
 import Address from '@/models/Address'
 import { getAuth } from '@/lib/firebase-admin'

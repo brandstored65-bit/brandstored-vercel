@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import authSeller from "@/middlewares/authSeller";
 import imagekit from "@/configs/imageKit";
 import connectDB from '@/lib/mongodb';

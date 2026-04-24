@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import dbConnect from '@/lib/mongodb';
 import HomeMenuCategorySettings from '@/models/HomeMenuCategorySettings';
 import { NextResponse } from 'next/server';

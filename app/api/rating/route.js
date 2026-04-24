@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import dbConnect from "@/lib/mongodb";
 import Rating from "@/models/Rating";
 import Order from "@/models/Order";

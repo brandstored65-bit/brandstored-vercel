@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import dbConnect from '@/lib/mongodb'
 import EmailTemplate from '@/models/EmailTemplate'
 import authSeller from '@/middlewares/authSeller'

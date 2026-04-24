@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import dbConnect from "@/lib/mongodb";
 import Store from "@/models/Store";
 import authSeller from "@/middlewares/authSeller";

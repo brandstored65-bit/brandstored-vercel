@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { openai, isOpenAIConfigured } from "@/configs/openai";
 import authSeller from "@/middlewares/authSeller";
 

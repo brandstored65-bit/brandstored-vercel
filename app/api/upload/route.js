@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import imagekit from "@/configs/imageKit";
 
 export const config = {

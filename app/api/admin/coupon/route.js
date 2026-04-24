@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { inngest } from "@/inngest/client";
 import dbConnect from "@/lib/mongodb";
 import Coupon from "@/models/Coupon";

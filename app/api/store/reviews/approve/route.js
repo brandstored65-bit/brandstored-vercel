@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import authSeller from "@/middlewares/authSeller";
 import connectDB from '@/lib/mongodb';
 import Rating from '@/models/Rating';

@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import dbConnect from '@/lib/mongodb';
 import HomeCategorySettings from '@/models/HomeCategorySettings';
 import { getAuth } from '@/lib/firebase-admin';

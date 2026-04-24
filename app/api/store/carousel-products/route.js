@@ -3,6 +3,8 @@ import connectDB from '@/lib/mongodb'
 import Store from '@/models/Store'
 import admin from '@/lib/firebaseAdmin'
 
+export const dynamic = 'force-dynamic'
+
 // GET: Public - fetch carousel product IDs
 export async function GET(request) {
     try {

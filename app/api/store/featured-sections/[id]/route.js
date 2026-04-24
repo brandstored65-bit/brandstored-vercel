@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import dbConnect from '@/lib/mongodb';
 import FeaturedSection from '@/models/FeaturedSection';
 import { NextResponse } from 'next/server';

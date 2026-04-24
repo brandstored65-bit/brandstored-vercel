@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextResponse } from 'next/server';
 import { sendOrderShippedEmail } from '@/lib/email';
 import connectDB from '@/lib/mongodb';

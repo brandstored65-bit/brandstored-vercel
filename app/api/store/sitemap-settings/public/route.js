@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import dbConnect from '@/lib/mongodb';
 import SitemapSettings from '@/models/SitemapSettings';
 import { NextResponse } from 'next/server';

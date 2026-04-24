@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import dbConnect from '@/lib/mongodb';
 import StoreMenu from '@/models/StoreMenu';
 import { getAuth } from '@/lib/firebase-admin';

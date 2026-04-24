@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import axios from "axios";
 
 const DELHIVERY_API_TOKEN = process.env.DELHIVERY_API_TOKEN;

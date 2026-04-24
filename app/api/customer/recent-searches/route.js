@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import dbConnect from '@/lib/mongodb';
 import RecentSearch from '@/models/RecentSearch';
 import { NextResponse } from 'next/server';

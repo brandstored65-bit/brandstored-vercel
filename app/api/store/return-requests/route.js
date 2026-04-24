@@ -1,4 +1,6 @@
 
+export const dynamic = 'force-dynamic'
+
 import connectDB from '@/lib/mongodb';
 import Store from '@/models/Store';
 import ReturnRequest from '@/models/ReturnRequest';

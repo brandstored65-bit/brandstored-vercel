@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { getAuth } from '@/lib/firebase-admin';
 import Order from '@/models/Order';
 import connectDB from '@/lib/mongodb';

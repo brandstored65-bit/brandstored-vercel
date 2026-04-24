@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import imagekit, { ensureImageKit } from "@/configs/imageKit";
 // TODO: Import your Firebase Auth server-side utilities here
 import authAdmin from "@/middlewares/authAdmin";

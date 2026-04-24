@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Section4 from '@/models/Section4';

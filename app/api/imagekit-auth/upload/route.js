@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic'
+
 import imagekit from "@/configs/imageKit";
 import { getAuth } from "@/lib/firebase-admin";
 import { NextResponse } from "next/server";
