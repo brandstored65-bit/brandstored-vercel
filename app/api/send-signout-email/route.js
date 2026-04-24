@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 
 export async function POST(req) {
   try {
@@ -14,7 +14,6 @@ export async function POST(req) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
       }
 
-      const auth = getAuth();
       try {
         await auth.verifyIdToken(token);
       } catch (e) {

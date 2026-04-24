@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Deal from '@/models/Deal';
 import authSeller from '@/middlewares/authSeller';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 
 const getUserIdFromRequest = async (request) => {
   const authHeader = request.headers.get('authorization');
@@ -12,7 +12,7 @@ const getUserIdFromRequest = async (request) => {
 
   const idToken = authHeader.split('Bearer ')[1];
   try {
-    const adminAuth = getAuth();
+    const adminAuth = auth;
     const decodedToken = await adminAuth.verifyIdToken(idToken);
     return decodedToken.uid;
   } catch (error) {

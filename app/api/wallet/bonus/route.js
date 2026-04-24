@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Wallet from "@/models/Wallet";
-import { getAuth } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase-admin";
 
 export async function POST(request) {
   try {
@@ -13,7 +13,7 @@ export async function POST(request) {
     }
 
     const idToken = authHeader.split("Bearer ")[1];
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     const userId = decodedToken.uid;
 
     await connectDB();

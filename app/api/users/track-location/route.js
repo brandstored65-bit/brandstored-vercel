@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
-import { getAuth } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase-admin";
 
 export async function POST(request) {
   try {
@@ -18,7 +18,7 @@ export async function POST(request) {
     if (authHeader?.startsWith("Bearer ")) {
       try {
         const idToken = authHeader.split("Bearer ")[1];
-        const decodedToken = await getAuth().verifyIdToken(idToken);
+        const decodedToken = await auth.verifyIdToken(idToken);
         userId = decodedToken.uid;
       } catch (error) {
         // User not authenticated, proceed with guest tracking

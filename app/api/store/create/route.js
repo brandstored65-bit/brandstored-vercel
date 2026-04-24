@@ -72,7 +72,7 @@ export async function POST(request) {
     
     let decodedToken;
     try {
-      decodedToken = await getAuth().verifyIdToken(idToken);
+      decodedToken = await auth.verifyIdToken(idToken);
     } catch (e) {
       const payload = decodeJwtPayload(idToken);
       const tokenProjectId = payload?.aud || '';
@@ -245,7 +245,7 @@ export async function GET(request) {
     
     let decodedToken;
     try {
-      decodedToken = await getAuth().verifyIdToken(idToken);
+      decodedToken = await auth.verifyIdToken(idToken);
     } catch (e) {
       const payload = decodeJwtPayload(idToken);
       const tokenProjectId = payload?.aud || '';

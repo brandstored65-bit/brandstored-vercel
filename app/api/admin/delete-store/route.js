@@ -6,7 +6,7 @@ import Order from '@/models/Order';
 import Product from '@/models/Product';
 import ReturnRequest from '@/models/ReturnRequest';
 import authAdmin from '@/middlewares/authAdmin';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 import { NextResponse } from 'next/server';
 
 export async function POST(request) {
@@ -19,7 +19,7 @@ export async function POST(request) {
     const idToken = authHeader.split('Bearer ')[1];
     let decodedToken;
     try {
-      decodedToken = await getAuth().verifyIdToken(idToken);
+      decodedToken = await auth.verifyIdToken(idToken);
     } catch (e) {
       console.error('[DELETE STORE] Token verification failed:', e.message);
       return NextResponse.json({ error: 'Invalid token' }, { status: 401 });

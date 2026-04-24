@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import dbConnect from '@/lib/mongodb';
 import CategorySlider from '@/models/CategorySlider';
 import { NextResponse } from 'next/server';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 
 function parseAuthHeader(req) {
   const auth = req.headers.get('authorization') || req.headers.get('Authorization');
@@ -21,7 +21,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = await getAuth().verifyIdToken(token);
+    const decoded = await auth.verifyIdToken(token);
     const storeId = decoded.uid;
 
     // Update all sliders for this store that don't have a subtitle field

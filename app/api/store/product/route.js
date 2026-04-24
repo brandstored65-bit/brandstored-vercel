@@ -4,7 +4,7 @@ import connectDB from '@/lib/mongodb';
 import Product from '@/models/Product';
 import authSeller from "@/middlewares/authSeller";
 import { NextResponse } from "next/server";
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 import { migrateProductsToActiveStore } from '@/lib/migrateProductsToActiveStore';
 import { sanitizeProductDescription } from '@/lib/sanitizeHtml';
 
@@ -68,8 +68,8 @@ export async function POST(request) {
         if (authHeader && authHeader.startsWith('Bearer ')) {
             const idToken = authHeader.split('Bearer ')[1];
             try {
-                const { getAuth } = await import('@/lib/firebase-admin');
-                const adminAuth = getAuth();
+                const { auth } = await import('@/lib/firebase-admin');
+                const adminAuth = auth;
                 const decodedToken = await adminAuth.verifyIdToken(idToken);
                 userId = decodedToken.uid;
             } catch (e) {
@@ -313,7 +313,7 @@ export async function GET(request) {
         let userId = null;
         const idToken = authHeader.split('Bearer ')[1];
         try {
-            const adminAuth = getAuth();
+            const adminAuth = auth;
             const decodedToken = await adminAuth.verifyIdToken(idToken);
             userId = decodedToken.uid;
         } catch (e) {
@@ -367,8 +367,8 @@ export async function PUT(request) {
         if (authHeader && authHeader.startsWith('Bearer ')) {
             const idToken = authHeader.split('Bearer ')[1];
             try {
-                const { getAuth } = await import('@/lib/firebase-admin');
-                const adminAuth = getAuth();
+                const { auth } = await import('@/lib/firebase-admin');
+                const adminAuth = auth;
                 const decodedToken = await adminAuth.verifyIdToken(idToken);
                 userId = decodedToken.uid;
             } catch (e) {
@@ -613,7 +613,7 @@ export async function DELETE(request) {
                 initializeApp({ credential: applicationDefault() });
             }
             try {
-                const decodedToken = await getAuth().verifyIdToken(idToken);
+                const decodedToken = await auth.verifyIdToken(idToken);
                 userId = decodedToken.uid;
             } catch (e) {
                 // Not signed in, userId remains null

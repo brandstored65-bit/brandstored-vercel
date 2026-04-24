@@ -5,7 +5,7 @@ import dbConnect from "@/lib/mongodb";
 import PersonalizedOffer from "@/models/PersonalizedOffer";
 import Product from "@/models/Product";
 import authSeller from "@/middlewares/authSeller";
-import { getAuth } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase-admin";
 import crypto from "crypto";
 
 // Generate unique offer token
@@ -22,7 +22,7 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     const userId = decodedToken.uid;
 
     const storeId = await authSeller(userId);
@@ -93,7 +93,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     const userId = decodedToken.uid;
 
     const storeId = await authSeller(userId);

@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import dbConnect from '@/lib/mongodb';
 import FeaturedSection from '@/models/FeaturedSection';
 import { NextResponse } from 'next/server';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 
 function parseAuthHeader(req) {
   const auth = req.headers.get('authorization') || req.headers.get('Authorization');
@@ -21,7 +21,7 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = await getAuth().verifyIdToken(token);
+    const decoded = await auth.verifyIdToken(token);
     const storeId = decoded.uid;
 
     const sections = await FeaturedSection.find({ storeId }).lean();
@@ -45,7 +45,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = await getAuth().verifyIdToken(token);
+    const decoded = await auth.verifyIdToken(token);
     const storeId = decoded.uid;
 
     const { title, productIds } = await req.json();
@@ -94,7 +94,7 @@ export async function DELETE(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = await getAuth().verifyIdToken(token);
+    const decoded = await auth.verifyIdToken(token);
     const storeId = decoded.uid;
 
     const { searchParams } = new URL(req.url);

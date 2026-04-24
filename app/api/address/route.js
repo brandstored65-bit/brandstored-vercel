@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import dbConnect from '@/lib/mongodb'
 import Address from '@/models/Address'
-import { getAuth } from '@/lib/firebase-admin'
+import { auth } from "@/lib/firebase-admin";
 
 function parseAuthHeader(req) {
   const auth = req.headers.get('authorization') || req.headers.get('Authorization')
@@ -16,9 +16,7 @@ export async function GET(req) {
     await dbConnect()
     const token = parseAuthHeader(req)
     if (!token) return Response.json({ error: 'Missing Authorization' }, { status: 401 })
-    
-    const auth = getAuth()
-    const decoded = await auth.verifyIdToken(token)
+const decoded = await auth.verifyIdToken(token)
     const userId = decoded.uid
 
     const addresses = await Address.find({ userId }).sort({ createdAt: -1 }).lean()
@@ -34,9 +32,7 @@ export async function POST(req) {
     await dbConnect()
     const token = parseAuthHeader(req)
     if (!token) return Response.json({ error: 'Missing Authorization' }, { status: 401 })
-    
-    const auth = getAuth()
-    const decoded = await auth.verifyIdToken(token)
+const decoded = await auth.verifyIdToken(token)
     const userId = decoded.uid
 
     const body = await req.json()
@@ -83,9 +79,7 @@ export async function PUT(req) {
     await dbConnect()
     const token = parseAuthHeader(req)
     if (!token) return Response.json({ error: 'Missing Authorization' }, { status: 401 })
-    
-    const auth = getAuth()
-    const decoded = await auth.verifyIdToken(token)
+const decoded = await auth.verifyIdToken(token)
     const userId = decoded.uid
 
     const body = await req.json()
@@ -127,9 +121,7 @@ export async function DELETE(req) {
     await dbConnect()
     const token = parseAuthHeader(req)
     if (!token) return Response.json({ error: 'Missing Authorization' }, { status: 401 })
-    
-    const auth = getAuth()
-    const decoded = await auth.verifyIdToken(token)
+const decoded = await auth.verifyIdToken(token)
     const userId = decoded.uid
 
     const { searchParams } = new URL(req.url)

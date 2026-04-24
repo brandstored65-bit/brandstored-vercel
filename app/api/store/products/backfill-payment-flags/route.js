@@ -16,7 +16,7 @@ export async function POST(request) {
         const { getAuth } = await import('firebase-admin/auth')
         const { initializeApp, applicationDefault, getApps } = await import('firebase-admin/app')
         if (getApps().length === 0) initializeApp({ credential: applicationDefault() })
-        const decoded = await getAuth().verifyIdToken(idToken)
+        const decoded = await auth.verifyIdToken(idToken)
         userId = decoded.uid
       } catch (e) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })

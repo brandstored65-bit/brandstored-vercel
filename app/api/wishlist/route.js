@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
-import { getAuth } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase-admin";
 import WishlistItem from "@/models/WishlistItem";
 import Product from "@/models/Product";
 
@@ -29,7 +29,7 @@ export async function GET(request) {
 
         let decodedToken;
         try {
-            decodedToken = await getAuth().verifyIdToken(idToken);
+            decodedToken = await auth.verifyIdToken(idToken);
         } catch (e) {
             return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
         }
@@ -96,7 +96,7 @@ export async function POST(request) {
 
         let decodedToken;
         try {
-            decodedToken = await getAuth().verifyIdToken(idToken);
+            decodedToken = await auth.verifyIdToken(idToken);
         } catch (e) {
             return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
         }

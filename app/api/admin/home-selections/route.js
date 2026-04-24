@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import dbConnect from "@/lib/mongodb";
 import HomeSection from "@/models/HomeSection";
 import { NextResponse } from "next/server";
-import { getAuth } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase-admin";
 import authAdmin from "@/middlewares/authAdmin";
 
 // GET: list all selections (admin)
@@ -17,7 +17,7 @@ export async function GET() {
   const idToken = authHeader.split(" ")[1];
   let decodedToken;
   try {
-    decodedToken = await getAuth().verifyIdToken(idToken);
+    decodedToken = await auth.verifyIdToken(idToken);
   } catch (e) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -41,7 +41,7 @@ export async function POST(req) {
   const idToken = authHeader.split(" ")[1];
   let decodedToken;
   try {
-    decodedToken = await getAuth().verifyIdToken(idToken);
+    decodedToken = await auth.verifyIdToken(idToken);
   } catch (e) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }

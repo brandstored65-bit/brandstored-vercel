@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import User from "@/models/User";
-import { getAuth } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase-admin";
 import authSeller from "@/middlewares/authSeller";
 
 export async function GET(request) {
@@ -14,7 +14,7 @@ export async function GET(request) {
     }
 
     const idToken = authHeader.split("Bearer ")[1];
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     const userId = decodedToken.uid;
 
     // Verify user has access to a store (owner or team member)

@@ -25,7 +25,7 @@ export async function GET(request) {
         }
         let decodedToken;
         try {
-            decodedToken = await getAuth().verifyIdToken(idToken);
+            decodedToken = await auth.verifyIdToken(idToken);
         } catch (err) {
             return Response.json({ error: 'Invalid or expired token' }, { status: 401 });
         }
@@ -102,7 +102,7 @@ export async function POST(request) {
         }
         let decodedToken;
         try {
-            decodedToken = await getAuth().verifyIdToken(idToken);
+            decodedToken = await auth.verifyIdToken(idToken);
         } catch (err) {
             return Response.json({ error: 'Invalid or expired token' }, { status: 401 });
         }

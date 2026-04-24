@@ -4,7 +4,7 @@ import dbConnect from "@/lib/mongodb";
 import Store from "@/models/Store";
 import authSeller from "@/middlewares/authSeller";
 import { NextResponse } from "next/server";
-import { getAuth } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase-admin";
 
 export async function GET(request) {
     try {
@@ -22,7 +22,7 @@ export async function GET(request) {
                 process.env.GCLOUD_PROJECT = serviceAccount.project_id;
                 process.env.GOOGLE_CLOUD_PROJECT = serviceAccount.project_id;
             }
-            decodedToken = await getAuth().verifyIdToken(idToken);
+            decodedToken = await auth.verifyIdToken(idToken);
         } catch (err) {
             console.log('[is-seller API] Token verification error:', err.message);
             console.log('[is-seller API] Token (first 20 chars):', idToken?.substring(0, 20));

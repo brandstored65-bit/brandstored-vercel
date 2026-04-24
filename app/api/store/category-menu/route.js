@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import dbConnect from '@/lib/mongodb';
 import StoreMenu from '@/models/StoreMenu';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 import { NextResponse } from 'next/server';
 import authSeller from '@/middlewares/authSeller';
 
@@ -33,7 +33,7 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const firebaseAuth = getAuth();
+    const firebaseAuth = auth;
     const decoded = await firebaseAuth.verifyIdToken(token);
     const userId = decoded.uid;
     const storeId = await authSeller(userId);
@@ -89,7 +89,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const firebaseAuth = getAuth();
+    const firebaseAuth = auth;
     const decoded = await firebaseAuth.verifyIdToken(token);
     const userId = decoded.uid;
     const storeId = await authSeller(userId);

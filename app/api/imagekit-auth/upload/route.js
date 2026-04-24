@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import imagekit from "@/configs/imageKit";
-import { getAuth } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase-admin";
 import { NextResponse } from "next/server";
 
 export async function POST(req) {
@@ -13,7 +13,7 @@ export async function POST(req) {
         }
 
         const token = authHeader.split(" ")[1];
-        const auth = getAuth();
+
         const decodedToken = await auth.verifyIdToken(token);
         const userId = decodedToken.uid;
 

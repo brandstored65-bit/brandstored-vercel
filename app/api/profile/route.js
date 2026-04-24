@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import User from "@/models/User";
-import { getAuth } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase-admin";
 
 async function getUserIdFromRequest(request) {
   const authHeader = request.headers.get("authorization");
@@ -11,7 +11,7 @@ async function getUserIdFromRequest(request) {
 
   const idToken = authHeader.split(" ")[1];
   try {
-    const decoded = await getAuth().verifyIdToken(idToken);
+    const decoded = await auth.verifyIdToken(idToken);
     return decoded?.uid || null;
   } catch {
     return null;

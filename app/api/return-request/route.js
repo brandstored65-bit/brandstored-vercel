@@ -22,7 +22,7 @@ export async function GET(request) {
                 initializeApp({ credential: applicationDefault() });
             }
             try {
-                const decodedToken = await getAuth().verifyIdToken(idToken);
+                const decodedToken = await auth.verifyIdToken(idToken);
                 userId = decodedToken.uid;
             } catch (e) {
                 userId = null;
@@ -64,7 +64,7 @@ export async function POST(request) {
                 initializeApp({ credential: applicationDefault() });
             }
             try {
-                const decodedToken = await getAuth().verifyIdToken(idToken);
+                const decodedToken = await auth.verifyIdToken(idToken);
                 userId = decodedToken.uid;
             } catch (e) {
                 userId = null;

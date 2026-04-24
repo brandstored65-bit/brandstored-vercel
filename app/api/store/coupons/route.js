@@ -23,7 +23,7 @@ export async function GET(request) {
     }
     let decodedToken;
     try {
-      decodedToken = await getAuth().verifyIdToken(idToken);
+      decodedToken = await auth.verifyIdToken(idToken);
     } catch (e) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -66,7 +66,7 @@ export async function POST(request) {
     }
     let decodedToken;
     try {
-      decodedToken = await getAuth().verifyIdToken(idToken);
+      decodedToken = await auth.verifyIdToken(idToken);
     } catch (e) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
@@ -187,7 +187,7 @@ export async function DELETE(request) {
     }
     let decodedToken;
     try {
-      decodedToken = await getAuth().verifyIdToken(idToken);
+      decodedToken = await auth.verifyIdToken(idToken);
     } catch (e) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

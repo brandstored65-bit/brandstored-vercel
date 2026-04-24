@@ -21,7 +21,7 @@ export async function POST(request){
                 initializeApp({ credential: applicationDefault() });
             }
             try {
-                const decodedToken = await getAuth().verifyIdToken(idToken);
+                const decodedToken = await auth.verifyIdToken(idToken);
                 userId = decodedToken.uid;
             } catch (e) {
                 // Not signed in, userId remains null

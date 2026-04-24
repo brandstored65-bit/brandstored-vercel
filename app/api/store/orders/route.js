@@ -7,7 +7,7 @@ import Order from '@/models/Order';
 import Product from '@/models/Product';
 import User from '@/models/User';
 import Address from '@/models/Address';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 import { fetchNormalizedTracking } from '@/lib/trackingServer';
 import { isDelhiveryTracking, isTawseelTracking, mapTrackingStatusToOrderStatus } from '@/lib/trackingShared';
 
@@ -36,7 +36,7 @@ export async function POST(request) {
         }
         let decodedToken;
         try {
-            decodedToken = await getAuth().verifyIdToken(idToken);
+            decodedToken = await auth.verifyIdToken(idToken);
         } catch (e) {
             return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
         }
@@ -65,7 +65,7 @@ export async function GET(request){
     console.log('[ORDER API ROUTE] Route hit');
     try {
         await connectDB();
-        const firebaseAuth = getAuth();
+        const firebaseAuth = auth;
 
         const { searchParams } = new URL(request.url);
         const includeDelhivery = searchParams.get('withDelhivery') !== 'false';

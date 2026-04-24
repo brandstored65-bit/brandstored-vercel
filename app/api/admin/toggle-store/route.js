@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import dbConnect from "@/lib/mongodb";
 import Store from "@/models/Store";
 import authAdmin from "@/middlewares/authAdmin";
-import { getAuth } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase-admin";
 import { NextResponse } from "next/server";
 
 // Toggle Store isActive
@@ -17,7 +17,7 @@ export async function POST(request){
         const idToken = authHeader.split('Bearer ')[1];
         let decodedToken;
         try {
-            decodedToken = await getAuth().verifyIdToken(idToken);
+            decodedToken = await auth.verifyIdToken(idToken);
         } catch (e) {
             console.error('[TOGGLE STORE] Token verification failed:', e.message);
             return NextResponse.json({ error: 'Invalid token' }, { status: 401 });

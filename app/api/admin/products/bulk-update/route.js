@@ -20,7 +20,7 @@ export async function POST(request) {
         if (serviceAccountKey) initializeApp({ credential: cert(JSON.parse(serviceAccountKey)) });
       }
       try {
-        const decoded = await getAuth().verifyIdToken(idToken);
+        const decoded = await auth.verifyIdToken(idToken);
         const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || '').replace(/['\"]/g, '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);
         const email = String(decoded?.email || '').toLowerCase();
         isAdmin = adminEmails.includes(email);

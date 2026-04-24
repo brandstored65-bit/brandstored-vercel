@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import dbConnect from '@/lib/mongodb';
 import NavbarMenuSettings from '@/models/NavbarMenuSettings';
 import { NextResponse } from 'next/server';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 
 const MAX_ITEMS = 12;
 
@@ -21,7 +21,7 @@ export async function GET(req) {
     const token = parseAuthHeader(req);
     if (token) {
       try {
-        const decoded = await getAuth().verifyIdToken(token);
+        const decoded = await auth.verifyIdToken(token);
         const settings = await NavbarMenuSettings.findOne({ storeId: decoded.uid }).lean();
         return NextResponse.json(
           {
@@ -62,7 +62,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = await getAuth().verifyIdToken(token);
+    const decoded = await auth.verifyIdToken(token);
     const userId = decoded.uid;
 
     await dbConnect();

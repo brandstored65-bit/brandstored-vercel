@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Ticket from '@/models/Ticket';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 import { sendTicketReplyEmail } from '@/lib/emailService';
 
 // GET - Get single ticket
@@ -17,7 +17,7 @@ export async function GET(request, { params }) {
     }
 
     const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     const userId = decodedToken.uid;
 
     const { ticketId } = params;
@@ -50,7 +50,7 @@ export async function POST(request, { params }) {
     }
 
     const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     const userId = decodedToken.uid;
     const userName = decodedToken.name || decodedToken.email;
 
@@ -118,7 +118,7 @@ export async function PATCH(request, { params }) {
     }
 
     const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     const userId = decodedToken.uid;
 
     const { ticketId } = params;

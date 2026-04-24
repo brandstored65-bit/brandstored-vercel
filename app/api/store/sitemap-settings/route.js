@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import dbConnect from '@/lib/mongodb';
 import SitemapSettings from '@/models/SitemapSettings';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 import { NextResponse } from 'next/server';
 
 function parseAuthHeader(req) {
@@ -19,7 +19,7 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const firebaseAuth = getAuth();
+    const firebaseAuth = auth;
     const decoded = await firebaseAuth.verifyIdToken(token);
     const userId = decoded.uid;
 
@@ -46,7 +46,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const firebaseAuth = getAuth();
+    const firebaseAuth = auth;
     const decoded = await firebaseAuth.verifyIdToken(token);
     const userId = decoded.uid;
 

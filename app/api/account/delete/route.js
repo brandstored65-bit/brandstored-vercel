@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 import User from '@/models/User';
 import Address from '@/models/Address';
 import Order from '@/models/Order';
@@ -27,7 +27,7 @@ export async function POST(request) {
     }
 
     const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     const userId = decodedToken.uid;
 
     const deletions = await Promise.all([
@@ -47,7 +47,7 @@ export async function POST(request) {
     ]);
 
     try {
-      await getAuth().deleteUser(userId);
+      await auth.deleteUser(userId);
     } catch (authError) {
       console.error('Auth delete failed:', authError);
       return NextResponse.json({

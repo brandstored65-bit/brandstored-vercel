@@ -4,7 +4,7 @@ import dbConnect from "@/lib/mongodb";
 import User from "@/models/User";
 import AbandonedCart from "@/models/AbandonedCart";
 import Product from "@/models/Product";
-import { getAuth } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase-admin";
 import { NextResponse } from "next/server";
 
 
@@ -19,7 +19,7 @@ export async function POST(request){
         const idToken = authHeader.split(" ")[1];
         let decodedToken;
         try {
-            decodedToken = await getAuth().verifyIdToken(idToken);
+            decodedToken = await auth.verifyIdToken(idToken);
         } catch (e) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
@@ -110,7 +110,7 @@ export async function GET(request){
         const idToken = authHeader.split(" ")[1];
         let decodedToken;
         try {
-            decodedToken = await getAuth().verifyIdToken(idToken);
+            decodedToken = await auth.verifyIdToken(idToken);
         } catch (e) {
             return NextResponse.json({ cart: {} });
         }
@@ -147,7 +147,7 @@ export async function DELETE(request) {
         const idToken = authHeader.split(" ")[1];
         let decodedToken;
         try {
-            decodedToken = await getAuth().verifyIdToken(idToken);
+            decodedToken = await auth.verifyIdToken(idToken);
         } catch (e) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }

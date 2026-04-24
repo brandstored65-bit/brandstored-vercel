@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import connectDB from '@/lib/mongodb';
 import StoreUser from '@/models/StoreUser';
 import authSeller from '@/middlewares/authSeller';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 
 export async function POST(request) {
   try {
@@ -15,7 +15,7 @@ export async function POST(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     const userId = decodedToken.uid;
     const { userEmail, role } = await request.json();
 

@@ -15,8 +15,8 @@ export async function PUT(request) {
         if (authHeader && authHeader.startsWith('Bearer ')) {
             const idToken = authHeader.split('Bearer ')[1];
             try {
-                const { getAuth } = await import('@/lib/firebase-admin');
-                const adminAuth = getAuth();
+                const { auth } = await import('@/lib/firebase-admin');
+                const adminAuth = auth;
                 const decodedToken = await adminAuth.verifyIdToken(idToken);
                 userId = decodedToken.uid;
             } catch (e) {

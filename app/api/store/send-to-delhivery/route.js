@@ -26,7 +26,7 @@ export async function POST(request) {
 
         let decodedToken;
         try {
-            decodedToken = await getAuth().verifyIdToken(idToken);
+            decodedToken = await auth.verifyIdToken(idToken);
         } catch (e) {
             return new Response(JSON.stringify({ error: 'Invalid token' }), {
                 status: 401,

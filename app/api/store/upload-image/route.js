@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import authSeller from "@/middlewares/authSeller";
 import imagekit from "@/configs/imageKit";
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const MAX_VIDEO_SIZE_BYTES = 50 * 1024 * 1024;
@@ -18,7 +18,7 @@ export async function POST(request) {
         const idToken = authHeader.replace('Bearer ', '');
         let userId = null;
         try {
-            const decodedToken = await getAuth().verifyIdToken(idToken);
+            const decodedToken = await auth.verifyIdToken(idToken);
             userId = decodedToken.uid;
         } catch (authError) {
             return Response.json({ error: "Unauthorized" }, { status: 401 });

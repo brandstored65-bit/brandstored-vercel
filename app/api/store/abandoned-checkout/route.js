@@ -5,7 +5,7 @@ import dbConnect from '@/lib/mongodb';
 import AbandonedCart from '@/models/AbandonedCart';
 import Order from '@/models/Order';
 import authSeller from '@/middlewares/authSeller';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 
 const normalizeIdentifier = (value) => String(value || '').trim().toLowerCase();
 const normalizePhone = (value) => String(value || '').replace(/\D/g, '');
@@ -51,7 +51,7 @@ export async function GET(request) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
     const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     const userId = decodedToken.uid;
 
     const storeId = await authSeller(userId);
@@ -104,7 +104,7 @@ export async function DELETE(request) {
     }
 
     const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     const userId = decodedToken.uid;
 
     const storeId = await authSeller(userId);

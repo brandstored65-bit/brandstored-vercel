@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Wallet from "@/models/Wallet";
-import { getAuth } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase-admin";
 
 export async function GET(request) {
   try {
@@ -28,7 +28,7 @@ export async function GET(request) {
 
     let decodedToken;
     try {
-      decodedToken = await getAuth().verifyIdToken(idToken);
+      decodedToken = await auth.verifyIdToken(idToken);
     } catch (authError) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

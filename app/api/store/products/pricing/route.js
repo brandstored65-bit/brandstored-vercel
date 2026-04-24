@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import Product from "@/models/Product";
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 
 // GET - Fetch all products with pricing info
 export async function GET(req) {
@@ -16,7 +16,7 @@ export async function GET(req) {
         }
         
         const token = authHeader.split('Bearer ')[1];
-        const decoded = await getAuth().verifyIdToken(token);
+        const decoded = await auth.verifyIdToken(token);
         if (!decoded || !decoded.uid) {
             return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
         }
@@ -50,7 +50,7 @@ export async function PUT(req) {
         }
         
         const token = authHeader.split('Bearer ')[1];
-        const decoded = await getAuth().verifyIdToken(token);
+        const decoded = await auth.verifyIdToken(token);
         if (!decoded || !decoded.uid) {
             return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
         }

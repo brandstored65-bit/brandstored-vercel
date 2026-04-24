@@ -1,6 +1,6 @@
 export const dynamic = 'force-dynamic'
 
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 import Order from '@/models/Order';
 import connectDB from '@/lib/mongodb';
 import { NextResponse } from 'next/server';
@@ -10,7 +10,6 @@ export async function POST(req) {
     const token = req.headers.get('authorization')?.split(' ')[1];
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const auth = getAuth();
     const decoded = await auth.verifyIdToken(token);
     const userId = decoded.uid;
 
@@ -62,7 +61,6 @@ export async function GET(req) {
     const token = req.headers.get('authorization')?.split(' ')[1];
     if (!token) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
-    const auth = getAuth();
     const decoded = await auth.verifyIdToken(token);
     const userId = decoded.uid;
 

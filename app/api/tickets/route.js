@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 import connectDB from '@/lib/mongodb';
 import Ticket from '@/models/Ticket';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 import { sendTicketCreatedEmail } from '@/lib/emailService';
 
 const CATEGORY_LABELS = new Set([
@@ -57,7 +57,7 @@ export async function GET(request) {
     }
 
     const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     const userId = decodedToken.uid;
 
     const tickets = await Ticket.find({ userId })
@@ -87,7 +87,7 @@ export async function POST(request) {
     }
 
     const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     const userId = decodedToken.uid;
     const userEmail = decodedToken.email;
     const userName = decodedToken.name || decodedToken.email;

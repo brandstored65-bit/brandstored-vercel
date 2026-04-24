@@ -7,7 +7,7 @@ import Rating from "@/models/Rating";
 import AbandonedCart from "@/models/AbandonedCart";
 import authSeller from "@/middlewares/authSeller";
 import { NextResponse } from "next/server";
-import { getAuth } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase-admin";
 import { migrateProductsToActiveStore } from "@/lib/migrateProductsToActiveStore";
 
 const PENDING_PAYMENT_STATUSES = new Set(['failed', 'payment_failed', 'refunded', 'unpaid', 'pending']);
@@ -79,7 +79,7 @@ export async function GET(request) {
       const idToken = authHeader.split('Bearer ')[1];
       let decodedToken;
       try {
-         decodedToken = await getAuth().verifyIdToken(idToken);
+         decodedToken = await auth.verifyIdToken(idToken);
       } catch (e) {
          return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
       }

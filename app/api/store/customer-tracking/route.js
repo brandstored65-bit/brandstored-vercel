@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import connectDB from "@/lib/mongodb";
 import authSeller from "@/middlewares/authSeller";
 import CustomerBehaviorEvent from "@/models/CustomerBehaviorEvent";
-import { getAuth } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase-admin";
 
 function toDateDaysAgo(days) {
   const now = new Date();
@@ -132,7 +132,7 @@ export async function GET(request) {
     const idToken = authHeader.split("Bearer ")[1];
     let decoded;
     try {
-      decoded = await getAuth().verifyIdToken(idToken);
+      decoded = await auth.verifyIdToken(idToken);
     } catch {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }
@@ -408,7 +408,7 @@ export async function DELETE(request) {
     const idToken = authHeader.split("Bearer ")[1];
     let decoded;
     try {
-      decoded = await getAuth().verifyIdToken(idToken);
+      decoded = await auth.verifyIdToken(idToken);
     } catch {
       return NextResponse.json({ error: "Invalid token" }, { status: 401 });
     }

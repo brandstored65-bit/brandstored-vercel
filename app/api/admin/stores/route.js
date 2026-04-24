@@ -5,7 +5,7 @@ import Store from "@/models/Store";
 import User from "@/models/User";
 import authAdmin from "@/middlewares/authAdmin";
 import { NextResponse } from "next/server";
-import { getAuth } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase-admin";
 
 // Get all approved stores
 export async function GET(request){
@@ -26,7 +26,7 @@ export async function GET(request){
         let decodedToken;
         try {
             console.log('[ADMIN STORES API] Attempting to verify token...');
-            decodedToken = await getAuth().verifyIdToken(idToken);
+            decodedToken = await auth.verifyIdToken(idToken);
             console.log('[ADMIN STORES API] Token verified successfully');
         } catch (e) {
             console.error('[ADMIN STORES API] Token verification failed:', e.message);

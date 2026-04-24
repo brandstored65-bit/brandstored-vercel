@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import Order from '@/models/Order';
 import { getCompleteRazorpayStatus } from '@/lib/razorpay';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 
 /**
  * Check Razorpay payment status and auto-update order if settled
@@ -32,7 +32,7 @@ export async function GET(request) {
     const idToken = authHeader.split(' ')[1];
     let decodedToken;
     try {
-      decodedToken = await getAuth().verifyIdToken(idToken);
+      decodedToken = await auth.verifyIdToken(idToken);
     } catch (err) {
       return NextResponse.json({ error: 'Invalid or expired token' }, { status: 401 });
     }

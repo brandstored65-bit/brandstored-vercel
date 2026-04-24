@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import dbConnect from '@/lib/mongodb'
 import Address from '@/models/Address'
-import { getAuth } from '@/lib/firebase-admin'
+import { auth } from "@/lib/firebase-admin";
 
 function parseAuthHeader(req) {
   const auth = req.headers.get('authorization') || req.headers.get('Authorization')
@@ -16,9 +16,7 @@ export async function DELETE(req, { params }) {
     await dbConnect()
     const token = parseAuthHeader(req)
     if (!token) return Response.json({ error: 'Missing Authorization' }, { status: 401 })
-    
-    const auth = getAuth()
-    const decoded = await auth.verifyIdToken(token)
+const decoded = await auth.verifyIdToken(token)
     const userId = decoded.uid
 
     const { id } = await params
@@ -42,9 +40,7 @@ export async function PUT(req, { params }) {
     await dbConnect()
     const token = parseAuthHeader(req)
     if (!token) return Response.json({ error: 'Missing Authorization' }, { status: 401 })
-    
-    const auth = getAuth()
-    const decoded = await auth.verifyIdToken(token)
+const decoded = await auth.verifyIdToken(token)
     const userId = decoded.uid
 
     const { id } = await params

@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 import dbConnect from "@/lib/mongodb";
 import GuestUser from "@/models/GuestUser";
 import User from "@/models/User";
-import { getAuth } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase-admin";
 import { sendPasswordSetupEmail } from "@/lib/email";
 
 export async function POST(request) {
@@ -39,7 +39,7 @@ export async function POST(request) {
         // Create user in Firebase Auth
         let firebaseUser;
         try {
-            firebaseUser = await getAuth().createUser({
+            firebaseUser = await auth.createUser({
                 email: guestUser.email,
                 displayName: guestUser.name,
                 emailVerified: false

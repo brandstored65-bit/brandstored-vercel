@@ -2,7 +2,7 @@ export const dynamic = 'force-dynamic'
 
 import dbConnect from '@/lib/mongodb';
 import Category from '@/models/Category';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 import { NextResponse } from 'next/server';
 import mongoose from 'mongoose';
 
@@ -20,7 +20,7 @@ export async function PUT(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const firebaseAuth = getAuth();
+    const firebaseAuth = auth;
     const decoded = await firebaseAuth.verifyIdToken(token);
     // Add admin check here if needed
 
@@ -74,7 +74,7 @@ export async function DELETE(request, { params }) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const firebaseAuth = getAuth();
+    const firebaseAuth = auth;
     const decoded = await firebaseAuth.verifyIdToken(token);
     // Add admin check here if needed
 

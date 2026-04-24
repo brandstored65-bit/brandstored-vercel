@@ -27,7 +27,7 @@ async function verifySeller(request) {
 
   let decodedToken;
   try {
-    decodedToken = await getAuth().verifyIdToken(idToken);
+    decodedToken = await auth.verifyIdToken(idToken);
   } catch {
     return { error: NextResponse.json({ error: 'Invalid token' }, { status: 401 }) };
   }

@@ -1,7 +1,7 @@
 export const dynamic = 'force-dynamic'
 
 import { NextResponse } from 'next/server';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 import imagekit from '@/configs/imageKit';
 
 function parseAuthHeader(req) {
@@ -18,7 +18,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    await getAuth().verifyIdToken(token);
+    await auth.verifyIdToken(token);
 
     const body = await req.json();
     const { base64Image, fileName } = body;

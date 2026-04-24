@@ -123,7 +123,7 @@ export async function POST(request) {
                     const serviceAccount = JSON.parse(serviceAccountKey);
                     initializeApp({ credential: cert(serviceAccount) });
                 }
-                const decodedToken = await getAuth().verifyIdToken(idToken);
+                const decodedToken = await auth.verifyIdToken(idToken);
                 userId = decodedToken.uid;
                 isPlusMember = decodedToken.plan === 'plus';
                 userNameFromToken = decodedToken.name || '';
@@ -1016,7 +1016,7 @@ export async function GET(request) {
                 initializeApp({ credential: applicationDefault() });
             }
             try {
-                const decodedToken = await getAuth().verifyIdToken(idToken);
+                const decodedToken = await auth.verifyIdToken(idToken);
                 userId = decodedToken.uid;
             } catch (e) {
                 // Not signed in, userId remains null

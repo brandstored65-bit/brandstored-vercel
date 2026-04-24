@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import dbConnect from '@/lib/mongodb';
 import RecentSearch from '@/models/RecentSearch';
 import { NextResponse } from 'next/server';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 
 function parseAuthHeader(req) {
   const auth = req.headers.get('authorization') || req.headers.get('Authorization');
@@ -22,7 +22,7 @@ export async function GET(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = await getAuth().verifyIdToken(token);
+    const decoded = await auth.verifyIdToken(token);
     const userId = decoded.uid;
 
     const recentSearch = await RecentSearch.findOne({ userId }).lean();
@@ -49,7 +49,7 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = await getAuth().verifyIdToken(token);
+    const decoded = await auth.verifyIdToken(token);
     const userId = decoded.uid;
 
     const { searchTerm } = await req.json();
@@ -109,7 +109,7 @@ export async function DELETE(req) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
 
-    const decoded = await getAuth().verifyIdToken(token);
+    const decoded = await auth.verifyIdToken(token);
     const userId = decoded.uid;
 
     await RecentSearch.findOneAndUpdate(

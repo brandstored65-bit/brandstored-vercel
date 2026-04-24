@@ -6,7 +6,7 @@ import connectDB from '@/lib/mongodb';
 import Product from '@/models/Product';
 import Rating from '@/models/Rating';
 import authSeller from '@/middlewares/authSeller';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 
 const normalizeHeader = (value = '') =>
   String(value)
@@ -98,7 +98,7 @@ export async function POST(request) {
     }
 
     const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     const userId = decodedToken.uid;
     const storeId = await authSeller(userId);
 

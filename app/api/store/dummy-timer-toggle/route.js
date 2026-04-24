@@ -19,7 +19,7 @@ export async function POST(request) {
       if (getApps().length === 0) initializeApp({ credential: applicationDefault() });
 
       try {
-        const decoded = await getAuth().verifyIdToken(idToken);
+        const decoded = await auth.verifyIdToken(idToken);
         userId = decoded.uid;
       } catch {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

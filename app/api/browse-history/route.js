@@ -4,7 +4,7 @@ import { NextResponse } from 'next/server';
 import dbConnect from '@/lib/mongodb';
 import BrowseHistory from '@/models/BrowseHistory';
 import Product from '@/models/Product';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 
 // GET - Fetch user's browse history
 export async function GET(request) {
@@ -17,7 +17,7 @@ export async function GET(request) {
     }
 
     const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     const userId = decodedToken.uid;
 
     // Get browse history for user (last 50 items)
@@ -64,7 +64,7 @@ export async function POST(request) {
     }
 
     const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     const userId = decodedToken.uid;
 
     const { productId } = await request.json();
@@ -103,7 +103,7 @@ export async function DELETE(request) {
     }
 
     const idToken = authHeader.split('Bearer ')[1];
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    const decodedToken = await auth.verifyIdToken(idToken);
     const userId = decodedToken.uid;
 
     await BrowseHistory.deleteMany({ userId });

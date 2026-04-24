@@ -4,7 +4,7 @@ import dbConnect from "@/lib/mongodb";
 import Store from "@/models/Store";
 import User from "@/models/User";
 import authAdmin from "@/middlewares/authAdmin";
-import { getAuth } from "@/lib/firebase-admin";
+import { auth } from "@/lib/firebase-admin";
 import { NextResponse } from "next/server";
 
 // Approve Seller
@@ -18,7 +18,7 @@ export async function POST(request){
         const idToken = authHeader.split('Bearer ')[1];
         let decodedToken;
         try {
-            decodedToken = await getAuth().verifyIdToken(idToken);
+            decodedToken = await auth.verifyIdToken(idToken);
         } catch (e) {
             return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
         }
@@ -62,7 +62,7 @@ export async function GET(request){
         const idToken = authHeader.split('Bearer ')[1];
         let decodedToken;
         try {
-            decodedToken = await getAuth().verifyIdToken(idToken);
+            decodedToken = await auth.verifyIdToken(idToken);
         } catch (e) {
             return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
         }

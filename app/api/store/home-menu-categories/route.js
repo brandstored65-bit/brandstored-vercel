@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import dbConnect from '@/lib/mongodb';
 import HomeMenuCategorySettings from '@/models/HomeMenuCategorySettings';
 import { NextResponse } from 'next/server';
-import { getAuth } from '@/lib/firebase-admin';
+import { auth } from "@/lib/firebase-admin";
 
 // Increase max duration and request size for image-heavy category data
 export const maxDuration = 60;
@@ -60,7 +60,7 @@ export async function POST(req) {
     }
 
     console.log('Verifying token...');
-    const decoded = await getAuth().verifyIdToken(token);
+    const decoded = await auth.verifyIdToken(token);
     const userId = decoded.uid;
     console.log('Token verified for user:', userId);
 

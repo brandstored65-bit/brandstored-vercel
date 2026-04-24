@@ -3,7 +3,7 @@ export const dynamic = 'force-dynamic'
 import { NextResponse } from 'next/server'
 import connectDB from '@/lib/mongodb'
 import Store from '@/models/Store'
-import { getAuth } from '@/lib/firebase-admin'
+import { auth } from "@/lib/firebase-admin";
 import authSeller from '@/middlewares/authSeller'
 
 export async function GET(request) {
@@ -15,8 +15,7 @@ export async function GET(request) {
         if (authHeader?.startsWith('Bearer ')) {
             const idToken = authHeader.split('Bearer ')[1]
             try {
-                const adminAuth = getAuth()
-                const decodedToken = await adminAuth.verifyIdToken(idToken)
+                const adminAuth = auth;const decodedToken = await adminAuth.verifyIdToken(idToken)
                 userId = decodedToken.uid
             } catch (e) {
                 // token invalid
@@ -45,8 +44,7 @@ export async function POST(request) {
         if (authHeader?.startsWith('Bearer ')) {
             const idToken = authHeader.split('Bearer ')[1]
             try {
-                const adminAuth = getAuth()
-                const decodedToken = await adminAuth.verifyIdToken(idToken)
+                const adminAuth = auth;const decodedToken = await adminAuth.verifyIdToken(idToken)
                 userId = decodedToken.uid
             } catch (e) {
                 // token invalid
