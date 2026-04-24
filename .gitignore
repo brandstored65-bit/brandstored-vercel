@@ -48,6 +48,10 @@ ehthumbs.db
 
 # Cache
 .cache/
+
+# Credentials (never commit credentials to git)
+credentials/
+firebase-credentials.json
 .eslintcache
 
 # Local env files
