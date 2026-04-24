@@ -18,11 +18,7 @@ export async function GET(request) {
             return NextResponse.json({ error: 'Missing or invalid authorization header' }, { status: 401 });
         }
         const idToken = authHeader.split(' ')[1];
-        const { getAuth } = await import('firebase-admin/auth');
-        const { initializeApp, applicationDefault, getApps } = await import('firebase-admin/app');
-        if (getApps().length === 0) {
-            initializeApp({ credential: applicationDefault() });
-        }
+
         let decodedToken;
         try {
             decodedToken = await auth.verifyIdToken(idToken);

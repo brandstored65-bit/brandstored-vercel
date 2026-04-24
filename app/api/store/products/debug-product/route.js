@@ -16,8 +16,7 @@ export async function GET(request) {
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const idToken = authHeader.split('Bearer ')[1]
       try {
-        const { getAuth } = await import('firebase-admin/auth')
-        const { initializeApp, applicationDefault, getApps } = await import('firebase-admin/app')
+
         if (getApps().length === 0) initializeApp({ credential: applicationDefault() })
         const decoded = await auth.verifyIdToken(idToken)
         userId = decoded.uid

@@ -5,19 +5,39 @@ import Address from '@/models/Address'
 import { auth } from "@/lib/firebase-admin";
 
 function parseAuthHeader(req) {
-  const auth = req.headers.get('authorization') || req.headers.get('Authorization')
-  if (!auth) return null
-  const parts = auth.split(' ')
+  const authHeader = req.headers.get('authorization') || req.headers.get('Authorization')
+  if (!authHeader) return null
+  const parts = authHeader.split(' ')
   return parts.length === 2 ? parts[1] : null
+}
+
+function isFirebaseAuthError(error) {
+  return Boolean(error?.code && String(error.code).startsWith('auth/'));
+}
+
+async function getUserIdFromRequest(req) {
+  const token = parseAuthHeader(req);
+  if (!token || token === 'null' || token === 'undefined') {
+    return { error: Response.json({ error: 'Unauthorized' }, { status: 401 }) };
+  }
+
+  try {
+    const decoded = await auth.verifyIdToken(token);
+    return { userId: decoded.uid };
+  } catch (e) {
+    if (isFirebaseAuthError(e)) {
+      return { error: Response.json({ error: 'Unauthorized' }, { status: 401 }) };
+    }
+    throw e;
+  }
 }
 
 export async function GET(req) {
   try {
     await dbConnect()
-    const token = parseAuthHeader(req)
-    if (!token) return Response.json({ error: 'Missing Authorization' }, { status: 401 })
-const decoded = await auth.verifyIdToken(token)
-    const userId = decoded.uid
+    const authResult = await getUserIdFromRequest(req)
+    if (authResult.error) return authResult.error
+    const userId = authResult.userId
 
     const addresses = await Address.find({ userId }).sort({ createdAt: -1 }).lean()
     return Response.json({ addresses }, { status: 200 })
@@ -30,10 +50,9 @@ const decoded = await auth.verifyIdToken(token)
 export async function POST(req) {
   try {
     await dbConnect()
-    const token = parseAuthHeader(req)
-    if (!token) return Response.json({ error: 'Missing Authorization' }, { status: 401 })
-const decoded = await auth.verifyIdToken(token)
-    const userId = decoded.uid
+    const authResult = await getUserIdFromRequest(req)
+    if (authResult.error) return authResult.error
+    const userId = authResult.userId
 
     const body = await req.json()
     const addr = body?.address || body
@@ -77,10 +96,9 @@ const decoded = await auth.verifyIdToken(token)
 export async function PUT(req) {
   try {
     await dbConnect()
-    const token = parseAuthHeader(req)
-    if (!token) return Response.json({ error: 'Missing Authorization' }, { status: 401 })
-const decoded = await auth.verifyIdToken(token)
-    const userId = decoded.uid
+    const authResult = await getUserIdFromRequest(req)
+    if (authResult.error) return authResult.error
+    const userId = authResult.userId
 
     const body = await req.json()
     const id = body?.id || body?.address?.id || body?.address?._id
@@ -119,10 +137,9 @@ const decoded = await auth.verifyIdToken(token)
 export async function DELETE(req) {
   try {
     await dbConnect()
-    const token = parseAuthHeader(req)
-    if (!token) return Response.json({ error: 'Missing Authorization' }, { status: 401 })
-const decoded = await auth.verifyIdToken(token)
-    const userId = decoded.uid
+    const authResult = await getUserIdFromRequest(req)
+    if (authResult.error) return authResult.error
+    const userId = authResult.userId
 
     const { searchParams } = new URL(req.url)
     const id = searchParams.get('id')

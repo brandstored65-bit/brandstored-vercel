@@ -11,11 +11,7 @@ export async function POST(request) {
     let userId = null;
     if (authHeader && authHeader.startsWith("Bearer ")) {
       const idToken = authHeader.split(" ")[1];
-      const { getAuth } = await import("firebase-admin/auth");
-      const { initializeApp, applicationDefault, getApps } = await import("firebase-admin/app");
-      if (getApps().length === 0) {
-        initializeApp({ credential: applicationDefault() });
-      }
+
       try {
         const decodedToken = await auth.verifyIdToken(idToken);
         userId = decodedToken.uid;

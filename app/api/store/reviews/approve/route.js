@@ -5,7 +5,6 @@ import connectDB from '@/lib/mongodb';
 import Rating from '@/models/Rating';
 import Product from '@/models/Product';
 
-
 // POST: Approve or reject a review
 export async function POST(request) {
     try {
@@ -16,11 +15,7 @@ export async function POST(request) {
         let userId = null;
         if (authHeader && authHeader.startsWith('Bearer ')) {
             const idToken = authHeader.split('Bearer ')[1];
-            const { getAuth } = await import('firebase-admin/auth');
-            const { initializeApp, applicationDefault, getApps } = await import('firebase-admin/app');
-            if (getApps().length === 0) {
-                initializeApp({ credential: applicationDefault() });
-            }
+
             try {
                 const decodedToken = await auth.verifyIdToken(idToken);
                 userId = decodedToken.uid;

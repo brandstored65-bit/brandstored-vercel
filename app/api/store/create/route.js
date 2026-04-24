@@ -8,7 +8,6 @@ import Store from '@/models/Store';
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
-
 const json = (body, status = 200) => NextResponse.json(body, { status });
 
 const decodeJwtPayload = (token) => {
@@ -23,7 +22,6 @@ const decodeJwtPayload = (token) => {
   }
 };
 
-
 export async function POST(request) {
   try {
     await connectDB();
@@ -35,39 +33,15 @@ export async function POST(request) {
     }
     const idToken = authHeader.split('Bearer ')[1];
     let adminProjectId = '';
-    
-    const { getAuth } = await import('firebase-admin/auth');
-    const { initializeApp, cert, getApps } = await import('firebase-admin/app');
-    
-    if (getApps().length === 0) {
-      try {
-        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-        if (!serviceAccountKey) {
-          console.error('[DEBUG] FIREBASE_SERVICE_ACCOUNT_KEY not found in environment');
-          return json({ error: 'Firebase configuration missing' }, 500);
-        }
+    try {
+      const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+      if (serviceAccountKey) {
         const serviceAccount = JSON.parse(serviceAccountKey);
         adminProjectId = serviceAccount.project_id || '';
-        
-        initializeApp({
-          credential: cert(serviceAccount)
-        });
-        console.log('[DEBUG] Firebase Admin initialized successfully');
-      } catch (initError) {
-        console.error('[DEBUG] Firebase initialization error:', initError);
-        return json({ error: 'Firebase initialization failed', details: initError.message }, 500);
       }
-    } else {
-      try {
-        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-        if (serviceAccountKey) {
-          const serviceAccount = JSON.parse(serviceAccountKey);
-          adminProjectId = serviceAccount.project_id || '';
-        }
-      } catch (err) {
-        console.warn('Could not extract Firebase project ID:', err.message);
-        adminProjectId = '';
-      }
+    } catch (err) {
+      console.warn('Could not extract Firebase project ID:', err.message);
+      adminProjectId = '';
     }
     
     let decodedToken;
@@ -198,7 +172,6 @@ export async function POST(request) {
   }
 }
 
-
 // GET: Check if the user has already registered a store
 export async function GET(request) {
   try {
@@ -211,36 +184,15 @@ export async function GET(request) {
     }
     const idToken = authHeader.split('Bearer ')[1];
     let adminProjectId = '';
-    
-    const { getAuth } = await import('firebase-admin/auth');
-    const { initializeApp, cert, getApps } = await import('firebase-admin/app');
-    
-    if (getApps().length === 0) {
-      try {
-        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-        if (!serviceAccountKey) {
-          return json({ error: 'Firebase configuration missing' }, 500);
-        }
+    try {
+      const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
+      if (serviceAccountKey) {
         const serviceAccount = JSON.parse(serviceAccountKey);
         adminProjectId = serviceAccount.project_id || '';
-        initializeApp({
-          credential: cert(serviceAccount)
-        });
-      } catch (initError) {
-        console.error('[DEBUG] Firebase initialization error:', initError);
-        return json({ error: 'Firebase initialization failed' }, 500);
       }
-    } else {
-      try {
-        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-        if (serviceAccountKey) {
-          const serviceAccount = JSON.parse(serviceAccountKey);
-          adminProjectId = serviceAccount.project_id || '';
-        }
-      } catch (err) {
-        console.warn('Could not extract Firebase project ID:', err.message);
-        adminProjectId = '';
-      }
+    } catch (err) {
+      console.warn('Could not extract Firebase project ID:', err.message);
+      adminProjectId = '';
     }
     
     let decodedToken;

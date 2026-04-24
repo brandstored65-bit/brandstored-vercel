@@ -16,8 +16,6 @@ function debugLog(...args) {
     try { console.log('[ORDER API DEBUG]', ...args); } catch {}
 }
 
-
-
 // Update seller order status
 export async function POST(request) {
     try {
@@ -29,11 +27,7 @@ export async function POST(request) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
         const idToken = authHeader.split('Bearer ')[1];
-        const { getAuth } = await import('firebase-admin/auth');
-        const { initializeApp, applicationDefault, getApps } = await import('firebase-admin/app');
-        if (getApps().length === 0) {
-            initializeApp({ credential: applicationDefault() });
-        }
+
         let decodedToken;
         try {
             decodedToken = await auth.verifyIdToken(idToken);

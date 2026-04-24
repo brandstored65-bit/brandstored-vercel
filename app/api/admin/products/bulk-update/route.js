@@ -13,12 +13,7 @@ export async function POST(request) {
     let isAdmin = false;
     if (authHeader && authHeader.startsWith('Bearer ')) {
       const idToken = authHeader.split('Bearer ')[1];
-      const { getAuth } = await import('firebase-admin/auth');
-      const { initializeApp, cert, getApps } = await import('firebase-admin/app');
-      if (getApps().length === 0) {
-        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-        if (serviceAccountKey) initializeApp({ credential: cert(JSON.parse(serviceAccountKey)) });
-      }
+
       try {
         const decoded = await auth.verifyIdToken(idToken);
         const adminEmails = (process.env.NEXT_PUBLIC_ADMIN_EMAIL || '').replace(/['\"]/g, '').split(',').map(e => e.trim().toLowerCase()).filter(Boolean);

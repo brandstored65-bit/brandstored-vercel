@@ -446,7 +446,6 @@ export async function PUT(request) {
             slug = slug.replace(/(^-|-$)+/g, '');
         }
 
-
         if (!productId || typeof productId !== 'string' || !productId.match(/^[a-fA-F0-9]{24}$/)) {
             console.error('Invalid or missing productId:', productId);
             return NextResponse.json({ error: "Product ID required or invalid format" }, { status: 400 });
@@ -607,11 +606,7 @@ export async function DELETE(request) {
         let userId = null;
         if (authHeader && authHeader.startsWith('Bearer ')) {
             const idToken = authHeader.split('Bearer ')[1];
-            const { getAuth } = await import('firebase-admin/auth');
-            const { initializeApp, applicationDefault, getApps } = await import('firebase-admin/app');
-            if (getApps().length === 0) {
-                initializeApp({ credential: applicationDefault() });
-            }
+
             try {
                 const decodedToken = await auth.verifyIdToken(idToken);
                 userId = decodedToken.uid;

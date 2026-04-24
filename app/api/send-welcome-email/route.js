@@ -21,18 +21,9 @@ export async function POST(request) {
     }
     
     // Verify Firebase token
-    const { getAuth } = await import('firebase-admin/auth');
-    const { initializeApp, cert, getApps } = await import('firebase-admin/app');
-    
+
     try {
-      if (getApps().length === 0) {
-        const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-        if (!serviceAccountKey) {
-          return NextResponse.json({ error: 'Firebase not configured' }, { status: 500 });
-        }
-        const serviceAccount = JSON.parse(serviceAccountKey);
-        initializeApp({ credential: cert(serviceAccount) });
-      }
+
     } catch (initError) {
       console.error('Firebase initialization error:', initError);
       return NextResponse.json({ error: 'Firebase initialization failed' }, { status: 500 });

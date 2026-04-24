@@ -16,6 +16,7 @@ import GuestUser from '@/models/GuestUser';
 import Wallet from '@/models/Wallet';
 import PersonalizedOffer from '@/models/PersonalizedOffer';
 import AbandonedCart from '@/models/AbandonedCart';
+import { auth } from '@/lib/firebase-admin';
 import { sendAdminNewOrderNotificationEmail, sendOrderConfirmationEmail, sendGuestAccountCreationEmail } from '@/lib/email';
 import { fetchNormalizedDelhiveryTracking } from '@/lib/delhivery';
 
@@ -58,8 +59,6 @@ const markRecoveredAbandonedCheckout = async ({ storeId, userId, email, phone, o
         }
     );
 };
-
-
 
 export async function POST(request) {
     try {
@@ -113,16 +112,6 @@ export async function POST(request) {
             }
             const idToken = authHeader.split('Bearer ')[1];
             try {
-                const { getAuth } = await import('firebase-admin/auth');
-                const { initializeApp, cert, getApps } = await import('firebase-admin/app');
-                if (getApps().length === 0) {
-                    const serviceAccountKey = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
-                    if (!serviceAccountKey) {
-                        throw new Error('Firebase service account key not configured');
-                    }
-                    const serviceAccount = JSON.parse(serviceAccountKey);
-                    initializeApp({ credential: cert(serviceAccount) });
-                }
                 const decodedToken = await auth.verifyIdToken(idToken);
                 userId = decodedToken.uid;
                 isPlusMember = decodedToken.plan === 'plus';
@@ -684,37 +673,20 @@ export async function POST(request) {
             console.log('ORDER API DEBUG: orderData keys:', Object.keys(orderData));
             console.log('ORDER API DEBUG: orderData before Order.create:', JSON.stringify(orderData, null, 2));
             
-            // Allocate a sequential, unique displayOrderNumber (starts at 55253)
+            // Allocate a sequential, unique displayOrderNumber (starts at 55253).
+            // Single atomic aggregation pipeline update handles all cases:
+            //   - New document (upsert): seq is null → $ifNull returns 55253
+            //   - Corrupted seq: $add returns null → $ifNull returns 55253
+            //   - Normal increment: $add(seq, 1)
             let counter;
             try {
-                // First, check if counter exists and has valid seq field
-                const existing = await Counter.findById('order').lean();
-                
-                if (!existing) {
-                    // Create new counter with initial value
-                    counter = await Counter.findOneAndUpdate(
-                        { _id: 'order' },
-                        { seq: 55253 },
-                        { new: true, upsert: true }
-                    );
-                } else if (typeof existing.seq !== 'number') {
-                    // Counter exists but seq is corrupted, reset it
-                    console.warn('Counter seq field corrupted, resetting:', existing);
-                    counter = await Counter.findByIdAndUpdate(
-                        'order',
-                        { seq: 55253 },
-                        { new: true }
-                    );
-                } else {
-                    // Counter exists with valid seq, increment it
-                    counter = await Counter.findByIdAndUpdate(
-                        'order',
-                        { $inc: { seq: 1 } },
-                        { new: true }
-                    );
-                }
+                counter = await Counter.findOneAndUpdate(
+                    { _id: 'order' },
+                    [{ $set: { seq: { $ifNull: [{ $add: ['$seq', 1] }, 55253] } } }],
+                    { new: true, upsert: true, updatePipeline: true }
+                );
             } catch (counterErr) {
-                console.error('Fatal counter allocation error:', counterErr?.message || counterErr);
+                console.error('Counter allocation error:', counterErr?.message || counterErr);
                 throw counterErr;
             }
             orderData.displayOrderNumber = counter.seq;
@@ -1013,11 +985,7 @@ export async function GET(request) {
         let userId = null;
         if (authHeader && authHeader.startsWith('Bearer ')) {
             const idToken = authHeader.split('Bearer ')[1];
-            const { getAuth } = await import('firebase-admin/auth');
-            const { initializeApp, applicationDefault, getApps } = await import('firebase-admin/app');
-            if (getApps().length === 0) {
-                initializeApp({ credential: applicationDefault() });
-            }
+
             try {
                 const decodedToken = await auth.verifyIdToken(idToken);
                 userId = decodedToken.uid;
