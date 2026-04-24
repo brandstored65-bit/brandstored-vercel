@@ -45,6 +45,8 @@ const OrderSchema = new mongoose.Schema({
   courier: String,
   trackingUrl: String,
   shortOrderNumber: { type: Number, index: true },
+  // Make the unique index sparse to avoid index creation failures on existing documents without this field
+  displayOrderNumber: { type: Number, unique: true, sparse: true, index: true },
   orderItems: [OrderItemSchema],
   items: Array,
   cancelReason: String,

@@ -2,7 +2,7 @@
 
 import { StarIcon, Share2Icon, HeartIcon, MinusIcon, PlusIcon, ShoppingCartIcon, EyeIcon } from "lucide-react";
 import Image from "next/image";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 
 import { useRouter } from "next/navigation";
 import axios from "axios";
@@ -10,6 +10,7 @@ import { useDispatch, useSelector } from "react-redux";
 
 import { addToCart, uploadCart } from "@/lib/features/cart/cartSlice";
 import MobileProductActions from "./MobileProductActions";
+import CountdownTimer from "@/components/CountdownTimer";
 import { useAuth } from '@/lib/useAuth';
 import { trackMetaEvent } from "@/lib/metaPixelClient";
 import { setTrackingStoreId, trackCustomerBehavior } from "@/lib/customerBehaviorTracking";
@@ -31,6 +32,7 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
   const [isOrderingNow, setIsOrderingNow] = useState(false);
   const [showViewingMessage, setShowViewingMessage] = useState(false);
   const [viewingCount, setViewingCount] = useState(0);
+  const [showDummyCountdown, setShowDummyCountdown] = useState(true);
   const { user } = useAuth();
   const isSignedIn = !!user;
   const userId = user?.uid || '';
@@ -38,6 +40,33 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
   const dispatch = useDispatch();
   const cartCount = useSelector((state) => state.cart.total);
   const cartItems = useSelector((state) => state.cart.cartItems);
+
+  const dummyTimerExpiresAt = useMemo(() => {
+    if (!product?._id || !product?.enableDummyCountdown) return null;
+    if (typeof window === 'undefined') return null;
+
+    const minutes = Math.max(1, Number(product?.dummyCountdownMinutes) || 30);
+    const durationMs = minutes * 60 * 1000;
+    const storageKey = `dummy_countdown_${String(product._id)}_${minutes}`;
+
+    try {
+      const existing = Number(window.localStorage.getItem(storageKey));
+      const now = Date.now();
+      if (Number.isFinite(existing) && existing > now) {
+        return new Date(existing).toISOString();
+      }
+
+      const nextExpiry = now + durationMs;
+      window.localStorage.setItem(storageKey, String(nextExpiry));
+      return new Date(nextExpiry).toISOString();
+    } catch {
+      return new Date(Date.now() + durationMs).toISOString();
+    }
+  }, [product?._id, product?.enableDummyCountdown, product?.dummyCountdownMinutes]);
+
+  useEffect(() => {
+    setShowDummyCountdown(true);
+  }, [product?._id, product?.enableDummyCountdown, product?.dummyCountdownMinutes]);
 
   const pushDataLayerEvent = (event, ecommerce) => {
     if (typeof window === 'undefined') return;
@@ -1002,6 +1031,19 @@ const ProductDetails = ({ product: productProp, reviews = [], hideTitle = false,
             {offerData?.countdownTimer && (
               <div className="mb-4">
                 {offerData.countdownTimer}
+              </div>
+            )}
+
+            {/* Dummy product timer configured from Manage Product */}
+            {!offerData?.countdownTimer && product?.enableDummyCountdown && showDummyCountdown && dummyTimerExpiresAt && (
+              <div className="mb-4 space-y-2">
+                <CountdownTimer
+                  expiresAt={dummyTimerExpiresAt}
+                  onExpire={() => setShowDummyCountdown(false)}
+                />
+                <p className="text-xs font-medium text-orange-700">
+                  Order now at this price before the timer ends.
+                </p>
               </div>
             )}
 

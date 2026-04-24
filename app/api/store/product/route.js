@@ -6,6 +6,7 @@ import authSeller from "@/middlewares/authSeller";
 import { NextResponse } from "next/server";
 import { getAuth } from '@/lib/firebase-admin';
 import { migrateProductsToActiveStore } from '@/lib/migrateProductsToActiveStore';
+import { sanitizeProductDescription } from '@/lib/sanitizeHtml';
 
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
@@ -122,6 +123,8 @@ export async function POST(request) {
         const fastDelivery = String(formData.get("fastDelivery") || "false").toLowerCase() === "true";
         const freeShippingEligible = String(formData.get("freeShippingEligible") || "false").toLowerCase() === "true";
         const imageAspectRatio = formData.get("imageAspectRatio") || "1:1";
+        const codEnabled = String(formData.get("codEnabled") || "true").toLowerCase() === "true";
+        const onlinePaymentEnabled = String(formData.get("onlinePaymentEnabled") || "true").toLowerCase() === "true";
 
         // Base pricing (used when no variants)
         const AED = Number(formData.get("AED"));
@@ -240,10 +243,12 @@ export async function POST(request) {
         console.log('DEBUG: categories length:', categories.length);
         console.log('DEBUG: categories JSON:', JSON.stringify(categories));
         
+        const sanitizedDescription = sanitizeProductDescription(description);
+
         const product = await Product.create({
             name,
             slug,
-            description,
+            description: sanitizedDescription,
             shortDescription,
             AED: finalAED,
             price: finalPrice,
@@ -257,6 +262,8 @@ export async function POST(request) {
             inStock,
             fastDelivery,
             freeShippingEligible,
+            codEnabled,
+            onlinePaymentEnabled,
             imageAspectRatio,
             stockQuantity,
             storeId,
@@ -327,6 +334,12 @@ export async function GET(request) {
         }
 
         const products = await Product.find({ storeId }).sort({ createdAt: -1 }).lean();
+
+        // Diagnostic: log count of products missing payment flags
+        const missingCod = products.filter(p => typeof p.codEnabled !== 'boolean').length;
+        const missingOnline = products.filter(p => typeof p.onlinePaymentEnabled !== 'boolean').length;
+        console.log(`[store/product GET] store:${storeId} products:${products.length} missingCod:${missingCod} missingOnline:${missingOnline}`);
+
         return NextResponse.json(
             { products },
             {
@@ -425,6 +438,8 @@ export async function PUT(request) {
         const fastDelivery = String(formData.get("fastDelivery") || "").toLowerCase() === "true";
         const freeShippingEligible = String(formData.get("freeShippingEligible") || "").toLowerCase() === "true";
         const imageAspectRatioRaw = formData.get("imageAspectRatio");
+        const codEnabledRaw = formData.get("codEnabled");
+        const onlinePaymentEnabledRaw = formData.get("onlinePaymentEnabled");
         let slug = formData.get("slug")?.toString().trim() || "";
         if (slug) {
             slug = slug.toLowerCase().replace(/[^a-z0-9-]+/g, '-');
@@ -542,6 +557,12 @@ export async function PUT(request) {
         // Add stockQuantity if provided
         if (stockQuantity !== undefined) {
             updateData.stockQuantity = stockQuantity;
+        }
+        if (codEnabledRaw !== null) {
+            updateData.codEnabled = String(codEnabledRaw).toLowerCase() === 'true';
+        }
+        if (onlinePaymentEnabledRaw !== null) {
+            updateData.onlinePaymentEnabled = String(onlinePaymentEnabledRaw).toLowerCase() === 'true';
         }
         if (slug && slug !== product.slug) {
             const existing = await Product.findOne({ slug })

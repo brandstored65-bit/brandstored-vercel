@@ -19,6 +19,7 @@ const AdminSidebar = () => {
         { name: 'Home Sections', href: '/admin/home-sections', icon: TagsIcon },
         { name: 'Hero Banner', href: '/admin/home-hero', icon: ImageIcon },
         { name: 'Grid Products', href: '/admin/grid-products', icon: TagsIcon },
+        { name: 'Product Payment Options', href: '/admin/products/payment-options', icon: TagsIcon },
         { name: 'Category Sections', href: '/admin/section4', icon: TagsIcon },
     ]
 

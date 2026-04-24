@@ -1,9 +1,10 @@
 'use client'
 import { useSearchParams, useRouter } from 'next/navigation';
 import { Suspense } from 'react';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Loading from '@/components/Loading';
 import { useAuth } from '@/lib/useAuth';
+import { trackMetaEvent } from '@/lib/metaPixelClient';
 
 export default function OrderSuccess() {
   return (
@@ -72,7 +73,10 @@ function OrderSuccessContent() {
   const order = orders && orders.length > 0 ? orders[0] : null;
   function getOrderNumber(orderObj) {
     if (!orderObj) return '';
-    return String(orderObj.shortOrderNumber || orderObj._id.slice(0, 8));
+    // Prefer the new displayOrderNumber (sequential, customer-facing). Fallback to shortOrderNumber or id slice.
+    if (orderObj.displayOrderNumber) return String(orderObj.displayOrderNumber);
+    if (orderObj.shortOrderNumber) return String(orderObj.shortOrderNumber);
+    return String(orderObj._id.slice(0, 8));
   }
   // Calculate totals
   const products = order ? order.orderItems : [];
@@ -92,24 +96,21 @@ function OrderSuccessContent() {
   const paidAmount = isPaid ? total : 0;
   const dueAmount = isPaid ? 0 : total;
 
-  // Meta Pixel Purchase event with attribution data
+  // Meta Pixel Purchase event with attribution data (guarded)
+  const _purchaseFiredRef = useRef(false);
   useEffect(() => {
-    if (order && typeof window !== 'undefined' && window.fbq) {
-      const orderEventId = String(order?._id || order?.shortOrderNumber || params.get('orderId') || 'unknown');
-      const purchaseEventKey = `meta_purchase_sent_${orderEventId}`;
+    if (!order) return;
+    if (_purchaseFiredRef.current) return;
+    _purchaseFiredRef.current = true;
 
-      // Prevent duplicate browser Purchase events (StrictMode/re-renders/back navigation)
-      if (sessionStorage.getItem(purchaseEventKey)) return;
+    // Prefer a stable customer-facing id for dedupe (displayOrderNumber), fallback to others
+    const orderEventId = String(order?.displayOrderNumber || order?._id || order?.shortOrderNumber || params.get('orderId') || 'unknown');
 
-      window.fbq('track', 'Purchase', {
-        value: total,
-        currency: 'AED',
-        content_type: 'product',
-        order_id: orderEventId
-      });
+    // Ensure numeric value
+    const purchaseValue = Number(total || 0);
 
-      sessionStorage.setItem(purchaseEventKey, '1');
-    }
+    // Use the shared helper which performs deduplication via sessionStorage
+    trackMetaEvent('Purchase', { value: purchaseValue, currency: 'AED', content_type: 'product', order_id: orderEventId }, { eventID: orderEventId });
   }, [order, total, params]);
 
   useEffect(() => {

@@ -33,9 +33,8 @@ export async function POST(request) {
 
     await dbConnect();
 
-    const product = await Product.findById(productId)
-      .select('_id name price mrp AED fastDelivery')
-      .lean();
+    // Fetch the product document (do NOT use .lean() since we need a Mongoose document)
+    const product = await Product.findById(productId);
     if (!product) {
       return Response.json({ error: "Product not found" }, { status: 404 });
     }
@@ -45,7 +44,7 @@ export async function POST(request) {
       return Response.json({ error: "Unauthorized to modify this product" }, { status: 403 });
     }
 
-    // Toggle fast delivery
+    // Toggle fast delivery and persist
     product.fastDelivery = !product.fastDelivery;
     await product.save();
 

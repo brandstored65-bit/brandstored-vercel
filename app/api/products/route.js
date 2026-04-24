@@ -164,7 +164,7 @@ export async function GET(request){
         let products = [];
         try {
             products = await Product.find(matchStage)
-                .select('name slug description shortDescription price mrp AED images category categories sku hasVariants variants attributes fastDelivery freeShippingEligible stockQuantity imageAspectRatio createdAt')
+                .select('name slug description shortDescription price mrp AED images category categories sku hasVariants variants attributes fastDelivery freeShippingEligible stockQuantity imageAspectRatio createdAt codEnabled onlinePaymentEnabled')
                 .populate('category', 'name slug')
                 .populate('categories', 'name slug')
                 .sort({ createdAt: -1 })

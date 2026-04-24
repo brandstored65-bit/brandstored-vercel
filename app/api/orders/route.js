@@ -4,6 +4,7 @@ import Stripe from "stripe";
 import crypto from 'crypto';
 import connectDB from '@/lib/mongodb';
 import Order from '@/models/Order';
+import Counter from '@/models/Counter';
 import Product from '@/models/Product';
 import User from '@/models/User';
 import Address from '@/models/Address';
@@ -220,6 +221,9 @@ export async function POST(request) {
             ? items.some((item) => typeof item?.offerToken === 'string' && item.offerToken.trim().length > 0)
             : false;
 
+        // Global normalized payment method for checkout-level validations
+        const normalizedPaymentMethodGlobal = String(paymentMethod || '').toUpperCase();
+
         if (hasPersonalizedOfferItem && String(paymentMethod || '').toUpperCase() === 'COD') {
             return NextResponse.json(
                 { error: 'Cash on Delivery is not available for personalized offer products. Please use online payment.' },
@@ -285,6 +289,16 @@ export async function POST(request) {
                     }, { status: 400 });
                 }
                 product = altProduct;
+            }
+
+            // Enforce per-product payment availability
+            if (normalizedPaymentMethodGlobal === 'COD' && product.codEnabled === false) {
+                return NextResponse.json({ error: 'Cash on Delivery is not available for one or more products in your cart. Please choose online payment.' }, { status: 400 });
+            }
+            // If user selected an online payment method but the product forbids online payments
+            const isOnlineMethod = !['COD'].includes(normalizedPaymentMethodGlobal);
+            if (isOnlineMethod && product.onlinePaymentEnabled === false) {
+                return NextResponse.json({ error: 'Online payment is not available for one or more products in your cart. Please choose Cash on Delivery where available.' }, { status: 400 });
             }
 
             // Stock validation - enforce available stock and max per order (20)
@@ -668,6 +682,38 @@ export async function POST(request) {
             console.log('ORDER API DEBUG: orderData keys:', Object.keys(orderData));
             console.log('ORDER API DEBUG: orderData before Order.create:', JSON.stringify(orderData, null, 2));
             
+            // Allocate a sequential, unique displayOrderNumber (starts at 55253)
+            let counter;
+            try {
+                counter = await Counter.findOneAndUpdate(
+                    { _id: 'order' },
+                    { $inc: { seq: 1 }, $setOnInsert: { seq: 55252 } },
+                    { new: true, upsert: true }
+                );
+            } catch (counterErr) {
+                console.error('Counter allocation error:', counterErr?.message || counterErr);
+                // Attempt to repair inconsistent counter document shape (e.g., seq is an object/array)
+                try {
+                    const existing = await Counter.findById('order').lean();
+                    console.error('Existing counter document for repair check:', existing);
+                    if (!existing || typeof existing.seq !== 'number') {
+                        // Reset to a safe base so next increment produces 55253
+                        await Counter.findOneAndUpdate(
+                            { _id: 'order' },
+                            { $set: { seq: 55252 } },
+                            { upsert: true }
+                        );
+                        counter = await Counter.findById('order');
+                    } else {
+                        throw counterErr;
+                    }
+                } catch (repairErr) {
+                    console.error('Failed to repair Counter document:', repairErr);
+                    throw repairErr;
+                }
+            }
+            orderData.displayOrderNumber = counter.seq;
+
             const order = await Order.create(orderData);
 
             // Mark personalized offers as used
@@ -906,8 +952,15 @@ export async function POST(request) {
             return NextResponse.json({ message: 'Orders Placed Successfully', order, id: order._id.toString(), orderId: order._id.toString() });
         }
     } catch (error) {
-        console.error(error);
-        return NextResponse.json({ error: error.code || error.message }, { status: 400 });
+        console.error('ORDER API: Unhandled error in POST /api/orders', {
+            name: error?.name,
+            message: error?.message,
+            code: error?.code,
+            stack: error?.stack,
+            cause: error?.cause
+        });
+        const safeMessage = error && (typeof error.message === 'string' ? error.message : String(error));
+        return NextResponse.json({ error: safeMessage, code: error?.code || null }, { status: 400 });
     }
 }
 

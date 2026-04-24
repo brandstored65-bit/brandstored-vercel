@@ -52,6 +52,16 @@ export default function StoreManageProducts() {
     const [fbtBundleDiscount, setFbtBundleDiscount] = useState('')
     const [fbtSearch, setFbtSearch] = useState('')
     const [fbtAvailableProducts, setFbtAvailableProducts] = useState([])
+    const [showOfferModal, setShowOfferModal] = useState(false)
+    const [activeOfferProduct, setActiveOfferProduct] = useState(null)
+    const [offerLoading, setOfferLoading] = useState(false)
+    const [offerSaving, setOfferSaving] = useState(false)
+    const [offerEnabled, setOfferEnabled] = useState(false)
+    const [offerSelectedProduct, setOfferSelectedProduct] = useState(null)
+    const [offerDiscount, setOfferDiscount] = useState('')
+    const [offerSearch, setOfferSearch] = useState('')
+    const [offerAvailableProducts, setOfferAvailableProducts] = useState([])
+    const [defaultDummyTimerMinutes, setDefaultDummyTimerMinutes] = useState(30)
 
     const fetchStoreProducts = async () => {
         try {
@@ -103,6 +113,150 @@ export default function StoreManageProducts() {
         }
     }
 
+    const toggleDummyTimer = async (productId) => {
+        const prev = products.find((p) => p._id === productId)
+        const prevVal = prev?.enableDummyCountdown ?? false
+        const prevMinutes = prev?.dummyCountdownMinutes ?? 30
+        const newVal = !prevVal
+
+        setProducts((prevProducts) => prevProducts.map((product) =>
+            product._id === productId
+                ? {
+                    ...product,
+                    enableDummyCountdown: newVal,
+                    dummyCountdownMinutes: newVal ? defaultDummyTimerMinutes : (product.dummyCountdownMinutes ?? 30),
+                }
+                : product
+        ))
+
+        try {
+            const token = await getToken()
+            if (!token) throw new Error('No token from getToken()')
+
+            const res = await axios.post(
+                '/api/store/dummy-timer-toggle',
+                {
+                    productId,
+                    value: newVal,
+                    ...(newVal ? { minutes: defaultDummyTimerMinutes } : {}),
+                },
+                { headers: { Authorization: `Bearer ${token}` } }
+            )
+
+            const data = res.data
+            const savedVal = data?.product?.enableDummyCountdown !== undefined
+                ? data.product.enableDummyCountdown
+                : data.enableDummyCountdown
+            const savedMinutes = Number(data?.product?.dummyCountdownMinutes)
+
+            setProducts((prevProducts) => prevProducts.map((product) =>
+                product._id === productId
+                    ? {
+                        ...product,
+                        enableDummyCountdown: savedVal,
+                        dummyCountdownMinutes: Number.isFinite(savedMinutes) && savedMinutes > 0
+                            ? savedMinutes
+                            : (savedVal ? defaultDummyTimerMinutes : prevMinutes),
+                    }
+                    : product
+            ))
+            toast.success(data.message || 'Dummy timer updated')
+        } catch (error) {
+            setProducts((prevProducts) => prevProducts.map((product) =>
+                product._id === productId
+                    ? { ...product, enableDummyCountdown: prevVal, dummyCountdownMinutes: prevMinutes }
+                    : product
+            ))
+            toast.error(error?.response?.data?.error || error.message || 'Failed to update dummy timer')
+        }
+    }
+        const toggleCod = async (productId) => {
+            console.log('[toggleCod] ===== START =====')
+            // Optimistic UI: flip locally, call API, revert on error
+            const prev = products.find(p => p._id === productId);
+            const prevVal = prev?.codEnabled ?? true;
+            const newVal = !prevVal;
+            console.log('[toggleCod] computed values', { productId, prevVal, newVal, isDisabling: newVal === false })
+            
+            setProducts(prevProducts => prevProducts.map(product => product._id === productId ? { ...product, codEnabled: newVal } : product))
+            console.log('[toggleCod] optimistic UI updated')
+            
+            try {
+                const token = await getToken()
+                console.log('[toggleCod] getToken result:', { hasToken: !!token })
+                if (!token) {
+                    throw new Error('No token from getToken()')
+                }
+                
+                const payload = { productId, value: newVal }
+                console.log('[toggleCod] sending API request', { url: '/api/store/cod-toggle', payload })
+                
+                const res = await axios.post('/api/store/cod-toggle', payload, { headers: { Authorization: `Bearer ${token}` } })
+                console.log('[toggleCod] API SUCCESS', { status: res.status, response: res.data })
+                
+                const data = res.data
+                // Use returned product doc when available
+                const savedVal = data?.product?.codEnabled !== undefined ? data.product.codEnabled : data.codEnabled
+                console.log('[toggleCod] final saved value:', { savedVal })
+                
+                setProducts(prevProducts => prevProducts.map(product => product._id === productId ? { ...product, codEnabled: savedVal } : product))
+                toast.success(data.message || 'COD updated')
+            } catch (error) {
+                console.error('[toggleCod] API ERROR:', { 
+                  message: error?.message, 
+                  status: error?.response?.status,
+                  data: error?.response?.data,
+                  fullError: error 
+                })
+                // revert
+                setProducts(prevProducts => prevProducts.map(product => product._id === productId ? { ...product, codEnabled: prevVal } : product))
+                toast.error(error?.response?.data?.error || error.message || 'Failed to update COD')
+            }
+            console.log('[toggleCod] ===== END =====')
+        }
+
+        const toggleOnlinePayment = async (productId) => {
+            console.log('[toggleOnline] ===== START =====')
+            const prev = products.find(p => p._id === productId);
+            const prevVal = prev?.onlinePaymentEnabled ?? true;
+            const newVal = !prevVal;
+            console.log('[toggleOnline] computed values', { productId, prevVal, newVal, isDisabling: newVal === false })
+            
+            setProducts(prevProducts => prevProducts.map(product => product._id === productId ? { ...product, onlinePaymentEnabled: newVal } : product))
+            console.log('[toggleOnline] optimistic UI updated')
+            
+            try {
+                const token = await getToken()
+                console.log('[toggleOnline] getToken result:', { hasToken: !!token })
+                if (!token) {
+                    throw new Error('No token from getToken()')
+                }
+                
+                const payload = { productId, value: newVal }
+                console.log('[toggleOnline] sending API request', { url: '/api/store/online-payment-toggle', payload })
+                
+                const res = await axios.post('/api/store/online-payment-toggle', { productId, value: newVal }, { headers: { Authorization: `Bearer ${token}` } })
+                console.log('[toggleOnline] API SUCCESS', { status: res.status, response: res.data })
+                
+                const data = res.data
+                const savedOnline = data?.product?.onlinePaymentEnabled !== undefined ? data.product.onlinePaymentEnabled : data.onlinePaymentEnabled
+                console.log('[toggleOnline] final saved value:', { savedOnline })
+                
+                setProducts(prevProducts => prevProducts.map(product => product._id === productId ? { ...product, onlinePaymentEnabled: savedOnline } : product))
+                toast.success(data.message || 'Online Payment updated')
+            } catch (error) {
+                console.error('[toggleOnline] API ERROR:', { 
+                  message: error?.message, 
+                  status: error?.response?.status,
+                  data: error?.response?.data,
+                  fullError: error 
+                })
+                setProducts(prevProducts => prevProducts.map(product => product._id === productId ? { ...product, onlinePaymentEnabled: prevVal } : product))
+                toast.error(error?.response?.data?.error || error.message || 'Failed to update Online Payment')
+            }
+            console.log('[toggleOnline] ===== END =====')
+        }
+
     const handleEdit = (product) => {
         console.log('Editing product:', product)
         console.log('  - product.category:', product.category)
@@ -143,7 +297,10 @@ export default function StoreManageProducts() {
             setFbtEnabled(!!config.enableFBT)
             setFbtBundlePrice(config.bundlePrice || '')
             setFbtBundleDiscount(config.bundleDiscount || '')
-            setFbtSelectedProducts(Array.isArray(config.products) ? config.products : [])
+            const normalizedSelected = Array.isArray(config.products) && config.products.length > 0
+                ? [config.products[0]]
+                : []
+            setFbtSelectedProducts(normalizedSelected)
             setFbtAvailableProducts(Array.isArray(productsRes?.data?.products) ? productsRes.data.products : [])
         } catch (error) {
             toast.error(error?.response?.data?.error || error.message || 'Failed to load FBT configuration')
@@ -156,13 +313,9 @@ export default function StoreManageProducts() {
         setFbtSelectedProducts((prev) => {
             const exists = prev.some((p) => String(p._id) === String(product._id))
             if (exists) {
-                return prev.filter((p) => String(p._id) !== String(product._id))
+                return []
             }
-            if (prev.length >= 6) {
-                toast.error('Maximum 6 products can be selected')
-                return prev
-            }
-            return [...prev, product]
+            return [product]
         })
     }
 
@@ -208,6 +361,69 @@ export default function StoreManageProducts() {
         }
     }
 
+    const openOfferModal = async (product) => {
+        try {
+            setShowOfferModal(true)
+            setActiveOfferProduct(product)
+            setOfferLoading(true)
+            setOfferSearch('')
+
+            const [configRes, productsRes] = await Promise.all([
+                axios.get(`/api/products/${product._id}/checkout-offer`),
+                axios.get('/api/products?limit=250')
+            ])
+
+            const config = configRes?.data || {}
+            setOfferEnabled(!!config.enableCheckoutOffer)
+            setOfferDiscount(config.discountPercent || '')
+            setOfferSelectedProduct(config.product || null)
+            setOfferAvailableProducts(Array.isArray(productsRes?.data?.products) ? productsRes.data.products : [])
+        } catch (error) {
+            toast.error(error?.response?.data?.error || error.message || 'Failed to load offer configuration')
+        } finally {
+            setOfferLoading(false)
+        }
+    }
+
+    const toggleOfferProduct = (product) => {
+        setOfferSelectedProduct((prev) => {
+            if (prev && String(prev._id) === String(product._id)) {
+                return null
+            }
+            return product
+        })
+    }
+
+    const saveOfferConfig = async () => {
+        if (!activeOfferProduct?._id) return
+        if (offerEnabled && !offerSelectedProduct?._id) {
+            toast.error('Please select one offer product')
+            return
+        }
+
+        if (offerDiscount !== '' && (Number(offerDiscount) < 0 || Number(offerDiscount) > 90)) {
+            toast.error('Discount must be between 0 and 90')
+            return
+        }
+
+        try {
+            setOfferSaving(true)
+            await axios.patch(`/api/products/${activeOfferProduct._id}/checkout-offer`, {
+                enableCheckoutOffer: offerEnabled,
+                checkoutOfferProductId: offerEnabled ? offerSelectedProduct?._id : '',
+                checkoutOfferDiscountPercent: offerEnabled && offerDiscount !== '' ? Number(offerDiscount) : null,
+            })
+
+            toast.success('Offer configuration saved')
+            setShowOfferModal(false)
+            setActiveOfferProduct(null)
+        } catch (error) {
+            toast.error(error?.response?.data?.error || error.message || 'Failed to save offer configuration')
+        } finally {
+            setOfferSaving(false)
+        }
+    }
+
     const handleUpdateSuccess = (updatedProduct) => {
         setProducts(prevProducts => prevProducts.map(p => 
             p._id === updatedProduct._id ? updatedProduct : p
@@ -224,6 +440,19 @@ export default function StoreManageProducts() {
             fetchCategories()
         }  
     }, [user])
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return
+        const saved = Number(window.localStorage.getItem('default_dummy_timer_minutes'))
+        if (Number.isFinite(saved) && saved > 0) {
+            setDefaultDummyTimerMinutes(saved)
+        }
+    }, [])
+
+    useEffect(() => {
+        if (typeof window === 'undefined') return
+        window.localStorage.setItem('default_dummy_timer_minutes', String(defaultDummyTimerMinutes))
+    }, [defaultDummyTimerMinutes])
 
     if (loading) return <Loading />
 
@@ -294,6 +523,19 @@ export default function StoreManageProducts() {
                         <option key={id} value={id}>{name}</option>
                     ))}
                 </select>
+
+                <div className="flex items-center gap-2 px-3 py-2 border border-gray-300 rounded-lg bg-white">
+                    <span className="text-sm text-slate-600 font-medium">Default Timer</span>
+                    <select
+                        value={defaultDummyTimerMinutes}
+                        onChange={(e) => setDefaultDummyTimerMinutes(Number(e.target.value))}
+                        className="text-sm border border-gray-200 rounded px-2 py-1 focus:outline-none"
+                    >
+                        {[5, 10, 15, 20, 30, 45, 60].map((m) => (
+                            <option key={m} value={m}>{m} min</option>
+                        ))}
+                    </select>
+                </div>
             </div>
 
             {/* Quick Category Filter Buttons */}
@@ -351,6 +593,8 @@ export default function StoreManageProducts() {
                         <th className="px-4 py-3 hidden md:table-cell">AED</th>
                         <th className="px-4 py-3">Price</th>
                         <th className="px-4 py-3 hidden sm:table-cell">Fast Delivery</th>
+                        <th className="px-4 py-3 hidden sm:table-cell">COD</th>
+                        <th className="px-4 py-3 hidden sm:table-cell">Online</th>
                         <th className="px-4 py-3 hidden sm:table-cell">Frequently</th>
                         <th className="px-4 py-3">Stock</th>
                         <th className="px-4 py-3">Actions</th>
@@ -414,6 +658,30 @@ export default function StoreManageProducts() {
                                 </label>
                             </td>
                             <td className="px-4 py-3 hidden sm:table-cell">
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        className="sr-only peer" 
+                                        onChange={() => { console.log('[ONCLICK] COD toggle clicked for', product._id); toggleCod(product._id); }} 
+                                        checked={product.codEnabled ?? true} 
+                                    />
+                                    <div className="w-9 h-5 bg-slate-300 rounded-full peer peer-checked:bg-yellow-500 transition-colors duration-200"></div>
+                                    <span className="dot absolute left-1 top-1 w-3 h-3 bg-white rounded-full transition-transform duration-200 ease-in-out peer-checked:translate-x-4"></span>
+                                </label>
+                            </td>
+                            <td className="px-4 py-3 hidden sm:table-cell">
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                    <input 
+                                        type="checkbox" 
+                                        className="sr-only peer" 
+                                        onChange={() => { console.log('[ONCLICK] Online toggle clicked for', product._id); toggleOnlinePayment(product._id); }} 
+                                        checked={product.onlinePaymentEnabled ?? true} 
+                                    />
+                                    <div className="w-9 h-5 bg-slate-300 rounded-full peer peer-checked:bg-indigo-600 transition-colors duration-200"></div>
+                                    <span className="dot absolute left-1 top-1 w-3 h-3 bg-white rounded-full transition-transform duration-200 ease-in-out peer-checked:translate-x-4"></span>
+                                </label>
+                            </td>
+                            <td className="px-4 py-3 hidden sm:table-cell">
                                 {product.enableFBT ? (
                                     <span className="inline-flex px-2 py-0.5 text-xs font-semibold bg-emerald-100 text-emerald-700 rounded-full">Enabled</span>
                                 ) : (
@@ -442,10 +710,29 @@ export default function StoreManageProducts() {
                                         Delete
                                     </button>
                                     <button
+                                        onClick={() => openOfferModal(product)}
+                                        className="px-3 py-1 bg-amber-500 text-white text-xs rounded hover:bg-amber-600 transition"
+                                    >
+                                        Offer
+                                    </button>
+                                    <button
                                         onClick={() => openFbtModal(product)}
                                         className="px-3 py-1 bg-emerald-600 text-white text-xs rounded hover:bg-emerald-700 transition"
                                     >
                                         FBT
+                                    </button>
+                                    <button
+                                        onClick={() => toggleDummyTimer(product._id)}
+                                        className={`px-3 py-1 text-white text-xs rounded transition flex flex-col items-center leading-tight ${
+                                            product.enableDummyCountdown
+                                                ? 'bg-orange-600 hover:bg-orange-700'
+                                                : 'bg-slate-500 hover:bg-slate-600'
+                                        }`}
+                                    >
+                                        <span>TIMER</span>
+                                        {product.enableDummyCountdown && (
+                                            <span className="text-[10px] opacity-90">{product.dummyCountdownMinutes || 30}m</span>
+                                        )}
                                     </button>
                                 </div>
                             </td>
@@ -536,7 +823,9 @@ export default function StoreManageProducts() {
                                         </div>
                                     </div>
 
-                                    <div className="text-xs text-slate-500">Selected: {fbtSelectedProducts.length}</div>
+                                    <div className="text-xs text-slate-500">
+                                        Select one related product for checkout offer. Selected: {fbtSelectedProducts[0]?.name || 'None'}
+                                    </div>
 
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[360px] overflow-y-auto pr-1">
                                         {fbtAvailableProducts
@@ -596,6 +885,132 @@ export default function StoreManageProducts() {
                                 className="px-4 py-2 rounded-lg bg-emerald-600 text-white font-semibold hover:bg-emerald-700 disabled:opacity-60"
                             >
                                 {fbtSaving ? 'Saving...' : 'Save FBT'}
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
+
+            {showOfferModal && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4">
+                    <div className="w-full max-w-4xl max-h-[90vh] overflow-hidden bg-white rounded-2xl shadow-2xl border border-slate-200">
+                        <div className="flex items-center justify-between px-5 py-4 border-b border-slate-200">
+                            <div>
+                                <h3 className="text-xl font-bold text-slate-800">Checkout Offer</h3>
+                                <p className="text-sm text-slate-500">Base product: {activeOfferProduct?.name}</p>
+                            </div>
+                            <button
+                                onClick={() => {
+                                    setShowOfferModal(false)
+                                    setActiveOfferProduct(null)
+                                }}
+                                className="text-slate-500 hover:text-slate-700 text-sm"
+                            >
+                                Close
+                            </button>
+                        </div>
+
+                        <div className="p-5 space-y-4 overflow-y-auto max-h-[calc(90vh-140px)]">
+                            {offerLoading ? (
+                                <div className="py-10 text-center text-slate-500">Loading offer config...</div>
+                            ) : (
+                                <>
+                                    <div className="rounded-lg border border-slate-200 p-3 flex items-center justify-between">
+                                        <span className="text-sm font-medium text-slate-700">Enable checkout offer</span>
+                                        <label className="relative inline-flex items-center cursor-pointer">
+                                            <input
+                                                type="checkbox"
+                                                className="sr-only peer"
+                                                checked={offerEnabled}
+                                                onChange={(e) => setOfferEnabled(e.target.checked)}
+                                            />
+                                            <div className="w-10 h-6 bg-slate-300 rounded-full peer peer-checked:bg-amber-500 transition-colors duration-200"></div>
+                                            <span className="absolute left-1 top-1 w-4 h-4 bg-white rounded-full transition-transform duration-200 ease-in-out peer-checked:translate-x-4"></span>
+                                        </label>
+                                    </div>
+
+                                    <input
+                                        type="text"
+                                        value={offerSearch}
+                                        onChange={(e) => setOfferSearch(e.target.value)}
+                                        className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                                        placeholder="Search products by name, SKU or tags..."
+                                    />
+
+                                    <div>
+                                        <label className="block text-xs font-semibold text-slate-600 mb-1">Offer Discount (%)</label>
+                                        <input
+                                            type="number"
+                                            step="0.1"
+                                            value={offerDiscount}
+                                            onChange={(e) => setOfferDiscount(e.target.value)}
+                                            className="w-full border border-slate-300 rounded-lg px-3 py-2"
+                                            placeholder="0"
+                                        />
+                                    </div>
+
+                                    <div className="text-xs text-slate-500">
+                                        Select one product for checkout offer. Selected: {offerSelectedProduct?.name || 'None'}
+                                    </div>
+
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 max-h-[360px] overflow-y-auto pr-1">
+                                        {offerAvailableProducts
+                                            .filter((p) => String(p._id) !== String(activeOfferProduct?._id))
+                                            .filter((p) => {
+                                                if (!offerSearch.trim()) return true
+                                                const q = offerSearch.trim().toLowerCase()
+                                                return (
+                                                    String(p.name || '').toLowerCase().includes(q) ||
+                                                    String(p.sku || '').toLowerCase().includes(q) ||
+                                                    (Array.isArray(p.tags) && p.tags.some((tag) => String(tag).toLowerCase().includes(q)))
+                                                )
+                                            })
+                                            .map((p) => {
+                                                const selected = offerSelectedProduct && String(offerSelectedProduct._id) === String(p._id)
+                                                return (
+                                                    <button
+                                                        type="button"
+                                                        key={p._id}
+                                                        onClick={() => toggleOfferProduct(p)}
+                                                        className={`text-left border rounded-lg p-2 flex gap-2 items-center transition ${selected ? 'border-amber-500 bg-amber-50' : 'border-slate-200 hover:bg-slate-50'}`}
+                                                    >
+                                                        <Image
+                                                            src={p.images?.[0] || assets.upload_area}
+                                                            width={42}
+                                                            height={42}
+                                                            alt={p.name || 'Product'}
+                                                            className="rounded border"
+                                                        />
+                                                        <div className="min-w-0 flex-1">
+                                                            <p className="text-sm font-medium text-slate-800 line-clamp-1">{p.name}</p>
+                                                            <p className="text-xs text-slate-500">{currency} {formatAmount(p.price)}</p>
+                                                        </div>
+                                                    </button>
+                                                )
+                                            })}
+                                    </div>
+                                </>
+                            )}
+                        </div>
+
+                        <div className="px-5 py-4 border-t border-slate-200 flex justify-end gap-2 bg-white">
+                            <button
+                                type="button"
+                                onClick={() => {
+                                    setShowOfferModal(false)
+                                    setActiveOfferProduct(null)
+                                }}
+                                className="px-4 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                type="button"
+                                onClick={saveOfferConfig}
+                                disabled={offerSaving || offerLoading}
+                                className="px-4 py-2 rounded-lg bg-amber-500 text-white font-semibold hover:bg-amber-600 disabled:opacity-60"
+                            >
+                                {offerSaving ? 'Saving...' : 'Save Offer'}
                             </button>
                         </div>
                     </div>

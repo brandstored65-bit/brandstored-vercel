@@ -8,6 +8,7 @@ import axios from "axios"
 import ProductCard from "./ProductCard"
 import { useSelector } from "react-redux"
 import { normalizeProductDescriptionHtml } from "@/lib/normalizeProductDescription"
+import { sanitizeProductDescription } from "@/lib/sanitizeHtml"
 
 // Helper function to get relative time
 const getRelativeTime = (dateString) => {
@@ -37,7 +38,18 @@ const ProductDescription = ({ product, reviews = [], loadingReviews = false, onR
     const allProducts = useSelector((state) => state.product.list || [])
     const [lightboxImage, setLightboxImage] = useState(null)
     const [visibleReviews, setVisibleReviews] = useState(5)
-    const normalizedDescription = useMemo(() => normalizeProductDescriptionHtml(product.description || ''), [product.description])
+    const normalizedDescription = useMemo(() => {
+        const rawDesc = product.description || ''
+        // If description already has HTML tags, sanitize directly without normalizing
+        // to preserve original structure and inline styles
+        const hasHtmlTags = /<[a-z][\s\S]*>/i.test(rawDesc)
+        if (hasHtmlTags) {
+            return sanitizeProductDescription(rawDesc)
+        }
+        // Otherwise, normalize plain text to HTML first, then sanitize
+        const normalized = normalizeProductDescriptionHtml(rawDesc)
+        return sanitizeProductDescription(normalized)
+    }, [product.description])
 
     // Calculate rating distribution
     const ratingCounts = [0, 0, 0, 0, 0]
@@ -118,25 +130,94 @@ const ProductDescription = ({ product, reviews = [], loadingReviews = false, onR
                     <h2 className="text-lg sm:text-xl font-bold text-gray-900">Product Description</h2>
                 </div>
                 <div className="p-4 sm:p-6">
+                    <style>{`
+                        .product-description * {
+                            all: revert;
+                        }
+                        .product-description [style] {
+                            /* Inline styles have highest priority */
+                            all: revert !important;
+                        }
+                        .product-description p {
+                            margin-bottom: 1rem;
+                        }
+                        .product-description p[style] {
+                            /* Don't override inline styles on paragraphs */
+                            margin-bottom: revert !important;
+                        }
+                        .product-description ul,
+                        .product-description ol {
+                            margin-bottom: 1rem;
+                            padding-left: 1.25rem;
+                        }
+                        .product-description ul {
+                            list-style-type: disc;
+                            list-style-position: outside;
+                        }
+                        .product-description ol {
+                            list-style-type: decimal;
+                            list-style-position: outside;
+                        }
+                        .product-description li {
+                            margin-bottom: 0.25rem;
+                        }
+                        .product-description img {
+                            max-width: 100%;
+                            height: auto;
+                            border-radius: 0.5rem;
+                            margin: 1rem 0;
+                        }
+                        .product-description video {
+                            max-width: 100%;
+                            width: 100%;
+                            height: auto;
+                            border-radius: 0.5rem;
+                            margin: 1rem 0;
+                        }
+                        .product-description table {
+                            width: 100%;
+                            border-collapse: collapse;
+                            margin: 1.5rem 0;
+                        }
+                        .product-description table th,
+                        .product-description table td {
+                            padding: 0.75rem 1rem;
+                            text-align: left;
+                        }
+                        .product-description h1 {
+                            font-size: 1.875rem;
+                            font-weight: bold;
+                            margin: 1rem 0;
+                        }
+                        .product-description h2 {
+                            font-size: 1.25rem;
+                            font-weight: bold;
+                            margin: 0.75rem 0;
+                        }
+                        .product-description h3 {
+                            font-size: 1.125rem;
+                            font-weight: bold;
+                            margin: 0.5rem 0;
+                        }
+                        .product-description hr {
+                            margin: 1.5rem 0;
+                        }
+                        .product-description blockquote {
+                            border-left: 4px solid #d1d5db;
+                            padding-left: 1rem;
+                            font-style: italic;
+                            margin: 1rem 0;
+                        }
+                        .product-description a {
+                            color: #2563eb;
+                            text-decoration: underline;
+                        }
+                        .product-description a:hover {
+                            color: #1d4ed8;
+                        }
+                    `}</style>
                     <div 
-                        className="max-w-none
-                        [&_p]:mb-4
-                        [&_ul]:list-disc [&_ul]:list-outside [&_ul]:mb-4 [&_ul]:pl-5
-                        [&_ol]:list-decimal [&_ol]:list-outside [&_ol]:mb-4 [&_ol]:pl-5
-                        [&_li]:mb-1
-                        [&_li_p]:inline [&_li_p]:m-0
-                        [&_li_div]:inline [&_li_div]:m-0
-                        [&_img]:max-w-full [&_img]:h-auto [&_img]:rounded-lg [&_img]:my-4
-                        [&_video]:max-w-full [&_video]:w-full [&_video]:h-auto [&_video]:rounded-lg [&_video]:my-4
-                        [&_figure]:my-6
-                        [&_figcaption]:text-sm [&_figcaption]:mt-2
-                        [&_blockquote]:border-l-4 [&_blockquote]:pl-4 [&_blockquote]:italic [&_blockquote]:my-4
-                        [&_pre]:p-4 [&_pre]:rounded-lg [&_pre]:overflow-x-auto [&_pre]:my-4
-                        [&_hr]:my-6
-                        [&_table]:w-full [&_table]:border-collapse [&_table]:my-6 [&_table]:border
-                        [&_thead_th]:text-left [&_thead_th]:px-4 [&_thead_th]:py-3 [&_thead_th]:border
-                        [&_tbody_td]:px-4 [&_tbody_td]:py-3 [&_tbody_td]:border
-                        [&_tfoot_th]:text-left [&_tfoot_th]:px-4 [&_tfoot_th]:py-3 [&_tfoot_th]:border"
+                        className="product-description max-w-none"
                         dangerouslySetInnerHTML={{ __html: normalizedDescription }}
                     />
                 </div>

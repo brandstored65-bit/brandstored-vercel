@@ -76,6 +76,9 @@ export default function CheckoutPage() {
   const [areaDropdownOpen, setAreaDropdownOpen] = useState(false);
   const areaDropdownRef = useRef(null);
   const [abandonSaved, setAbandonSaved] = useState(false);
+  const [checkoutAddon, setCheckoutAddon] = useState(null);
+  const [checkoutAddonLoading, setCheckoutAddonLoading] = useState(false);
+  const [addingCheckoutAddon, setAddingCheckoutAddon] = useState(false);
 
   // Coupon logic
   const [coupon, setCoupon] = useState("");
@@ -702,7 +705,7 @@ export default function CheckoutPage() {
     if (!cartArray.length) return '';
     const firstWithStore = cartArray.find((item) => item?.storeId);
     return String(firstWithStore?.storeId || '');
-  }, [cartArray]);
+  }, [cartItems, products]);
 
   const cartDisplayItems = Object.entries(cartItems || {}).map(([key, value]) => {
     const product = products?.find((p) => String(p._id) === String(key));
@@ -748,9 +751,111 @@ export default function CheckoutPage() {
     };
   }).filter((item) => item.quantity > 0);
 
+  const checkoutOfferCartKey = useMemo(() => {
+    return cartArray
+      .map((item) => String(item?._id || item?._cartKey || ''))
+      .filter(Boolean)
+      .sort()
+      .join('|');
+  }, [cartItems, products]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    const loadCheckoutAddon = async () => {
+      if (!checkoutOfferCartKey) {
+        setCheckoutAddon(null);
+        setCheckoutAddonLoading(false);
+        return;
+      }
+
+      if (!checkoutAddon) {
+        setCheckoutAddonLoading(true);
+      }
+      const cartProductIds = new Set(
+        cartArray
+          .map((item) => String(item?._id || item?._cartKey || ''))
+          .filter(Boolean)
+      );
+
+      try {
+        for (const baseItem of cartArray) {
+          const baseId = String(baseItem?._id || baseItem?._cartKey || '');
+          if (!baseId) continue;
+
+          const res = await fetch(`/api/products/${baseId}/checkout-offer`);
+          if (!res.ok) continue;
+
+          const data = await res.json();
+          const discountPercent = Number(data?.discountPercent || 0);
+          const suggested = data?.product || null;
+          if (!data?.enableCheckoutOffer || !suggested || discountPercent <= 0) continue;
+
+          const suggestedId = String(suggested?._id || '');
+          if (!suggestedId || cartProductIds.has(suggestedId)) continue;
+          if (suggested?.inStock === false) continue;
+          if (typeof suggested?.stockQuantity === 'number' && suggested.stockQuantity <= 0) continue;
+
+          if (!suggested) continue;
+
+          const basePrice = Number(suggested?.price ?? suggested?.AED ?? 0) || 0;
+          const boundedDiscount = Math.max(0, Math.min(90, discountPercent));
+          const discountedPrice = Number((basePrice * (1 - boundedDiscount / 100)).toFixed(2));
+
+          if (!cancelled) {
+            setCheckoutAddon({
+              baseProductName: baseItem?.name || 'cart item',
+              product: suggested,
+              discountPercent: boundedDiscount,
+              basePrice,
+              discountedPrice,
+            });
+            setCheckoutAddonLoading(false);
+          }
+          return;
+        }
+
+        if (!cancelled) {
+          setCheckoutAddon(null);
+        }
+      } catch (error) {
+        if (!cancelled) {
+          setCheckoutAddon(null);
+        }
+      } finally {
+        if (!cancelled) {
+          setCheckoutAddonLoading(false);
+        }
+      }
+    };
+
+    loadCheckoutAddon();
+    return () => {
+      cancelled = true;
+    };
+  }, [checkoutOfferCartKey]);
+
   const syncCartForSignedIn = async () => {
     if (!user) return;
     await dispatch(uploadCart({ getToken }));
+  };
+
+  const handleAddCheckoutAddon = async () => {
+    const addonProductId = checkoutAddon?.product?._id;
+    if (!addonProductId || addingCheckoutAddon) return;
+
+    setAddingCheckoutAddon(true);
+    try {
+      dispatch(addToCart({
+        productId: addonProductId,
+        price: checkoutAddon.discountedPrice,
+        discountPercent: checkoutAddon.discountPercent,
+      }));
+      await syncCartForSignedIn();
+      setCheckoutAddon(null);
+    } finally {
+      setAddingCheckoutAddon(false);
+    }
   };
 
   // Helper: replace cart entry with a different bundle tier
@@ -936,12 +1041,45 @@ export default function CheckoutPage() {
   const hasPersonalizedOfferItem = Object.values(cartItems || {}).some(
     (entry) => typeof entry === 'object' && !!entry?.offerToken
   );
+  
+  // Check if any product in cart has disabled payment methods
+  const hasProductWithCODDisabled = cartArray.some(item => {
+    const codEnabled = item.codEnabled ?? true; // Default to true if undefined
+    return codEnabled === false;
+  });
+  
+  const hasProductWithOnlinePaymentDisabled = cartArray.some(item => {
+    const onlineEnabled = item.onlinePaymentEnabled ?? true; // Default to true if undefined
+    return onlineEnabled === false;
+  });
+
+  // MUTUAL EXCLUSION: Both payment methods cannot be disabled at the same time
+  // If a product has both flags disabled, treat it as an error and enable online payment as fallback
+  const problematicProducts = cartArray.filter(item => 
+    (item.codEnabled === false) && (item.onlinePaymentEnabled === false)
+  );
+  
+  console.log('[CHECKOUT] Payment flags check:', {
+    hasProductWithCODDisabled,
+    hasProductWithOnlinePaymentDisabled,
+    problematicProducts: problematicProducts.map(p => ({ name: p.name, codEnabled: p.codEnabled, onlinePaymentEnabled: p.onlinePaymentEnabled }))
+  });
+  
   const isCODDisabledForOrder =
     hasPersonalizedOfferItem ||
+    hasProductWithCODDisabled ||
     shippingSetting?.enableCOD === false ||
     (maxCODAmount > 0 && totalAfterWallet > maxCODAmount);
+  
+  const isOnlinePaymentDisabledForOrder = hasProductWithOnlinePaymentDisabled;
+  
+  // Emergency fallback: if both are disabled due to product misconfiguration, force online payment enabled
+  const bothDisabledForOrder = isCODDisabledForOrder && isOnlinePaymentDisabledForOrder;
+  const actuallyOnlineDisabledForOrder = bothDisabledForOrder ? false : isOnlinePaymentDisabledForOrder;
+  
   const isPaymentMissing = needsPaymentSelection && !form.payment;
-  const isInvalidPaymentSelection = form.payment === 'cod' && isCODDisabledForOrder;
+  const isInvalidPaymentSelection = (form.payment === 'cod' && isCODDisabledForOrder) || 
+                                     (isStripePaymentOption(form.payment) && actuallyOnlineDisabledForOrder);
   const isPlaceOrderDisabled = placingOrder || isPaymentMissing || isInvalidPaymentSelection || hasStockIssues;
   const selectedAddressForView = form.addressId ? addressList.find((a) => a._id === form.addressId) : null;
   const shouldShowPhoneRequired =
@@ -1787,6 +1925,50 @@ export default function CheckoutPage() {
                 </div>
               )}
 
+              {checkoutAddonLoading && cartDisplayItems.length > 0 && (
+                <div className="mb-4 border border-emerald-200 rounded-lg bg-emerald-50/50 p-3 text-sm text-emerald-800">
+                  Checking special add-on offer for your cart...
+                </div>
+              )}
+
+              {checkoutAddon && (
+                <div className="mb-4 border border-emerald-200 rounded-lg bg-emerald-50/70 p-3">
+                  <div className="text-sm font-semibold text-emerald-900">Special add-on offer</div>
+                  <div className="text-xs text-emerald-700 mt-0.5 mb-3 leading-relaxed break-words">
+                    Add this with {checkoutAddon.baseProductName} and save {checkoutAddon.discountPercent}%
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-white border border-emerald-100 rounded-lg p-3">
+                    <div className="flex items-center gap-3 min-w-0 w-full sm:w-auto">
+                      <img
+                        src={checkoutAddon.product?.images?.[0] || '/placeholder.png'}
+                        alt={checkoutAddon.product?.name || 'Addon product'}
+                        className="w-12 h-12 sm:w-14 sm:h-14 rounded object-cover border border-gray-200 flex-shrink-0"
+                      />
+                      <div className="min-w-0 flex-1">
+                        <div className="font-semibold text-gray-900 truncate text-sm sm:text-base">{checkoutAddon.product?.name || 'Recommended product'}</div>
+                        <div className="text-sm text-gray-600 mt-0.5 flex flex-wrap items-center gap-x-2 gap-y-1">
+                          <span className="font-semibold text-emerald-700">AED {checkoutAddon.discountedPrice.toLocaleString()}</span>
+                          <span className="text-xs line-through text-gray-400">AED {checkoutAddon.basePrice.toLocaleString()}</span>
+                          <span className="text-[11px] px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-700 font-semibold">
+                            {checkoutAddon.discountPercent}% OFF
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleAddCheckoutAddon}
+                      disabled={addingCheckoutAddon}
+                      className="w-full sm:w-auto px-4 py-2 rounded-md bg-emerald-600 hover:bg-emerald-700 text-white text-sm font-semibold disabled:opacity-60"
+                    >
+                      {addingCheckoutAddon ? 'Adding...' : 'Add to order'}
+                    </button>
+                  </div>
+                </div>
+              )}
+
               {hasStockIssues && (
                 <div className="mb-4 bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm">
                   Unable to place order for: {stockIssues.map((issue) => issue.name).join(', ')}. Please reduce quantity or remove unavailable items.
@@ -2168,13 +2350,14 @@ export default function CheckoutPage() {
 
               <div className="flex flex-col gap-2 mb-4">
                 {/* Credit Card Option */}
-                <label className="flex items-center gap-3 p-4 border-2 rounded-lg transition-all cursor-pointer border-gray-200 hover:border-blue-400 hover:bg-blue-50/30 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50">
+                <label className={`flex items-center gap-3 p-4 border-2 rounded-lg transition-all ${!actuallyOnlineDisabledForOrder ? 'cursor-pointer border-gray-200 hover:border-blue-400 hover:bg-blue-50/30 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50' : 'opacity-60 cursor-not-allowed border-gray-200 bg-gray-50'}`}>
                   <input
                     type="radio"
                     name="payment"
                     value="card"
                     checked={form.payment === 'card'}
                     onChange={handleChange}
+                    disabled={actuallyOnlineDisabledForOrder}
                     className="accent-blue-600 w-5 h-5"
                   />
                   <div className="flex-1 flex items-center justify-between">
@@ -2198,14 +2381,14 @@ export default function CheckoutPage() {
                 </label>
 
                 {/* Apple Pay Option */}
-                <label className={`flex items-center gap-3 p-4 border-2 rounded-lg transition-all ${walletSupport.applePay ? 'cursor-pointer border-gray-200 hover:border-blue-400 hover:bg-blue-50/30 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50' : 'opacity-60 cursor-not-allowed border-gray-200 bg-gray-50'}`}>
+                <label className={`flex items-center gap-3 p-4 border-2 rounded-lg transition-all ${(walletSupport.applePay && !actuallyOnlineDisabledForOrder) ? 'cursor-pointer border-gray-200 hover:border-blue-400 hover:bg-blue-50/30 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50' : 'opacity-60 cursor-not-allowed border-gray-200 bg-gray-50'}`}>
                   <input
                     type="radio"
                     name="payment"
                     value="applepay"
                     checked={form.payment === 'applepay'}
                     onChange={handleChange}
-                    disabled={!walletSupport.applePay}
+                    disabled={!walletSupport.applePay || actuallyOnlineDisabledForOrder}
                     className="accent-blue-600 w-5 h-5"
                   />
                   <div className="flex-1 flex items-center justify-between">
@@ -2220,14 +2403,14 @@ export default function CheckoutPage() {
                 </label>
 
                 {/* Google Pay Option */}
-                <label className={`flex items-center gap-3 p-4 border-2 rounded-lg transition-all ${walletSupport.googlePay ? 'cursor-pointer border-gray-200 hover:border-blue-400 hover:bg-blue-50/30 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50' : 'opacity-60 cursor-not-allowed border-gray-200 bg-gray-50'}`}>
+                <label className={`flex items-center gap-3 p-4 border-2 rounded-lg transition-all ${(walletSupport.googlePay && !actuallyOnlineDisabledForOrder) ? 'cursor-pointer border-gray-200 hover:border-blue-400 hover:bg-blue-50/30 has-[:checked]:border-blue-500 has-[:checked]:bg-blue-50' : 'opacity-60 cursor-not-allowed border-gray-200 bg-gray-50'}`}>
                   <input
                     type="radio"
                     name="payment"
                     value="googlepay"
                     checked={form.payment === 'googlepay'}
                     onChange={handleChange}
-                    disabled={!walletSupport.googlePay}
+                    disabled={!walletSupport.googlePay || actuallyOnlineDisabledForOrder}
                     className="accent-blue-600 w-5 h-5"
                   />
                   <div className="flex-1 flex items-center justify-between">
@@ -2245,7 +2428,7 @@ export default function CheckoutPage() {
                 {!hasPersonalizedOfferItem && (() => {
                   const maxCODAmount = shippingSetting?.maxCODAmount || 0;
                   const remainingAmount = total;
-                  const isCODDisabled = shippingSetting?.enableCOD === false || 
+                  const isCODDisabled = isCODDisabledForOrder || shippingSetting?.enableCOD === false || 
                     (maxCODAmount > 0 && remainingAmount > maxCODAmount);
                   
                   return (
@@ -2273,7 +2456,10 @@ export default function CheckoutPage() {
                             <div className="text-xs text-gray-600">Pay when you receive</div>
                           </div>
                         </div>
-                        {isCODDisabled && maxCODAmount > 0 && remainingAmount > maxCODAmount && (
+                        {isCODDisabled && hasProductWithCODDisabled && (
+                          <span className="text-xs text-red-600 ml-8">Not available for some products in cart</span>
+                        )}
+                      {isCODDisabled && !hasProductWithCODDisabled && maxCODAmount > 0 && remainingAmount > maxCODAmount && (
                           <span className="text-xs text-red-600 ml-8">Max limit AED{maxCODAmount}</span>
                         )}
                       </div>
@@ -2281,6 +2467,14 @@ export default function CheckoutPage() {
                   );
                 })()}
               </div>
+
+              {bothDisabledForOrder && problematicProducts.length > 0 && (
+                <div className="mb-4 text-sm text-red-700 bg-red-50 border border-red-200 rounded-lg p-3">
+                  <strong>⚠️ Product Configuration Error:</strong> 
+                  {problematicProducts.map(p => p.name).join(', ')} have both COD and online payments disabled. 
+                  Online payment has been temporarily enabled as a fallback. Please contact seller to fix product settings.
+                </div>
+              )}
 
               {hasPersonalizedOfferItem && (
                 <div className="mb-4 text-sm text-amber-700 bg-amber-50 border border-amber-200 rounded-lg p-3">

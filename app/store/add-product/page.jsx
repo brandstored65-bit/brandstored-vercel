@@ -89,11 +89,12 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
         const [isSlugManuallyEdited, setIsSlugManuallyEdited] = useState(false);
         const [images, setImages] = useState({ "1": null, "2": null, "3": null, "4": null, "5": null, "6": null, "7": null, "8": null });
         const [productInfo, setProductInfo] = useState({
-            name: '', slug: '', brand: '', shortDescription: '', description: '', AED: '', price: '', category: '', sku: '', stockQuantity: '', colors: [], sizes: [], fastDelivery: false, freeShippingEligible: false, allowReturn: true, allowReplacement: true, reviews: [], badges: [], imageAspectRatio: '1:1', tags: [], deliveredBy: '', soldBy: '', paymentInfo: ''
+            name: '', slug: '', brand: '', shortDescription: '', description: '', AED: '', price: '', category: '', sku: '', stockQuantity: '', colors: [], sizes: [], fastDelivery: false, freeShippingEligible: false, allowReturn: true, allowReplacement: true, reviews: [], badges: [], imageAspectRatio: '1:1', tags: [], deliveredBy: '', soldBy: '', paymentInfo: '', codEnabled: true, onlinePaymentEnabled: true
         });
         const [tagInput, setTagInput] = useState('');
         const [loading, setLoading] = useState(false);
         const [reviewInput, setReviewInput] = useState({ name: '', rating: 5, comment: '', image: null });
+        const [descriptionMode, setDescriptionMode] = useState('visual');
         const aspectRatioOptions = ['1:1', '4:5', '3:4', '16:9'];
         const [hasVariants, setHasVariants] = useState(false);
         const [bulkOptions, setBulkOptions] = useState([]);
@@ -314,6 +315,15 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
         }
     }, [product?.description, editor])
 
+    useEffect(() => {
+        if (!editor || descriptionMode !== 'visual') return
+
+        const nextContent = productInfo.description || ''
+        if (editor.getHTML() !== nextContent) {
+            editor.commands.setContent(nextContent || '<p></p>', false)
+        }
+    }, [descriptionMode, editor, productInfo.description])
+
     // Prefill form when editing
     useEffect(() => {
         if (product && !isFormInitialized) {
@@ -335,6 +345,8 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                 freeShippingEligible: product.freeShippingEligible || false,
                 allowReturn: product.allowReturn !== undefined ? product.allowReturn : true,
                 allowReplacement: product.allowReplacement !== undefined ? product.allowReplacement : true,
+                codEnabled: product.codEnabled !== undefined ? product.codEnabled : true,
+                onlinePaymentEnabled: product.onlinePaymentEnabled !== undefined ? product.onlinePaymentEnabled : true,
                 reviews: product.reviews || [],
                 badges: product.attributes?.badges || [],
                 imageAspectRatio: product.imageAspectRatio || '1:1',
@@ -740,6 +752,14 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                             <input type="checkbox" checked={productInfo.allowReplacement} onChange={(e)=> setProductInfo(p=>({...p, allowReplacement: e.target.checked}))} className="accent-pink-500" />
                             <span className="text-sm font-medium text-pink-700">Allow Replacement (7 days after delivery)</span>
                         </label>
+                        <label className="inline-flex items-center gap-2">
+                            <input type="checkbox" checked={productInfo.codEnabled} onChange={(e)=> setProductInfo(p=>({...p, codEnabled: e.target.checked}))} className="accent-yellow-500" />
+                            <span className="text-sm font-medium text-yellow-700">Enable Cash On Delivery (COD)</span>
+                        </label>
+                        <label className="inline-flex items-center gap-2">
+                            <input type="checkbox" checked={productInfo.onlinePaymentEnabled} onChange={(e)=> setProductInfo(p=>({...p, onlinePaymentEnabled: e.target.checked}))} className="accent-indigo-500" />
+                            <span className="text-sm font-medium text-indigo-700">Enable Online Payments (Card/Wallet)</span>
+                        </label>
                     </div>
                   </div>
                 </div>
@@ -856,8 +876,39 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                 </div>
 
                 <div>
-                    <label className="block text-sm font-medium mb-1">Description (Rich Text)</label>
+                    <div className="flex items-center justify-between gap-3 mb-1">
+                        <label className="block text-sm font-medium">Description</label>
+                        <div className="inline-flex rounded-lg border border-gray-200 p-1 bg-gray-50">
+                            <button
+                                type="button"
+                                onClick={() => setDescriptionMode('visual')}
+                                className={`px-3 py-1.5 rounded text-xs font-semibold transition ${
+                                    descriptionMode === 'visual'
+                                        ? 'bg-blue-600 text-white'
+                                        : 'text-gray-600 hover:bg-white'
+                                }`}
+                            >
+                                Visual
+                            </button>
+                            <button
+                                type="button"
+                                onClick={() => setDescriptionMode('html')}
+                                className={`px-3 py-1.5 rounded text-xs font-semibold transition ${
+                                    descriptionMode === 'html'
+                                        ? 'bg-slate-900 text-white'
+                                        : 'text-gray-600 hover:bg-white'
+                                }`}
+                            >
+                                HTML
+                            </button>
+                        </div>
+                    </div>
+                    <p className="text-xs text-gray-500 mb-3">
+                        Use Visual mode for normal editing, or HTML mode to paste raw HTML code directly.
+                    </p>
                     
+                    {descriptionMode === 'visual' ? (
+                        <>
                     {/* Toolbar */}
                     <div className="border border-gray-300 rounded-t bg-white p-3 flex flex-wrap gap-1.5 shadow-sm">
                         <button type="button" onClick={() => editor?.chain().focus().toggleBold().run()} className={`px-3 py-1.5 rounded text-sm font-medium transition-all ${editor?.isActive('bold') ? 'bg-blue-600 text-white shadow' : 'bg-gray-100 hover:bg-gray-200'}`} title="Bold"><strong>B</strong></button>
@@ -965,6 +1016,16 @@ export default function ProductForm({ product = null, onClose, onSubmitSuccess }
                         className="border border-t-0 border-gray-300 rounded-b bg-white p-4 min-h-[250px] max-h-[500px] overflow-y-auto prose prose-slate max-w-none focus-within:ring-2 focus-within:ring-blue-500 focus-within:border-blue-500 transition-all [&_video]:max-w-full [&_video]:rounded [&_video]:my-4 [&_img]:max-w-full [&_img]:rounded [&_img]:my-2"
                     />
                     <p className="text-xs text-gray-500 mt-1">💡 You can upload images and videos (max 50MB) directly into the description</p>
+                        </>
+                    ) : (
+                        <textarea
+                            value={productInfo.description}
+                            onChange={(e) => setProductInfo(prev => ({ ...prev, description: e.target.value }))}
+                            className="w-full min-h-[320px] rounded-lg border border-gray-300 bg-white p-4 font-mono text-sm text-gray-800 focus:outline-none focus:ring-2 focus:ring-slate-900 focus:border-slate-900"
+                            placeholder="Paste raw HTML here, for example: <h2>Product Details</h2><p>Your content...</p>"
+                            spellCheck={false}
+                        />
+                    )}
                 </div>
 
                 {/* Images */}

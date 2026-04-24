@@ -1,6 +1,6 @@
 import mongoose from "mongoose";
 
-const ProductSchema = new mongoose.Schema({
+const productSchemaDefinition = {
   name: String,
   slug: { type: String, unique: true },
   description: String,
@@ -23,6 +23,9 @@ const ProductSchema = new mongoose.Schema({
   freeShippingEligible: { type: Boolean, default: false },
   allowReturn: { type: Boolean, default: true },
   allowReplacement: { type: Boolean, default: true },
+  // Payment options per-product
+  codEnabled: { type: Boolean, default: true }, // allow Cash On Delivery for this product
+  onlinePaymentEnabled: { type: Boolean, default: true }, // allow online payments (card/stripe/razorpay)
   imageAspectRatio: { type: String, default: '1:1' },
   storeId: String,
   tags: { type: [String], default: [] },
@@ -31,7 +34,16 @@ const ProductSchema = new mongoose.Schema({
   fbtProductIds: { type: [String], default: [] },
   fbtBundlePrice: { type: Number, default: null },
   fbtBundleDiscount: { type: Number, default: null },
-}, { timestamps: true });
+  // Checkout offer fields (separate from FBT)
+  enableCheckoutOffer: { type: Boolean, default: false },
+  checkoutOfferProductId: { type: String, default: '' },
+  checkoutOfferDiscountPercent: { type: Number, default: null },
+  // Dummy countdown timer for product page urgency display
+  enableDummyCountdown: { type: Boolean, default: false },
+  dummyCountdownMinutes: { type: Number, default: 30 },
+};
+
+const ProductSchema = new mongoose.Schema(productSchemaDefinition, { timestamps: true });
 
 // Add indexes for better query performance
 ProductSchema.index({ inStock: 1, createdAt: -1 });
@@ -41,4 +53,16 @@ ProductSchema.index({ price: 1, AED: 1 }); // For discount calculations and pric
 ProductSchema.index({ tags: 1, inStock: 1 }); // For tag-based filtering
 ProductSchema.index({ fastDelivery: 1, inStock: 1 }); // For fast delivery filter
 
-export default mongoose.models.Product || mongoose.model("Product", ProductSchema);
+const existingProductModel = mongoose.models.Product;
+
+if (existingProductModel) {
+  const missingFields = Object.fromEntries(
+    Object.entries(productSchemaDefinition).filter(([fieldName]) => !existingProductModel.schema.path(fieldName))
+  );
+
+  if (Object.keys(missingFields).length > 0) {
+    existingProductModel.schema.add(missingFields);
+  }
+}
+
+export default existingProductModel || mongoose.model("Product", ProductSchema);
