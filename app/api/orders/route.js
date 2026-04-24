@@ -687,32 +687,35 @@ export async function POST(request) {
             // Allocate a sequential, unique displayOrderNumber (starts at 55253)
             let counter;
             try {
-                counter = await Counter.findOneAndUpdate(
-                    { _id: 'order' },
-                    { $inc: { seq: 1 }, $setOnInsert: { seq: 55252 } },
-                    { new: true, upsert: true }
-                );
-            } catch (counterErr) {
-                console.error('Counter allocation error:', counterErr?.message || counterErr);
-                // Attempt to repair inconsistent counter document shape (e.g., seq is an object/array)
-                try {
-                    const existing = await Counter.findById('order').lean();
-                    console.error('Existing counter document for repair check:', existing);
-                    if (!existing || typeof existing.seq !== 'number') {
-                        // Reset to a safe base so next increment produces 55253
-                        await Counter.findOneAndUpdate(
-                            { _id: 'order' },
-                            { $set: { seq: 55252 } },
-                            { upsert: true }
-                        );
-                        counter = await Counter.findById('order');
-                    } else {
-                        throw counterErr;
-                    }
-                } catch (repairErr) {
-                    console.error('Failed to repair Counter document:', repairErr);
-                    throw repairErr;
+                // First, check if counter exists and has valid seq field
+                const existing = await Counter.findById('order').lean();
+                
+                if (!existing) {
+                    // Create new counter with initial value
+                    counter = await Counter.findOneAndUpdate(
+                        { _id: 'order' },
+                        { seq: 55253 },
+                        { new: true, upsert: true }
+                    );
+                } else if (typeof existing.seq !== 'number') {
+                    // Counter exists but seq is corrupted, reset it
+                    console.warn('Counter seq field corrupted, resetting:', existing);
+                    counter = await Counter.findByIdAndUpdate(
+                        'order',
+                        { seq: 55253 },
+                        { new: true }
+                    );
+                } else {
+                    // Counter exists with valid seq, increment it
+                    counter = await Counter.findByIdAndUpdate(
+                        'order',
+                        { $inc: { seq: 1 } },
+                        { new: true }
+                    );
                 }
+            } catch (counterErr) {
+                console.error('Fatal counter allocation error:', counterErr?.message || counterErr);
+                throw counterErr;
             }
             orderData.displayOrderNumber = counter.seq;
 
